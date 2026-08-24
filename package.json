@@ -1,7 +1,7 @@
 {
   "name": "sowee",
   "private": true,
-  "description": "Sowee — compliant invoice financing on Hedera",
+  "description": "Sowee \u2014 compliant invoice financing on Hedera",
   "license": "Apache-2.0",
   "author": "Sowee Finance",
   "homepage": "https://github.com/sowee-finance/sowee#readme",
@@ -9,7 +9,7 @@
     "type": "git",
     "url": "git+https://github.com/sowee-finance/sowee.git"
   },
-  "packageManager": "pnpm@10.20.0",
+  "packageManager": "pnpm@11.23.0",
   "engines": {
     "node": ">=20.19.0",
     "pnpm": ">=10"
@@ -26,10 +26,5 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.10"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
   }
 }
