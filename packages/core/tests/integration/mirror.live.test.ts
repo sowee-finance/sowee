@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HEDERA_TESTNET, MirrorNodeClient, USDC_TESTNET } from "../../src/index.js";
+import { HEDERA_TESTNET, MirrorNodeClient, SOWEE_TESTNET, USDC_TESTNET } from "../../src/index.js";
 
 /**
  * Live read-only tests against the public Hedera testnet mirror node.
@@ -28,6 +28,13 @@ describe.skipIf(!reachable)("mirror node (live testnet)", () => {
     const account = await client.getAccount(info.treasury_account_id as string);
     expect(account.account).toBe(info.treasury_account_id);
     expect(account.evm_address).toMatch(/^0x[0-9a-f]{40}$/);
+  });
+
+  it("resolves the deployed Sowee protocol contracts", async () => {
+    const oracle = await client.getContract(SOWEE_TESTNET.discountOracle);
+    expect(oracle.contract_id).toBe(SOWEE_TESTNET.discountOracleId);
+    const market = await client.getContract(SOWEE_TESTNET.invoiceMarket);
+    expect(market.contract_id).toBe(SOWEE_TESTNET.invoiceMarketId);
   });
 
   it("paginates token balances", async () => {

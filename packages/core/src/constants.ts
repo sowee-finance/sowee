@@ -25,6 +25,23 @@ export const ATS_TESTNET = {
   contractsVersion: "8.0.0",
 } as const;
 
+/**
+ * Sowee protocol deployment on Hedera testnet — proxy (stable) addresses only.
+ * All contracts are Sourcify-verified (exact match); implementations are
+ * intentionally omitted: nothing should ever call an implementation directly.
+ */
+export const SOWEE_TESTNET = {
+  /** EIP-712 verifying contract for discount quotes. */
+  discountOracle: "0xD8ceb338Da5d19B29075903Fb78B469E46Ba1957" as Address,
+  discountOracleId: "0.0.10205670",
+  invoiceMarket: "0xc284Ea6dF1979B2BbE8c67484505Ce0C2e6f264a" as Address,
+  invoiceMarketId: "0.0.10205673",
+  maturitySettlement: "0xE015c2BC2870c2B5f6039946d306C9E013390426" as Address,
+  maturitySettlementId: "0.0.10205676",
+  pegGuard: "0x6732E93b91d1F4de0a38B3F8F2d4B889E26c6773" as Address,
+  pegGuardId: "0.0.10205678",
+} as const;
+
 /** Hedera Schedule Service system contract address (0x16b). */
 export const HSS_SYSTEM_CONTRACT: Address = "0x000000000000000000000000000000000000016b";
 
