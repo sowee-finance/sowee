@@ -35,14 +35,14 @@ export interface DemoState {
   claimTx?: Hex;
 }
 
-export function loadState(path: string): DemoState {
+export function loadState<T extends object>(path: string): Partial<T> {
   try {
-    return JSON.parse(readFileSync(path, "utf8")) as DemoState;
+    return JSON.parse(readFileSync(path, "utf8")) as Partial<T>;
   } catch {
     return {};
   }
 }
 
-export function saveState(path: string, state: DemoState): void {
+export function saveState(path: string, state: object): void {
   writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
 }
