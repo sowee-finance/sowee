@@ -1,45 +1,9 @@
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  formatUsdc,
-  HEDERA_TESTNET,
-  MirrorNodeClient,
-  SOWEE_TESTNET,
-  sha256Hex,
-  USDC_TESTNET,
-} from "@sowee/core";
-import {
-  bootstrapCompliance,
-  buildCreateInvoiceBondCall,
-  factoryAbi,
-  type PreparedCall,
-} from "@sowee/plugin-ats";
-import {
-  type Address,
-  BaseError,
-  createPublicClient,
-  createWalletClient,
-  decodeFunctionResult,
-  encodeFunctionData,
-  erc20Abi,
-  formatEther,
-  getAddress,
-  type Hex,
-  http,
-  zeroAddress,
-} from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { hederaTestnet } from "viem/chains";
-import {
-  atsExtrasAbi,
-  invoiceMarketAbi,
-  maturitySettlementAbi,
-  ROLE_CONTROL_LIST,
-  ROLE_ISSUER,
-  ROLE_KYC,
-  ROLE_SSI_MANAGER,
-} from "./abi.js";
+import { formatUsdc, SOWEE_TESTNET, sha256Hex, USDC_TESTNET } from "@sowee/core";
+import { buildCreateInvoiceBondCall, type PreparedCall } from "@sowee/plugin-ats";
+import { type Address, encodeFunctionData, formatEther, type Hex, zeroAddress } from "viem";
+import { invoiceMarketAbi, maturitySettlementAbi } from "./abi.js";
 import {
   type ApiAttestResult,
   type ApiInvoice,
@@ -48,9 +12,26 @@ import {
   isHealthy,
   postJson,
   startApi,
-  stripHexPrefix,
 } from "./api.js";
-import { loadState, saveState } from "./state.js";
+import {
+  contractLink,
+  createChainCtx,
+  ensureAllowance,
+  ensureParticipantCompliance,
+  ensureRoles,
+  ensureSsiIssuer,
+  ensureUnitsIssued,
+  erc20BalanceOf,
+  fetchDeployedBond,
+  Halt,
+  nowSeconds,
+  readWalletPk,
+  send,
+  shortError,
+  sleep,
+  topicLink,
+} from "./shared.js";
+import { type DemoState, loadState, saveState } from "./state.js";
 
 // ---------------------------------------------------------------- constants
 
@@ -67,8 +48,6 @@ const FACE_VALUE = 10_000_000n;
 const UNITS = 10n;
 /** Invoice tenor for the demo: maturity ~20 minutes out. */
 const MATURITY_MS = 20 * 60_000;
-/** Hedera per-transaction gas ceiling. */
-const MAX_GAS = 15_000_000n;
 /** HIP-719 EOA association is not estimable via the facade; fixed gas. */
 const ASSOCIATE_GAS = 900_000n;
 /** `associate()` selector on the HTS token facade (HIP-719). */
@@ -82,27 +61,13 @@ const SCHEDULE_VALUE = 3n * 10n ** 18n;
  */
 const DEMO_ISIN = "SW0WEE000004";
 
-const ENV_LINE_REGEX = /^([A-Z0-9_]+)=(.*)$/;
-
 // ------------------------------------------------------------------ context
 
-/** Clean early exit (stage checkpoint saved); not an error. */
-class Halt extends Error {}
-
 function createContext() {
-  const walletPk = readWalletPk();
-  const account = privateKeyToAccount(`0x${stripHexPrefix(walletPk)}`);
-  const transport = http(HEDERA_TESTNET.rpcUrl);
-  const pub = createPublicClient({ chain: hederaTestnet, transport });
-  const wallet = createWalletClient({ account, chain: hederaTestnet, transport });
-  const mirror = new MirrorNodeClient();
-  const state = loadState(STATE_PATH);
+  const chain = createChainCtx(readWalletPk(ROOT_DIR));
+  const state = loadState<DemoState>(STATE_PATH);
   return {
-    walletPk,
-    account,
-    pub,
-    wallet,
-    mirror,
+    ...chain,
     state,
     save(): void {
       saveState(STATE_PATH, state);
@@ -112,116 +77,11 @@ function createContext() {
 
 type Ctx = ReturnType<typeof createContext>;
 
-function readWalletPk(): string {
-  const envPath = join(ROOT_DIR, ".env");
-  for (const line of readFileSync(envPath, "utf8").split("\n")) {
-    const match = ENV_LINE_REGEX.exec(line.trim());
-    if (match?.[1] === "WALLET_PK" && match[2]) {
-      return match[2];
-    }
-  }
-  throw new Error(`WALLET_PK not found in ${envPath}`);
-}
-
 function need<T>(value: T | undefined, name: string): T {
   if (value === undefined) {
     throw new Error(`state.${name} missing — delete scripts/e2e/state.json and re-run`);
   }
   return value;
-}
-
-// ------------------------------------------------------------------ helpers
-
-const txLink = (hash: Hex): string => `${HEDERA_TESTNET.explorerUrl}/transaction/${hash}`;
-const contractLink = (address: string): string =>
-  `${HEDERA_TESTNET.explorerUrl}/contract/${address}`;
-const topicLink = (topicId: string): string => `${HEDERA_TESTNET.explorerUrl}/topic/${topicId}`;
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-const nowSeconds = (): number => Math.floor(Date.now() / 1000);
-
-function shortError(err: unknown): string {
-  if (err instanceof BaseError) {
-    return err.shortMessage;
-  }
-  return err instanceof Error ? err.message : String(err);
-}
-
-async function estimateGas(ctx: Ctx, call: PreparedCall, value?: bigint): Promise<bigint> {
-  const estimated = await ctx.pub.estimateGas({
-    account: ctx.account,
-    to: call.to,
-    data: call.data,
-    ...(value !== undefined ? { value } : {}),
-  });
-  const padded = (estimated * 120n) / 100n;
-  return padded > MAX_GAS ? MAX_GAS : padded;
-}
-
-interface SendOptions {
-  value?: bigint;
-  gas?: bigint;
-}
-
-/** Send a prepared call, wait for the receipt, and print a HashScan link. */
-async function send(
-  ctx: Ctx,
-  label: string,
-  call: PreparedCall,
-  opts: SendOptions = {},
-): Promise<Hex> {
-  const gas = opts.gas ?? (await estimateGas(ctx, call, opts.value));
-  const hash = await ctx.wallet.sendTransaction({
-    to: call.to,
-    data: call.data,
-    gas,
-    ...(opts.value !== undefined ? { value: opts.value } : {}),
-  });
-  const receipt = await ctx.pub.waitForTransactionReceipt({ hash, timeout: 180_000 });
-  if (receipt.status !== "success") {
-    throw new Error(`${label} reverted — ${txLink(hash)}`);
-  }
-  console.info(`  ok ${label}`);
-  console.info(`     ${txLink(hash)}`);
-  return hash;
-}
-
-function erc20Call(
-  token: Address,
-  functionName: "approve",
-  args: readonly [Address, bigint],
-): PreparedCall {
-  return { to: token, data: encodeFunctionData({ abi: erc20Abi, functionName, args }) };
-}
-
-async function erc20BalanceOf(ctx: Ctx, token: Address, owner: Address): Promise<bigint> {
-  return await ctx.pub.readContract({
-    address: token,
-    abi: erc20Abi,
-    functionName: "balanceOf",
-    args: [owner],
-  });
-}
-
-async function ensureAllowance(
-  ctx: Ctx,
-  token: Address,
-  spender: Address,
-  amount: bigint,
-  label: string,
-): Promise<void> {
-  const allowance = await ctx.pub.readContract({
-    address: token,
-    abi: erc20Abi,
-    functionName: "allowance",
-    args: [ctx.account.address, spender],
-  });
-  if (allowance >= amount) {
-    console.info(`  ok ${label} allowance already in place`);
-    return;
-  }
-  await send(ctx, `approve ${label}`, erc20Call(token, "approve", [spender, amount]));
 }
 
 // ----------------------------------------------------------------- stage a
@@ -341,27 +201,6 @@ async function registerApiInvoice(ctx: Ctx, dueDate: Date): Promise<ApiInvoice> 
   return invoice;
 }
 
-/** The factory returns the new diamond address; read it from the mirror node's call_result. */
-async function fetchDeployedBond(ctx: Ctx, hash: Hex): Promise<Address> {
-  for (let i = 0; i < 30; i++) {
-    await sleep(2000);
-    try {
-      const result = await ctx.mirror.get<{ call_result?: string }>(`contracts/results/${hash}`);
-      if (result.call_result && result.call_result !== "0x") {
-        const bond = decodeFunctionResult({
-          abi: factoryAbi,
-          functionName: "deployBond",
-          data: result.call_result as Hex,
-        });
-        return getAddress(bond);
-      }
-    } catch {
-      // mirror node lag — keep polling
-    }
-  }
-  throw new Error(`could not read deployBond result from mirror node for ${hash}`);
-}
-
 // ----------------------------------------------------------------- stage d
 
 async function stageCompliance(ctx: Ctx): Promise<void> {
@@ -373,122 +212,9 @@ async function stageCompliance(ctx: Ctx): Promise<void> {
   await ensureRoles(ctx, bond);
   await ensureSsiIssuer(ctx, bond);
   await ensureParticipantCompliance(ctx, bond);
-  await ensureUnitsIssued(ctx, bond);
+  await ensureUnitsIssued(ctx, bond, UNITS);
   ctx.state.complianceDone = true;
   ctx.save();
-}
-
-const SELF_ROLES = [
-  { role: ROLE_SSI_MANAGER, label: "SSI manager" },
-  { role: ROLE_KYC, label: "KYC" },
-  { role: ROLE_CONTROL_LIST, label: "control list" },
-  { role: ROLE_ISSUER, label: "issuer" },
-] as const;
-
-async function ensureRoles(ctx: Ctx, bond: Address): Promise<void> {
-  for (const { role, label } of SELF_ROLES) {
-    const has = await ctx.pub.readContract({
-      address: bond,
-      abi: atsExtrasAbi,
-      functionName: "hasRole",
-      args: [role, ctx.account.address],
-    });
-    if (has) {
-      console.info(`  ok ${label} role already granted`);
-      continue;
-    }
-    await send(ctx, `grant ${label} role to deployer`, {
-      to: bond,
-      data: encodeFunctionData({
-        abi: atsExtrasAbi,
-        functionName: "grantRole",
-        args: [role, ctx.account.address],
-      }),
-    });
-  }
-}
-
-/** grantKyc requires the KYC issuer to be on the bond's SSI issuer list (zero address is rejected). */
-async function ensureSsiIssuer(ctx: Ctx, bond: Address): Promise<void> {
-  const listed = await ctx.pub.readContract({
-    address: bond,
-    abi: atsExtrasAbi,
-    functionName: "isIssuer",
-    args: [ctx.account.address],
-  });
-  if (listed) {
-    console.info("  ok deployer already on SSI issuer list");
-    return;
-  }
-  await send(ctx, "add deployer to SSI issuer list", {
-    to: bond,
-    data: encodeFunctionData({
-      abi: atsExtrasAbi,
-      functionName: "addIssuer",
-      args: [ctx.account.address],
-    }),
-  });
-}
-
-async function ensureParticipantCompliance(ctx: Ctx, bond: Address): Promise<void> {
-  const participants: Address[] = [
-    SOWEE_TESTNET.invoiceMarket,
-    SOWEE_TESTNET.maturitySettlement,
-    ctx.account.address,
-  ];
-  // Calls come back in a documented order: grantKyc per participant, then
-  // addToControlList per participant — index into them to skip what's done.
-  const calls = bootstrapCompliance(bond, {
-    issuer: ctx.account.address,
-    kyc: { issuer: ctx.account.address },
-  });
-  for (const [i, participant] of participants.entries()) {
-    const status = await ctx.pub.readContract({
-      address: bond,
-      abi: atsExtrasAbi,
-      functionName: "getKycStatusFor",
-      args: [participant],
-    });
-    if (status !== 0) {
-      console.info(`  ok KYC already granted for ${participant}`);
-      continue;
-    }
-    await send(ctx, `grant KYC to ${participant}`, need(calls[i], `complianceCall[${i}]`));
-  }
-  for (const [i, participant] of participants.entries()) {
-    const listed = await ctx.pub.readContract({
-      address: bond,
-      abi: atsExtrasAbi,
-      functionName: "isInControlList",
-      args: [participant],
-    });
-    if (listed) {
-      console.info(`  ok control list already contains ${participant}`);
-      continue;
-    }
-    const call = need(calls[participants.length + i], `complianceCall[${participants.length + i}]`);
-    await send(ctx, `add ${participant} to control list`, call);
-  }
-}
-
-async function ensureUnitsIssued(ctx: Ctx, bond: Address): Promise<void> {
-  const supply = await ctx.pub.readContract({
-    address: bond,
-    abi: erc20Abi,
-    functionName: "totalSupply",
-  });
-  if (supply >= UNITS) {
-    console.info(`  ok ${supply} bond units already issued`);
-    return;
-  }
-  await send(ctx, `issue ${UNITS} bond units to deployer`, {
-    to: bond,
-    data: encodeFunctionData({
-      abi: atsExtrasAbi,
-      functionName: "issue",
-      args: [ctx.account.address, UNITS - supply, "0x"],
-    }),
-  });
 }
 
 // ----------------------------------------------------------------- stage e

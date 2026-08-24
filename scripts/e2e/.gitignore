@@ -1,3 +1,4 @@
 # Demo run state (resume checkpoints) and the local Go API log — machine-local, never committed.
 state.json
+seed-state.json
 api.log
