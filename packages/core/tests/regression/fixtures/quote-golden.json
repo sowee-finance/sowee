@@ -1,0 +1,19 @@
+{
+  "privateKey": "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+  "domain": {
+    "chainId": 296,
+    "verifyingContract": "0x000000000000000000000000000000000000beef"
+  },
+  "quote": {
+    "invoiceId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "faceValue": "50000000000",
+    "discountRateBps": 250,
+    "validUntil": "1790000000",
+    "nonce": "42"
+  },
+  "expected": {
+    "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "digest": "0x16779d1b35ee16701fa65d059965308c7860b999e011c210e74d83abe9b072eb",
+    "signature": "0xf914b3232c68bff6c214dc7e9b5149bbf145b8a9f45d2d348e660be9e922e4f769e2a1f9fffb53bf1a49ecbd9775fca7831de30317e201a566a03e32c8b0df9d1c"
+  }
+}
