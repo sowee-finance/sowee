@@ -1,0 +1,30 @@
+{
+  "name": "sowee",
+  "private": true,
+  "description": "Sowee — compliant invoice financing on Hedera",
+  "license": "Apache-2.0",
+  "author": "Sowee Finance",
+  "homepage": "https://github.com/sowee-finance/sowee#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sowee-finance/sowee.git"
+  },
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": ">=20.19.0",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "test:unit": "pnpm -r run test:unit",
+    "test:integration": "pnpm -r run test:integration",
+    "test:regression": "pnpm -r run test:regression",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10"
+  }
+}
