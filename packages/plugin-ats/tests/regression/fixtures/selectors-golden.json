@@ -1,0 +1,18 @@
+{
+  "deployBond": "0x29002951",
+  "grantKyc": "0x81bea54d",
+  "revokeKyc": "0x12283191",
+  "addToControlList": "0xe8204966",
+  "removeFromControlList": "0x47b52d3b",
+  "freezePartialTokens": "0x125c4a33",
+  "unfreezePartialTokens": "0x1fe56f7d",
+  "pause": "0x8456cb59",
+  "unpause": "0x3f4ba83a",
+  "takeSnapshot": "0xb3d3d37e",
+  "balanceOfAtSnapshot": "0x8e00ae2e",
+  "totalSupplyAtSnapshot": "0xda35f8f6",
+  "redeemAtMaturityByPartition": "0x8a647211",
+  "controllerTransfer": "0xf282527a",
+  "controllerRedeem": "0x2bc6acc3",
+  "forcedTransfer": "0x9fc1d0e7"
+}
