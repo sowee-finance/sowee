@@ -4,12 +4,14 @@ export const USDC_DECIMALS = 6;
 const ONE_USDC = 10n ** BigInt(USDC_DECIMALS);
 const BPS_DENOMINATOR = 10_000n;
 
+const USDC_DECIMAL_REGEX = /^(-?)(\d+)(?:\.(\d{1,6}))?$/;
+
 /**
  * Parse a decimal string like "1234.56" into USDC base units (bigint).
  * Rejects more than 6 fractional digits instead of silently rounding.
  */
 export function parseUsdc(value: string): bigint {
-  const match = /^(-?)(\d+)(?:\.(\d{1,6}))?$/.exec(value.trim());
+  const match = USDC_DECIMAL_REGEX.exec(value.trim());
   if (!match) {
     throw new Error(`Invalid USDC amount: "${value}" (max 6 decimal places)`);
   }
@@ -18,13 +20,23 @@ export function parseUsdc(value: string): bigint {
   return sign === "-" ? -units : units;
 }
 
+/** Trim trailing zeros from a digit string with a linear index scan (no regex backtracking). */
+export function trimTrailingZeros(digits: string): string {
+  let end = digits.length;
+  while (end > 0 && digits.charCodeAt(end - 1) === 48) {
+    end -= 1;
+  }
+  return digits.slice(0, end);
+}
+
 /** Format USDC base units as a decimal string, trimming trailing fractional zeros. */
 export function formatUsdc(units: bigint): string {
   const sign = units < 0n ? "-" : "";
   const abs = units < 0n ? -units : units;
   const whole = abs / ONE_USDC;
-  const fraction = (abs % ONE_USDC).toString().padStart(6, "0").replace(/0+$/, "");
-  return `${sign}${whole}${fraction ? `.${fraction}` : ""}`;
+  const fraction = trimTrailingZeros((abs % ONE_USDC).toString().padStart(6, "0"));
+  const suffix = fraction === "" ? "" : `.${fraction}`;
+  return `${sign}${whole}${suffix}`;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { MirrorNodeClient } from "@sowee/core";
+import { MirrorNodeClient, trimTrailingZeros } from "@sowee/core";
 import type { Address } from "viem";
 import { decodeFunctionResult, encodeFunctionData } from "viem";
 import { aggregatorV3Abi } from "./abi.js";
@@ -29,7 +29,7 @@ export function formatAnswer(answer: bigint, decimals: number): string {
   const abs = negative ? -answer : answer;
   const base = 10n ** BigInt(decimals);
   const whole = abs / base;
-  const frac = (abs % base).toString().padStart(decimals, "0").replace(/0+$/, "");
+  const frac = trimTrailingZeros((abs % base).toString().padStart(decimals, "0"));
   const sign = negative ? "-" : "";
   return frac.length > 0 ? `${sign}${whole}.${frac}` : `${sign}${whole}`;
 }

@@ -48,13 +48,22 @@ export const HSS_SYSTEM_CONTRACT: Address = "0x000000000000000000000000000000000
 /** Hedera Token Service system contract address (0x167). */
 export const HTS_SYSTEM_CONTRACT: Address = "0x0000000000000000000000000000000000000167";
 
+const DECIMAL_DIGITS_REGEX = /^\d+$/;
+
 /**
  * Convert a Hedera entity id (`shard.realm.num`) to its long-zero EVM address.
  * Only valid for entities without an explicit EVM alias (contracts, HTS tokens, auto accounts).
  */
+
 export function hederaIdToEvmAddress(id: string): Address {
   const [shard, realm, num, ...rest] = id.split(".");
-  if (shard !== "0" || realm !== "0" || !num || rest.length > 0 || !/^\d+$/.test(num)) {
+  if (
+    shard !== "0" ||
+    realm !== "0" ||
+    !num ||
+    rest.length > 0 ||
+    !DECIMAL_DIGITS_REGEX.test(num)
+  ) {
     throw new Error(`Unsupported Hedera id for long-zero address: ${id}`);
   }
   return `0x${BigInt(num).toString(16).padStart(40, "0")}` as Address;

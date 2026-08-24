@@ -58,6 +58,7 @@
       },
       "suspicious": {
         "noExplicitAny": "error",
+        "useAwait": "error",
         "noConsole": {
           "level": "error",
           "options": {
@@ -78,11 +79,18 @@
       "complexity": {
         "noBannedTypes": "error",
         "noUselessTypeConstraint": "error",
-        "useLiteralKeys": "error"
+        "useLiteralKeys": "error",
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": {
+            "maxAllowedComplexity": 15
+          }
+        }
       },
       "performance": {
         "noAccumulatingSpread": "error",
-        "noDelete": "error"
+        "noDelete": "error",
+        "useTopLevelRegex": "error"
       },
       "nursery": {}
     }
@@ -106,6 +114,9 @@
           "suspicious": {
             "noExplicitAny": "off",
             "noConsole": "off"
+          },
+          "performance": {
+            "useTopLevelRegex": "off"
           }
         }
       }
