@@ -47,7 +47,23 @@ pnpm --filter @sowee/e2e-demo demo
 5. At maturity the contract **settles itself** via a Hedera Schedule Service call (`0x16b`); holders claim pro-rata USDC by surrendering units.
 6. Every lifecycle event is anchored to **HCS** with the invoice document's sha256 — double-pledging the same invoice is publicly detectable.
 
-Control-by-control enforcement details: [COMPLIANCE.md](COMPLIANCE.md).
+## Compliance
+
+Where each control is enforced and what happens when it triggers:
+
+| Control | Enforced at | When triggered |
+|---|---|---|
+| KYC / investor eligibility | ATS bond (token layer, allowlist mode) | Any transfer to a non-KYC'd wallet reverts — including fills routed through the market |
+| Dispute freeze / emergency halt | ATS partial freeze & pause facets | Frozen units can't move; pause stops all token ops |
+| Court-ordered recovery | ERC-1644 controller ops / ERC-3643 `forcedTransfer` | Controller moves units without holder signature |
+| Priced-funding integrity | `DiscountOracle` (EIP-712, nonce + expiry) | Expired/replayed/unsigned quotes revert listing |
+| Settlement-asset integrity | `PegGuard` on Chainlink USDC/USD | New funding blocked on >100 bps depeg or stale feed — exits are never blocked |
+| Guaranteed exit | Market & settlement design | Cancels work while paused; claims are pull-based and unguarded |
+| Deterministic payout | Surrender-based claims | `repayment × units / supply`; double-claims impossible by construction |
+| Upgrade governance | UUPS + two-step ownership | Non-owner upgrades revert; ownership transfers must be accepted |
+| Audit trail & anti-double-pledge | HCS topic + API docHash guard | Duplicate invoice hash rejected (409) and publicly detectable on the topic |
+
+Documented but deliberately not enabled on testnet: multisig owner (Safe or Hedera threshold-key account) and a timelock on upgrades — migration is one ownership transfer per contract, no code changes ([details](https://github.com/sowee-finance/contracts#security--ownership)).
 
 ## Repository layout
 
@@ -63,8 +79,6 @@ assets/     Brand assets
 ```
 
 Smart contracts live in `contracts/` but are versioned in a dedicated repository: [sowee-finance/contracts](https://github.com/sowee-finance/contracts).
-
-How compliance is enforced — token-layer KYC, freezes, audit trail, circuit breakers — is documented control-by-control in [COMPLIANCE.md](COMPLIANCE.md).
 
 ## Getting started
 
