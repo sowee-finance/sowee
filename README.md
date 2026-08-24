@@ -28,10 +28,11 @@ packages/   Publishable TypeScript packages (@sowee/*)
 apps/       Applications (not tracked in this repository)
   dapp/         Investor & issuer web app
   api/          Quote/attestation service (Go)
+contracts/  Solidity contracts — tracked by its own repository
 assets/     Brand assets
 ```
 
-Smart contracts live in a dedicated repository: [sowee-finance/contracts](https://github.com/sowee-finance/contracts).
+Smart contracts live in `contracts/` but are versioned in a dedicated repository: [sowee-finance/contracts](https://github.com/sowee-finance/contracts).
 
 ## Getting started
 

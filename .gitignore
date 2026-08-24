@@ -1,6 +1,10 @@
 # Applications are intentionally untracked — they live and deploy outside this repository.
 /apps/
 
+# Smart contracts live in this folder but are tracked by their own repository:
+# https://github.com/sowee-finance/contracts
+/contracts/
+
 # Dependencies
 node_modules/
 
