@@ -1,7 +1,7 @@
 import { SOWEE_TESTNET } from "@sowee/core";
 import type { Address } from "viem";
 import type { PreparedCall } from "../tx.js";
-import { addToControlList, grantKyc, type GrantKycOptions } from "./index.js";
+import { addToControlList, type GrantKycOptions, grantKyc } from "./index.js";
 
 /** Participants that must be compliance-enabled on a bond for Sowee to operate. */
 export interface BootstrapComplianceOptions {

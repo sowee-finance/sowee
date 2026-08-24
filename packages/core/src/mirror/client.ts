@@ -2,6 +2,8 @@ import { Buffer } from "node:buffer";
 import type { Hex } from "viem";
 import { HEDERA_TESTNET } from "../constants.js";
 
+const TRAILING_SLASH_REGEX = /\/$/;
+
 /** Narrow Mirror Node response types — only the fields Sowee uses. */
 
 export interface MirrorAccount {
@@ -85,7 +87,10 @@ export class MirrorNodeClient {
   private readonly fetchFn: typeof fetch;
 
   constructor(options: MirrorNodeClientOptions = {}) {
-    this.baseUrl = (options.baseUrl ?? HEDERA_TESTNET.mirrorNodeUrl).replace(/\/$/, "");
+    this.baseUrl = (options.baseUrl ?? HEDERA_TESTNET.mirrorNodeUrl).replace(
+      TRAILING_SLASH_REGEX,
+      "",
+    );
     this.origin = new URL(this.baseUrl).origin;
     this.fetchFn = options.fetch ?? fetch;
   }
