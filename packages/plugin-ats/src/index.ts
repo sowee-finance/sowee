@@ -1,5 +1,6 @@
 export * from "./abi/facets.js";
 export * from "./abi/factory.js";
+export * from "./compliance/bootstrap.js";
 export * from "./compliance/index.js";
 export * from "./constants.js";
 export * from "./factory/createInvoiceBond.js";
