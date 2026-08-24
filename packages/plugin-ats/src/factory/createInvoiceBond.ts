@@ -1,5 +1,5 @@
 import type { Address, Hash, Hex, WalletClient } from "viem";
-import { encodeFunctionData, stringToHex, zeroAddress } from "viem";
+import { encodeFunctionData, keccak256, stringToHex, zeroAddress } from "viem";
 import { factoryAbi } from "../abi/factory.js";
 import {
   ATS_FACTORY_TESTNET,
@@ -32,7 +32,8 @@ export interface CreateInvoiceBondParams {
   nominalValue?: bigint;
   /** ISO 4217 currency code (3 chars). Defaults to "USD". */
   currency?: string;
-  /** Optional ISIN. Defaults to "". */
+  /** ISIN (ISO 6166, 12 chars, checksum-valid). Defaults to `deriveIsin(invoiceId)` —
+   * the v8 factory validates ISINs and reverts `WrongISIN` on the old empty default. */
   isin?: string;
   /** Resolver configuration version. Defaults to 1n. */
   configVersion?: bigint;
@@ -41,6 +42,56 @@ export interface CreateInvoiceBondParams {
 }
 
 const ONE_USDC = 1_000_000n;
+
+/** ISO 6166 shape: 2-letter prefix, 9 alphanumerics, 1 check digit. */
+const ISIN_REGEX = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
+/** Number of distinct 9-char base-36 ISIN bodies. */
+const ISIN_BODY_SPACE = 36n ** 9n;
+
+/**
+ * ISO 6166 check digit: expand letters to two digits (A=10 … Z=35), then run Luhn over
+ * the expanded digit string. The check digit occupies the rightmost (undoubled) slot,
+ * so doubling starts at the stem's last digit.
+ */
+function isinCheckDigit(stem: string): string {
+  const digits: number[] = [];
+  for (const ch of stem) {
+    const value = Number.parseInt(ch, 36);
+    if (value >= 10) {
+      digits.push(Math.trunc(value / 10), value % 10);
+    } else {
+      digits.push(value);
+    }
+  }
+  let sum = 0;
+  let double = true;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    const term = double ? (digits[i] ?? 0) * 2 : (digits[i] ?? 0);
+    sum += term > 9 ? term - 9 : term;
+    double = !double;
+  }
+  return String((10 - (sum % 10)) % 10);
+}
+
+/** True when `isin` is a well-formed ISO 6166 ISIN with a correct Luhn check digit. */
+export function isValidIsin(isin: string): boolean {
+  return ISIN_REGEX.test(isin) && isin.slice(11) === isinCheckDigit(isin.slice(0, 11));
+}
+
+/**
+ * Derive a deterministic, checksum-valid ISIN from an invoice id: "SW" + 9 base-36 chars
+ * of keccak256(invoiceId) + the ISO 6166 check digit. The v8 ATS factory enforces ISIN
+ * validity (`WrongISIN`), so every bond needs one; the derived value is a synthetic
+ * placeholder, not an NNA-issued identifier.
+ */
+export function deriveIsin(invoiceId: Hex): string {
+  const body = (BigInt(keccak256(invoiceId)) % ISIN_BODY_SPACE)
+    .toString(36)
+    .toUpperCase()
+    .padStart(9, "0");
+  const stem = `SW${body}`;
+  return stem + isinCheckDigit(stem);
+}
 
 /**
  * Build the `deployBond` argument tuple for a zero-coupon invoice bond:
@@ -60,7 +111,7 @@ export function buildDeployBondArgs(params: CreateInvoiceBondParams) {
     decimals = 6,
     nominalValue = ONE_USDC,
     currency = "USD",
-    isin = "",
+    isin = deriveIsin(params.invoiceId),
     configVersion = 1n,
     regulationType = RegulationType.REG_S,
     regulationSubType = RegulationSubType.NONE,
@@ -76,6 +127,12 @@ export function buildDeployBondArgs(params: CreateInvoiceBondParams) {
   }
   if (maturityDate <= startingDate) {
     throw new Error("maturityDate must be after startingDate");
+  }
+  if (!isValidIsin(isin)) {
+    throw new Error(
+      `invalid ISIN "${isin}" — must be 12 chars (2 letters + 9 alphanumerics + Luhn check digit); ` +
+        "the v8 factory reverts WrongISIN otherwise. Omit it to derive one from the invoice id.",
+    );
   }
 
   const shortId = invoiceId.slice(2, 10).toUpperCase();
