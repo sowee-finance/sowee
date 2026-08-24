@@ -17,11 +17,11 @@
 
 ---
 
-Sowee turns unpaid invoices into compliant, fractional, tradable on-chain assets. Built on Hedera's [Asset Tokenization Studio](https://github.com/hashgraph/asset-tokenization-studio) (ERC-1400) with settlement in USDC, EIP-712 pull-oracle pricing, scheduled on-chain maturity settlement, and an HCS-anchored audit trail.
+Sowee takes an unpaid invoice and turns it into something an investor can actually buy: a compliant, fractional, tradable on-chain asset. The tokens come from Hedera's [Asset Tokenization Studio](https://github.com/hashgraph/asset-tokenization-studio) (ERC-1400), settlement happens in USDC, pricing goes through an EIP-712 pull oracle, maturity settlement is scheduled on-chain, and the whole audit trail is anchored to HCS.
 
 ## Live on Hedera Testnet
 
-Everything below is deployed, Sourcify-verified (exact match), and running today:
+This isn't a whitepaper. All four contracts are deployed, Sourcify-verified (exact match), and running right now:
 
 | | Address | HashScan |
 |---|---|---|
@@ -31,7 +31,7 @@ Everything below is deployed, Sourcify-verified (exact match), and running today
 | PegGuard (Chainlink USDC/USD) | `0x6732E93b91d1F4de0a38B3F8F2d4B889E26c6773` | [`0.0.10205678`](https://hashscan.io/testnet/contract/0.0.10205678) |
 | HCS audit-trail topic | — | [`0.0.10206435`](https://hashscan.io/testnet/topic/0.0.10206435) |
 
-Run the whole lifecycle yourself — issuance → compliance → funding → trading → scheduled settlement — with the stage-aware demo:
+Want to see it work? The stage-aware demo runs the full lifecycle (issuance, compliance, funding, trading, scheduled settlement) against those live contracts:
 
 ```bash
 export WALLET_PK=0x...   # funded Hedera testnet ECDSA key
@@ -40,16 +40,16 @@ pnpm --filter @sowee/e2e-demo demo
 
 ## How it works
 
-1. An issuer tokenizes an unpaid invoice as a **zero-coupon ATS bond** (ERC-1400 diamond, KYC allowlist on) via the pre-deployed testnet factory.
-2. `bootstrapCompliance` makes the bond fund-ready in one call list: role grants, SSI issuer, KYC for the protocol contracts and participants.
-3. The Go API signs an **EIP-712 discount quote** (`SoweeDiscountOracle/1/296`); `InvoiceMarket.listInvoice` verifies it on-chain through the DiscountOracle — a pull oracle in miniature.
-4. Investors fund in **USDC** at the discounted price; a **Chainlink peg guard** blocks new funding on depeg/stale data (exits are never blocked). Before maturity, units trade on the compliant secondary market — transfers revert at the token layer for non-KYC'd wallets.
-5. At maturity the contract **settles itself** via a Hedera Schedule Service call (`0x16b`); holders claim pro-rata USDC by surrendering units.
-6. Every lifecycle event is anchored to **HCS** with the invoice document's sha256 — double-pledging the same invoice is publicly detectable.
+1. I issue the invoice as a zero-coupon ATS bond: an ERC-1400 diamond with the KYC allowlist switched on, deployed through the factory that already lives on testnet.
+2. `bootstrapCompliance` then makes the fresh bond fund-ready in one call list: role grants, SSI issuer registration, and KYC for the protocol contracts and every participant. Skip any of that and transfers just revert, which is why it's a single batch.
+3. The Go API signs an EIP-712 discount quote under `SoweeDiscountOracle/1/296`. When the issuer calls `InvoiceMarket.listInvoice`, the quote gets verified on-chain by the DiscountOracle. A pull oracle in miniature.
+4. Investors fund in USDC at the discounted price. A Chainlink peg guard blocks new funding on a depeg or stale feed data; exits are never blocked. Until maturity, units trade on the compliant secondary market, and a transfer to a non-KYC'd wallet reverts at the token layer, even when the fill routes through the market.
+5. At maturity the contract settles itself via a Hedera Schedule Service call (`0x16b`). Holders surrender their units and claim pro-rata USDC.
+6. Every lifecycle event lands on HCS together with the invoice document's sha256, so pledging the same invoice twice is publicly detectable.
 
 ## Compliance
 
-Where each control is enforced and what happens when it triggers:
+Where each control is enforced, and what actually happens when it fires:
 
 | Control | Enforced at | When triggered |
 |---|---|---|
@@ -63,7 +63,7 @@ Where each control is enforced and what happens when it triggers:
 | Upgrade governance | UUPS + two-step ownership | Non-owner upgrades revert; ownership transfers must be accepted |
 | Audit trail & anti-double-pledge | HCS topic + API docHash guard | Duplicate invoice hash rejected (409) and publicly detectable on the topic |
 
-Documented but deliberately not enabled on testnet: multisig owner (Safe or Hedera threshold-key account) and a timelock on upgrades — migration is one ownership transfer per contract, no code changes ([details](https://github.com/sowee-finance/contracts#security--ownership)).
+Two things are documented but deliberately not enabled on testnet: a multisig owner (Safe or a Hedera threshold-key account) and a timelock on upgrades. Migrating to either is one ownership transfer per contract, no code changes ([details](https://github.com/sowee-finance/contracts#security--ownership)).
 
 ## Repository layout
 
@@ -78,7 +78,7 @@ contracts/  Solidity contracts — tracked by its own repository
 assets/     Brand assets
 ```
 
-Smart contracts live in `contracts/` but are versioned in a dedicated repository: [sowee-finance/contracts](https://github.com/sowee-finance/contracts).
+The Solidity lives in `contracts/` but is versioned in its own repository: [sowee-finance/contracts](https://github.com/sowee-finance/contracts).
 
 ## Getting started
 
@@ -89,7 +89,7 @@ pnpm test
 pnpm lint
 ```
 
-Requires Node ≥ 20.19 and pnpm ≥ 10.
+You'll need Node ≥ 20.19 and pnpm ≥ 10.
 
 ## License
 
