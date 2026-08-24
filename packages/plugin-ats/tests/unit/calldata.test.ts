@@ -3,6 +3,7 @@ import { decodeFunctionData } from "viem";
 import { describe, expect, it } from "vitest";
 import {
   ATS_FACTORY_TESTNET,
+  addIssuer,
   addToControlList,
   buildCreateInvoiceBondCall,
   buildDeployBondArgs,
@@ -12,10 +13,15 @@ import {
   forcedTransfer,
   freezePartialTokens,
   grantKyc,
+  grantRole,
+  issueUnits,
   pause,
+  ROLE_KYC,
   redeemAtMaturity,
   removeFromControlList,
+  removeIssuer,
   revokeKyc,
+  revokeRole,
   takeSnapshot,
   unfreezePartialTokens,
   unpause,
@@ -38,10 +44,15 @@ const bondParams: CreateInvoiceBondParams = {
 describe("calldata golden fixtures", () => {
   const calls: Record<string, { to: Address; data: Hex }> = {
     deployBond: buildCreateInvoiceBondCall(bondParams),
-    grantKyc: grantKyc(token, alice),
+    grantKyc: grantKyc(token, alice, { issuer: bob }),
     revokeKyc: revokeKyc(token, alice),
     addToControlList: addToControlList(token, alice),
     removeFromControlList: removeFromControlList(token, alice),
+    grantRole: grantRole(token, ROLE_KYC, alice),
+    revokeRole: revokeRole(token, ROLE_KYC, alice),
+    addIssuer: addIssuer(token, alice),
+    removeIssuer: removeIssuer(token, alice),
+    issueUnits: issueUnits(token, alice, 10n),
     freezePartialTokens: freezePartialTokens(token, alice, 1_000_000n),
     unfreezePartialTokens: unfreezePartialTokens(token, alice, 1_000_000n),
     pause: pause(token),
@@ -99,11 +110,19 @@ describe("buildDeployBondArgs semantics", () => {
     expect(decoded.args[0].security.rbacs[0]?.members.map((m) => m.toLowerCase())).toEqual([alice]);
   });
 
-  it("rejects dust and inverted dates", () => {
+  it("defaults to a derived checksum-valid ISIN and honors explicit overrides", () => {
+    expect(bondData.security.erc20MetadataInfo.isin).toBe("SWCRT7U2VND4");
+    const [overridden] = buildDeployBondArgs({ ...bondParams, isin: "SW0WEE000004" });
+    expect(overridden.security.erc20MetadataInfo.isin).toBe("SW0WEE000004");
+  });
+
+  it("rejects dust, inverted dates and invalid ISINs", () => {
     expect(() => buildDeployBondArgs({ ...bondParams, faceValue: 1_000_001n })).toThrow(
       /divisible/,
     );
     expect(() => buildDeployBondArgs({ ...bondParams, maturityDate: 1n })).toThrow(/maturity/);
     expect(() => buildDeployBondArgs({ ...bondParams, faceValue: 0n })).toThrow(/positive/);
+    expect(() => buildDeployBondArgs({ ...bondParams, isin: "" })).toThrow(/ISIN/);
+    expect(() => buildDeployBondArgs({ ...bondParams, isin: "SW0WEE000005" })).toThrow(/ISIN/);
   });
 });
