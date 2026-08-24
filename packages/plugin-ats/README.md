@@ -1,14 +1,14 @@
 # @sowee/plugin-ats
 
-[Sowee](https://github.com/sowee-finance/sowee) plugin for the [Hedera Asset Tokenization Studio](https://github.com/hashgraph/asset-tokenization-studio): tokenize invoices as zero-coupon security bonds and drive their compliance and lifecycle.
+The [Sowee](https://github.com/sowee-finance/sowee) plugin for the [Hedera Asset Tokenization Studio](https://github.com/hashgraph/asset-tokenization-studio). It tokenizes invoices as zero-coupon security bonds and drives their compliance and lifecycle. Aligned with `@hashgraph/asset-tokenization-contracts` v8.0.0 and the pre-deployed testnet Factory `0.0.9213391` / Resolver `0.0.9212226`; the minimal ABI fragments it needs are vendored from the v8 hardhat artifacts (see `src/abi/`), so there's no dependency on the full contracts package.
 
-Aligned with `@hashgraph/asset-tokenization-contracts` **v8.0.0** and the pre-deployed testnet Factory `0.0.9213391` / Resolver `0.0.9212226`. Minimal ABI fragments are vendored from the v8 hardhat artifacts (see `src/abi/`).
+Issuance goes through `createInvoiceBond`, which builds the real v8 `Factory.deployBond` call for an invoice: zero-coupon bond, name and symbol derived from the invoice id, allowlist and internal KYC on, controllable, `maxSupply = faceValue / nominalValue`. The factory insists on ISO 6166 ISINs, so unless you pass one explicitly, a deterministic checksum-valid ISIN gets derived from the invoice id (`deriveIsin` / `isValidIsin`). You can grab the prepared call with `buildCreateInvoiceBondCall` or just execute it with a wallet client.
 
-- **factory** — `createInvoiceBond`: builds the real v8 `Factory.deployBond` call for an invoice (zero-coupon bond, name/symbol derived from the invoice id, allowlist + internal KYC on, controllable, `maxSupply = faceValue / nominalValue`). The factory enforces ISO 6166 ISINs, so a deterministic checksum-valid ISIN is derived from the invoice id (`deriveIsin` / `isValidIsin`) unless one is passed explicitly. Available as a prepared call builder (`buildCreateInvoiceBondCall`) and an `execute(walletClient)` helper.
-- **compliance** — `grantRole` / `revokeRole` (with the `ROLE_*` id constants), `addIssuer` / `removeIssuer` (SSI issuer list), `grantKyc` / `revokeKyc`, `addToControlList` / `removeFromControlList`, `issueUnits` (ERC-1594 mint), `freezePartialTokens` / `unfreezePartialTokens`, `pause` / `unpause` — thin typed wrappers around the diamond's facet ABIs. `bootstrapCompliance` batches the whole fresh-bond sequence.
-- **lifecycle** — `takeSnapshot`, `balanceOfAtSnapshot` / `totalSupplyAtSnapshot` (read-only via the mirror node), `redeemAtMaturity`, `controllerTransfer` / `controllerRedeem` / `forcedTransfer`.
+Compliance is thin typed wrappers around the diamond's facet ABIs: `grantRole` / `revokeRole` (with the `ROLE_*` id constants), `addIssuer` / `removeIssuer` for the SSI issuer list, `grantKyc` / `revokeKyc`, `addToControlList` / `removeFromControlList`, `issueUnits` (the ERC-1594 mint), `freezePartialTokens` / `unfreezePartialTokens`, and `pause` / `unpause`. Getting a fresh bond into a fund-ready state takes a specific sequence of these, and `bootstrapCompliance` batches the whole thing so you can't half-do it.
 
-Every write wrapper returns a `PreparedCall { to, data }` you can send with any signer; `sendCall(walletClient, call)` executes it with viem.
+Lifecycle covers `takeSnapshot`, `balanceOfAtSnapshot` / `totalSupplyAtSnapshot` (read-only via the mirror node), `redeemAtMaturity`, and the controller ops `controllerTransfer` / `controllerRedeem` / `forcedTransfer`.
+
+Every write wrapper returns a `PreparedCall { to, data }` you can send with any signer you like; `sendCall(walletClient, call)` executes it with viem.
 
 ## Install
 
@@ -44,6 +44,8 @@ for (const call of bootstrapCompliance(bond, { issuer: admin, selfSetup: { admin
 // 3. Mint: issue bond units to the (now compliant) issuer wallet.
 await sendCall(walletClient, issueUnits(bond, admin, 50_000n));
 ```
+
+Part of the [Sowee monorepo](https://github.com/sowee-finance/sowee).
 
 ## License
 
