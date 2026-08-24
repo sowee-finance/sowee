@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sowee-finance/sowee/actions"><img src="https://img.shields.io/badge/CI-pending-lightgrey" alt="CI" /></a>
+  <a href="https://github.com/sowee-finance/sowee/actions/workflows/ci.yml"><img src="https://github.com/sowee-finance/sowee/actions/workflows/ci.yml/badge.svg?branch=dev" alt="CI" /></a>
   <img src="https://img.shields.io/badge/network-Hedera%20Testnet-8259ef" alt="Hedera Testnet" />
   <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" />
 </p>
