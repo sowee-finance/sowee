@@ -95,6 +95,111 @@ export const controlListFacetAbi = [
   },
 ] as const;
 
+export const accessControlFacetAbi = [
+  {
+    type: "function",
+    name: "grantRole",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "_role",
+        type: "bytes32",
+      },
+      {
+        name: "_account",
+        type: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "success_",
+        type: "bool",
+      },
+    ],
+  },
+  {
+    type: "function",
+    name: "revokeRole",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "_role",
+        type: "bytes32",
+      },
+      {
+        name: "_account",
+        type: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "success_",
+        type: "bool",
+      },
+    ],
+  },
+] as const;
+
+export const ssiManagementFacetAbi = [
+  {
+    type: "function",
+    name: "addIssuer",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "_issuer",
+        type: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "success_",
+        type: "bool",
+      },
+    ],
+  },
+  {
+    type: "function",
+    name: "removeIssuer",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "_issuer",
+        type: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "success_",
+        type: "bool",
+      },
+    ],
+  },
+] as const;
+
+export const erc1594FacetAbi = [
+  {
+    type: "function",
+    name: "issue",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "_tokenHolder",
+        type: "address",
+      },
+      {
+        name: "_value",
+        type: "uint256",
+      },
+      {
+        name: "_data",
+        type: "bytes",
+      },
+    ],
+    outputs: [],
+  },
+] as const;
+
 export const freezeFacetAbi = [
   {
     type: "function",

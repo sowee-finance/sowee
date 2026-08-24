@@ -17,6 +17,20 @@ export const DEFAULT_ADMIN_ROLE: Hex =
 export const DEFAULT_PARTITION: Hex =
   "0x0000000000000000000000000000000000000000000000000000000000000001";
 
+/**
+ * AccessControl role ids from v8 `contracts/constants/roles.sol`:
+ * `keccak256("asset.tokenization.standard.role.<Name>")` with names `Kyc`, `ControlList`,
+ * `SsiManager` and `Issuer`. The bond creator only receives DEFAULT_ADMIN_ROLE via rbacs;
+ * each operational role must be granted explicitly before compliance calls or minting work.
+ */
+export const ROLE_KYC: Hex = "0x754f499f9fdfbb089d12bdec817a6863d593d8a3ea7f546c00a5cafd20957bfc";
+export const ROLE_CONTROL_LIST: Hex =
+  "0x6ed9a91e996c6475ecdc28ecbdbe9bd1122fc62b30cdbe6da8271884b51ec74d";
+export const ROLE_SSI_MANAGER: Hex =
+  "0x3120494a82251fe85b0403877539486dbfcf0f94c20741a3229cfad31f625ee1";
+export const ROLE_ISSUER: Hex =
+  "0x5eeaf5602c75bf26e73b5206d0bd6ee82f621166255e5fd73cc06bc7bd84a95f";
+
 /** Solidity `enum RegulationType { NONE, REG_S, REG_D }`. */
 export const RegulationType = {
   NONE: 0,
