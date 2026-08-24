@@ -1,0 +1,22 @@
+# Applications are intentionally untracked — they live and deploy outside this repository.
+/apps/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test artifacts
+coverage/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs & OS noise
+*.log
+.DS_Store
