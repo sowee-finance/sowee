@@ -34,6 +34,8 @@ assets/     Brand assets
 
 Smart contracts live in `contracts/` but are versioned in a dedicated repository: [sowee-finance/contracts](https://github.com/sowee-finance/contracts).
 
+How compliance is enforced — token-layer KYC, freezes, audit trail, circuit breakers — is documented control-by-control in [COMPLIANCE.md](COMPLIANCE.md).
+
 ## Getting started
 
 ```bash
