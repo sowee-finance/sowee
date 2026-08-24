@@ -2,15 +2,18 @@ import type { AbiFunction } from "viem";
 import { toFunctionSelector } from "viem";
 import { describe, expect, it } from "vitest";
 import {
+  accessControlFacetAbi,
   balanceTrackerAtSnapshotFacetAbi,
   controlListFacetAbi,
   controllerFacetAbi,
+  erc1594FacetAbi,
   factoryAbi,
   freezeFacetAbi,
   kycFacetAbi,
   maturityFacetAbi,
   pauseFacetAbi,
   snapshotsFacetAbi,
+  ssiManagementFacetAbi,
 } from "../../src/index.js";
 import golden from "./fixtures/selectors-golden.json";
 
@@ -23,6 +26,9 @@ const abis = [
   factoryAbi,
   kycFacetAbi,
   controlListFacetAbi,
+  accessControlFacetAbi,
+  ssiManagementFacetAbi,
+  erc1594FacetAbi,
   freezeFacetAbi,
   pauseFacetAbi,
   snapshotsFacetAbi,
