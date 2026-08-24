@@ -1,7 +1,7 @@
 {
   "name": "@sowee/plugin-chainlink",
   "version": "0.1.0",
-  "description": "Sowee plugin for Chainlink Data Feeds on Hedera: read AggregatorV3 price feeds (HBAR/USD, USDC/USD, …) via the free Mirror Node eth_call, with bigint decimal formatting and staleness checks",
+  "description": "Sowee plugin for Chainlink Data Feeds on Hedera: read AggregatorV3 price feeds (HBAR/USD, USDC/USD, \u2026) via the free Mirror Node eth_call, with bigint decimal formatting and staleness checks",
   "keywords": [
     "hedera",
     "chainlink",
