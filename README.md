@@ -75,12 +75,12 @@ apps/       Applications — each tracked in its own private repository
   dapp/         Investor & issuer web app     -> sowee-finance/dapp
   landing/      Marketing site (Astro)        -> sowee-finance/landing
   backoffice/   Compliance-officer console    -> sowee-finance/backoffice
-  api/          Quote/attestation service (Go, local only)
+  api/          Quote/attestation service (Go)  -> sowee-finance/api
 contracts/  Solidity contracts — tracked by its own repository
 assets/     Brand assets
 ```
 
-The apps consume `@sowee/*` as `file:../../packages/*` dependencies, so clone them into `apps/` inside this checkout (`git clone git@github.com:sowee-finance/dapp apps/dapp`, and likewise for landing and backoffice).
+The apps consume `@sowee/*` as `file:../../packages/*` dependencies, so clone them into `apps/` inside this checkout (`git clone git@github.com:sowee-finance/dapp apps/dapp`, and likewise for landing, backoffice, and api).
 
 The Solidity lives in `contracts/` but is versioned in its own repository: [sowee-finance/contracts](https://github.com/sowee-finance/contracts).
 
