@@ -77,12 +77,26 @@ apps/       Applications — each tracked in its own private repository
   backoffice/   Compliance-officer console    -> sowee-finance/backoffice
   api/          Quote/attestation service (Go)  -> sowee-finance/api
 contracts/  Solidity contracts — tracked by its own repository
+subgraph/   Self-hosted The Graph subgraph (Hedera testnet via Hashio)
 assets/     Brand assets
 ```
 
 The apps consume `@sowee/*` as `file:../../packages/*` dependencies, so clone them into `apps/` inside this checkout (`git clone git@github.com:sowee-finance/dapp apps/dapp`, and likewise for landing, backoffice, and api).
 
 The Solidity lives in `contracts/` but is versioned in its own repository: [sowee-finance/contracts](https://github.com/sowee-finance/contracts).
+
+## Subgraph
+
+The Graph has no hosted indexer for Hedera, so `subgraph/` follows [Hedera's self-hosted pattern](https://docs.hedera.com/hedera/tutorials/smart-contracts/deploy-a-subgraph-using-the-graph-and-json-rpc): a local graph-node reads testnet through the Hashio JSON-RPC relay. It indexes all three proxies from their creation blocks — listings, primary purchases, secondary asks/fills/cancels (InvoiceMarket), consumed discount quotes (DiscountOracle), and registrations, repayments, settlements, and claims (MaturitySettlement).
+
+```bash
+cd subgraph
+docker compose -f graph-node/docker-compose.yaml up -d   # graph-node + IPFS + Postgres
+pnpm install && pnpm codegen && pnpm build
+pnpm create-local && pnpm deploy-local
+```
+
+Query it at `http://localhost:8000/subgraphs/name/sowee` once synced (a few minutes — it starts at the deployment blocks, not genesis). Point the dapp at it with `NEXT_PUBLIC_SUBGRAPH_URL=http://localhost:8000/subgraphs/name/sowee`; without that variable the dapp reads the mirror node directly, so the subgraph is optional. The stack idles at ~2 GB RAM — `docker compose -f graph-node/docker-compose.yaml down` when you're done (`down -v` also drops the index data).
 
 ## Getting started
 
