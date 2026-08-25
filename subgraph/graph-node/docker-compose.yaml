@@ -1,0 +1,49 @@
+# Self-hosted graph-node for Hedera testnet, adapted from
+# https://github.com/hashgraph/hedera-subgraph-example (graph-node/docker-compose.yaml).
+# The Graph has no hosted indexer for Hedera; graph-node reads the chain
+# through the Hashio JSON-RPC relay (chain id 296).
+services:
+  graph-node:
+    image: graphprotocol/graph-node:v0.38.0
+    ports:
+      - "8000:8000" # GraphQL HTTP
+      - "8001:8001" # GraphQL WS
+      - "8020:8020" # admin JSON-RPC (graph create/deploy)
+      - "8030:8030" # index-node status
+      - "8040:8040" # metrics
+    depends_on:
+      - ipfs
+      - postgres
+    environment:
+      postgres_host: postgres
+      postgres_user: graph-node
+      postgres_pass: let-me-in
+      postgres_db: graph-node
+      ipfs: "ipfs:5001"
+      ethereum: "testnet:https://testnet.hashio.io/api"
+      GRAPH_LOG: info
+      # Hedera has no EVM genesis block to fetch; see the Hedera tutorial.
+      GRAPH_ETHEREUM_GENESIS_BLOCK_NUMBER: 1
+      # Hashio caps eth_getLogs ranges; keep scan windows small.
+      GRAPH_ETHEREUM_MAX_BLOCK_RANGE_SIZE: 500
+      ETHEREUM_POLLING_INTERVAL: 2000
+  ipfs:
+    image: ipfs/kubo:v0.34.1
+    ports:
+      - "5001:5001"
+    volumes:
+      - ipfs-data:/data/ipfs
+  postgres:
+    image: postgres:16
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    environment:
+      POSTGRES_USER: graph-node
+      POSTGRES_PASSWORD: let-me-in
+      POSTGRES_DB: graph-node
+      # graph-node requires the C locale.
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+volumes:
+  ipfs-data:
+  pg-data:
