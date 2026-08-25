@@ -1,0 +1,90 @@
+specVersion: 1.0.0
+description: Sowee — invoice financing on Hedera testnet (market, oracle, settlement)
+repository: https://github.com/sowee-finance/sowee
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: InvoiceMarket
+    # graph-node chain alias from graph-node/docker-compose.yaml (Hashio JSON-RPC relay).
+    network: testnet
+    source:
+      address: "0xc284Ea6dF1979B2BbE8c67484505Ce0C2e6f264a"
+      abi: InvoiceMarket
+      startBlock: 39652114 # proxy creation block (mirror node)
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Invoice
+        - PrimaryPurchase
+        - Ask
+        - AskFill
+        - AskCancel
+      abis:
+        - name: InvoiceMarket
+          file: ./abis/InvoiceMarket.json
+      eventHandlers:
+        - event: InvoiceListed(indexed bytes32,indexed address,indexed address,uint256,uint256,uint64)
+          handler: handleInvoiceListed
+        - event: PrimaryPurchase(indexed bytes32,indexed address,uint256,uint256,uint256)
+          handler: handlePrimaryPurchase
+        - event: ListingCancelled(indexed bytes32,uint256)
+          handler: handleListingCancelled
+        - event: AskCreated(indexed uint256,indexed bytes32,indexed address,uint256,uint256)
+          handler: handleAskCreated
+        - event: AskFilled(indexed uint256,indexed address,uint256,uint256,uint256)
+          handler: handleAskFilled
+        - event: AskCancelled(indexed uint256,uint256)
+          handler: handleAskCancelled
+      file: ./src/mapping.ts
+  - kind: ethereum/contract
+    name: DiscountOracle
+    network: testnet
+    source:
+      address: "0xD8ceb338Da5d19B29075903Fb78B469E46Ba1957"
+      abi: DiscountOracle
+      startBlock: 39652109 # proxy creation block (mirror node)
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Quote
+      abis:
+        - name: DiscountOracle
+          file: ./abis/DiscountOracle.json
+      eventHandlers:
+        - event: QuoteConsumed(indexed bytes32,indexed uint64,uint256,uint16)
+          handler: handleQuoteConsumed
+      file: ./src/mapping.ts
+  - kind: ethereum/contract
+    name: MaturitySettlement
+    network: testnet
+    source:
+      address: "0xE015c2BC2870c2B5f6039946d306C9E013390426"
+      abi: MaturitySettlement
+      startBlock: 39652119 # proxy creation block (mirror node)
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Settlement
+        - Claim
+      abis:
+        - name: MaturitySettlement
+          file: ./abis/MaturitySettlement.json
+      eventHandlers:
+        - event: InvoiceRegistered(indexed bytes32,indexed address,uint64)
+          handler: handleInvoiceRegistered
+        - event: RepaymentDeposited(indexed bytes32,indexed address,uint256,uint256)
+          handler: handleRepaymentDeposited
+        - event: SettlementScheduled(indexed bytes32,indexed address,uint64)
+          handler: handleSettlementScheduled
+        - event: Settled(indexed bytes32,uint256,uint256)
+          handler: handleSettled
+        - event: Claimed(indexed bytes32,indexed address,uint256,uint256)
+          handler: handleClaimed
+      file: ./src/mapping.ts
