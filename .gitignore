@@ -5,6 +5,10 @@
 # https://github.com/sowee-finance/contracts
 /contracts/
 
+# The subgraph lives here but is tracked by its own repository:
+# https://github.com/sowee-finance/subgraph
+/subgraph/
+
 # Dependencies
 node_modules/
 

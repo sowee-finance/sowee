@@ -77,6 +77,7 @@ apps/       Applications — each tracked in its own private repository
   backoffice/   Compliance-officer console    -> sowee-finance/backoffice
   api/          Quote/attestation service (Go)  -> sowee-finance/api
 contracts/  Solidity contracts — tracked by its own repository
+subgraph/   The Graph indexer — tracked by its own repository (sowee-finance/subgraph)
 subgraph/   Self-hosted The Graph subgraph (Hedera testnet via Hashio)
 assets/     Brand assets
 ```
