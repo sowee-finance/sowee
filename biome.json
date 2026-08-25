@@ -8,7 +8,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/dist", "!**/coverage", "!**/generated", "!**/.next"]
+    "includes": ["**", "!**/dist", "!**/coverage", "!**/generated", "!**/.next", "!**/.next-verify"]
   },
   "formatter": {
     "enabled": true,
@@ -127,6 +127,19 @@
         "rules": {
           "style": {
             "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["subgraph/src/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "off"
+          },
+          "suspicious": {
+            "noShadowRestrictedNames": "off"
           }
         }
       }
