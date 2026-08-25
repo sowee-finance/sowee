@@ -34,7 +34,9 @@ This isn't a whitepaper. All four contracts are deployed, Sourcify-verified (exa
 Want to see it work? The stage-aware demo runs the full lifecycle (issuance, compliance, funding, trading, scheduled settlement) against those live contracts:
 
 ```bash
-export WALLET_PK=0x...   # funded Hedera testnet ECDSA key
+export WALLET_PK=0x...     # issuer/payor wallet (funded ECDSA key)
+export INVESTOR_PK=0x...   # second wallet for the buy/claim legs — HTS rejects
+                           # buyer == issuer, so one wallet can't fund itself
 pnpm --filter @sowee/e2e-demo demo
 ```
 

@@ -32,15 +32,23 @@ export const MAX_GAS = 15_000_000n;
 
 const ENV_LINE_REGEX = /^([A-Z0-9_]+)=(.*)$/;
 
-export function readWalletPk(rootDir: string): string {
+export function readEnvKey(rootDir: string, name: string): string | undefined {
   const envPath = join(rootDir, ".env");
   for (const line of readFileSync(envPath, "utf8").split("\n")) {
     const match = ENV_LINE_REGEX.exec(line.trim());
-    if (match?.[1] === "WALLET_PK" && match[2]) {
+    if (match?.[1] === name && match[2]) {
       return match[2];
     }
   }
-  throw new Error(`WALLET_PK not found in ${envPath}`);
+  return undefined;
+}
+
+export function readWalletPk(rootDir: string): string {
+  const pk = readEnvKey(rootDir, "WALLET_PK");
+  if (!pk) {
+    throw new Error(`WALLET_PK not found in ${join(rootDir, ".env")}`);
+  }
+  return pk;
 }
 
 /** Wallet + clients shared by every script; demo.ts layers its resume state on top. */
@@ -242,16 +250,22 @@ function needCall(calls: readonly PreparedCall[], i: number): PreparedCall {
   return call;
 }
 
-export async function ensureParticipantCompliance(cx: ChainCtx, bond: Address): Promise<void> {
+export async function ensureParticipantCompliance(
+  cx: ChainCtx,
+  bond: Address,
+  extraParticipants: Address[] = [],
+): Promise<void> {
   const participants: Address[] = [
     SOWEE_TESTNET.invoiceMarket,
     SOWEE_TESTNET.maturitySettlement,
     cx.account.address,
+    ...extraParticipants,
   ];
   // Calls come back in a documented order: grantKyc per participant, then
   // addToControlList per participant — index into them to skip what's done.
   const calls = bootstrapCompliance(bond, {
     issuer: cx.account.address,
+    investors: extraParticipants,
     kyc: { issuer: cx.account.address },
   });
   for (const [i, participant] of participants.entries()) {
