@@ -144,6 +144,72 @@ const PROFILES: readonly SeedProfile[] = [
     grounding:
       "90d payment terms are common for offshore apparel buyers and price above shorter tenors (tiered fees grow with tenor — Crestmont Capital); FixedPlusTenor caps this at 2.75% flat",
   },
+  {
+    key: "staffing-30d",
+    issuerName: "Meridian Staffing Partners",
+    payorName: "Atlas Logistics Corp",
+    sector: "staffing & workforce",
+    faceUsdc: 18_400,
+    tenorDays: 30,
+    expectedBps: 225,
+    grounding:
+      "staffing is a canonical factoring vertical: agencies pay weekly payroll against 30-45d client terms (Riviera Finance); 2.25%/30d sits at the industry average",
+  },
+  {
+    key: "seafood-40d",
+    issuerName: "Coral Coast Seafoods Ltd",
+    payorName: "Tokyo Fresh Markets KK",
+    sector: "fisheries export",
+    faceUsdc: 27_300,
+    tenorDays: 40,
+    expectedBps: 225,
+    grounding:
+      "perishables exporters factor LC-backed invoices to bridge shipment-to-payment gaps on 30-60d terms (import/export is a top vertical — Crestmont); 2.25% flat over 40d ~ 1.7%/mo",
+  },
+  {
+    key: "electronics-50d",
+    issuerName: "Brightwave Circuits Co",
+    payorName: "Nordic Retail Electronics AB",
+    sector: "electronics manufacturing",
+    faceUsdc: 54_000,
+    tenorDays: 50,
+    expectedBps: 225,
+    grounding:
+      "contract electronics manufacturers carry 30-60d OEM/retail terms and factor to fund component purchases (manufacturing is a core vertical — Riviera Finance); 2.25% over 50d ~ 1.35%/mo, low end of the band",
+  },
+  {
+    key: "autoparts-35d",
+    issuerName: "Rhein Auto Components GmbH",
+    payorName: "Iberia Motor Assembly S.L.",
+    sector: "auto parts manufacturing",
+    faceUsdc: 41_200,
+    tenorDays: 35,
+    expectedBps: 225,
+    grounding:
+      "tier-2 auto suppliers invoice assemblers on 30-60d terms; factoring bridges tooling and material spend (manufacturing vertical — Crestmont); 2.25%/35d ~ 1.9%/mo",
+  },
+  {
+    key: "medsupply-25d",
+    issuerName: "Andean Medical Supplies S.A.C.",
+    payorName: "Clinica del Valle Group",
+    sector: "medical supplies distribution",
+    faceUsdc: 15_800,
+    tenorDays: 25,
+    expectedBps: 200,
+    grounding:
+      "healthcare suppliers factor clinic/hospital receivables on ~30d terms (healthcare is a top vertical — Crestmont); 2.0% flat on 25d fits the band",
+  },
+  {
+    key: "cement-28d",
+    issuerName: "Sahel Trans Logistics",
+    payorName: "Maghreb Cement Industries",
+    sector: "freight & logistics",
+    faceUsdc: 12_600,
+    tenorDays: 28,
+    expectedBps: 200,
+    grounding:
+      "regional haulage invoices are small and factored in batches on ~30d shipper terms (freight = largest vertical — DAT); 2.0% flat on 28d fits",
+  },
 ] as const;
 
 // --------------------------------------------------------------- constants
