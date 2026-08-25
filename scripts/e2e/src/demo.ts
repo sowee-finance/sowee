@@ -2,7 +2,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatUsdc, SOWEE_TESTNET, sha256Hex, USDC_TESTNET } from "@sowee/core";
 import { buildCreateInvoiceBondCall, type PreparedCall } from "@sowee/plugin-ats";
-import { type Address, encodeFunctionData, formatEther, type Hex, zeroAddress } from "viem";
+import {
+  type Address,
+  encodeFunctionData,
+  erc20Abi,
+  formatEther,
+  type Hex,
+  zeroAddress,
+} from "viem";
 import { invoiceMarketAbi, maturitySettlementAbi } from "./abi.js";
 import {
   type ApiAttestResult,
@@ -25,6 +32,7 @@ import {
   fetchDeployedBond,
   Halt,
   nowSeconds,
+  readEnvKey,
   readWalletPk,
   send,
   shortError,
@@ -65,9 +73,15 @@ const DEMO_ISIN = "SW0WEE000004";
 
 function createContext() {
   const chain = createChainCtx(readWalletPk(ROOT_DIR));
+  const investorPk = readEnvKey(ROOT_DIR, "INVESTOR_PK");
+  // A second wallet for the buy/claim legs: HTS rejects buyer == issuer
+  // (ACCOUNT_REPEATED_IN_ACCOUNT_AMOUNTS on the USDC facade self-transfer),
+  // so a single-wallet demo cannot fund its own invoice.
+  const investor = investorPk ? createChainCtx(investorPk) : undefined;
   const state = loadState<DemoState>(STATE_PATH);
   return {
     ...chain,
+    investor,
     state,
     save(): void {
       saveState(STATE_PATH, state);
@@ -211,7 +225,7 @@ async function stageCompliance(ctx: Ctx): Promise<void> {
   const bond = need(ctx.state.bondAddress, "bondAddress");
   await ensureRoles(ctx, bond);
   await ensureSsiIssuer(ctx, bond);
-  await ensureParticipantCompliance(ctx, bond);
+  await ensureParticipantCompliance(ctx, bond, ctx.investor ? [ctx.investor.account.address] : []);
   await ensureUnitsIssued(ctx, bond, UNITS);
   ctx.state.complianceDone = true;
   ctx.save();
@@ -310,23 +324,41 @@ async function stageFund(ctx: Ctx): Promise<void> {
     console.info("  ok primary purchase already done");
     return;
   }
+  const inv = ctx.investor;
+  if (!inv) {
+    throw new Halt(
+      "Funding needs a second wallet: set INVESTOR_PK in .env. HTS rejects buyer == issuer (ACCOUNT_REPEATED_IN_ACCOUNT_AMOUNTS), so the deployer cannot buy its own listing.",
+    );
+  }
   const invoiceId = need(ctx.state.invoiceId, "invoiceId");
   const bond = need(ctx.state.bondAddress, "bondAddress");
   const cost = UNITS * BigInt(need(ctx.state.pricePerUnit, "pricePerUnit"));
-  const usdc = await erc20BalanceOf(ctx, USDC_TESTNET.evmAddress, ctx.account.address);
+  const usdc = await erc20BalanceOf(ctx, USDC_TESTNET.evmAddress, inv.account.address);
   if (usdc < cost) {
-    throw new Halt(
-      `Need ${formatUsdc(cost)} USDC to fund the invoice but only ${formatUsdc(usdc)} available — top up at https://faucet.circle.com and re-run.`,
-    );
+    // Cover the investor from the deployer's balance when possible.
+    const deployerUsdc = await erc20BalanceOf(ctx, USDC_TESTNET.evmAddress, ctx.account.address);
+    if (deployerUsdc < cost - usdc) {
+      throw new Halt(
+        `Investor needs ${formatUsdc(cost)} USDC but holds ${formatUsdc(usdc)} and the deployer cannot cover the difference — top up at https://faucet.circle.com and re-run.`,
+      );
+    }
+    await send(ctx, `transfer ${formatUsdc(cost - usdc)} USDC to the investor wallet`, {
+      to: USDC_TESTNET.evmAddress,
+      data: encodeFunctionData({
+        abi: erc20Abi,
+        functionName: "transfer",
+        args: [inv.account.address, cost - usdc],
+      }),
+    });
   }
   await ensureAllowance(
-    ctx,
+    inv,
     USDC_TESTNET.evmAddress,
     SOWEE_TESTNET.invoiceMarket,
     cost,
-    "USDC -> market",
+    "USDC -> market (investor)",
   );
-  ctx.state.buyTx = await send(ctx, `buyPrimary: ${UNITS} units for ${formatUsdc(cost)} USDC`, {
+  ctx.state.buyTx = await send(inv, `buyPrimary: ${UNITS} units for ${formatUsdc(cost)} USDC`, {
     to: SOWEE_TESTNET.invoiceMarket,
     data: encodeFunctionData({
       abi: invoiceMarketAbi,
@@ -335,7 +367,7 @@ async function stageFund(ctx: Ctx): Promise<void> {
     }),
   });
   ctx.save();
-  const units = await erc20BalanceOf(ctx, bond, ctx.account.address);
+  const units = await erc20BalanceOf(ctx, bond, inv.account.address);
   console.info(`  investor now holds ${units} bond units`);
 }
 
@@ -538,14 +570,21 @@ async function claimPayout(ctx: Ctx, invoiceId: Hex, bond: Address): Promise<voi
     console.info("  ok payout already claimed");
     return;
   }
-  const units = await erc20BalanceOf(ctx, bond, ctx.account.address);
+  const holder = ctx.investor ?? ctx;
+  const units = await erc20BalanceOf(ctx, bond, holder.account.address);
   if (units === 0n) {
     console.info("  ok no bond units left to claim with");
     return;
   }
-  await ensureAllowance(ctx, bond, SOWEE_TESTNET.maturitySettlement, units, "bond -> settlement");
-  const before = await erc20BalanceOf(ctx, USDC_TESTNET.evmAddress, ctx.account.address);
-  ctx.state.claimTx = await send(ctx, `claim payout, surrendering ${units} bond units`, {
+  await ensureAllowance(
+    holder,
+    bond,
+    SOWEE_TESTNET.maturitySettlement,
+    units,
+    "bond -> settlement",
+  );
+  const before = await erc20BalanceOf(ctx, USDC_TESTNET.evmAddress, holder.account.address);
+  ctx.state.claimTx = await send(holder, `claim payout, surrendering ${units} bond units`, {
     to: SOWEE_TESTNET.maturitySettlement,
     data: encodeFunctionData({
       abi: maturitySettlementAbi,
@@ -554,7 +593,7 @@ async function claimPayout(ctx: Ctx, invoiceId: Hex, bond: Address): Promise<voi
     }),
   });
   ctx.save();
-  const after = await erc20BalanceOf(ctx, USDC_TESTNET.evmAddress, ctx.account.address);
+  const after = await erc20BalanceOf(ctx, USDC_TESTNET.evmAddress, holder.account.address);
   console.info(`  investor received ${formatUsdc(after - before)} USDC at maturity`);
 }
 
