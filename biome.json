@@ -8,14 +8,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": [
-      "**",
-      "!**/dist",
-      "!**/coverage",
-      "!**/generated",
-      "!**/.next",
-      "!**/.next-verify"
-    ]
+    "includes": ["**", "!**/dist", "!**/coverage", "!**/generated", "!**/.next", "!**/.next-verify"]
   },
   "formatter": {
     "enabled": true,
@@ -69,11 +62,7 @@
         "noConsole": {
           "level": "error",
           "options": {
-            "allow": [
-              "error",
-              "warn",
-              "info"
-            ]
+            "allow": ["error", "warn", "info"]
           }
         }
       },
@@ -116,12 +105,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "**/*.test.ts",
-        "**/*.spec.ts",
-        "**/tests/**",
-        "**/__tests__/**"
-      ],
+      "includes": ["**/*.test.ts", "**/*.spec.ts", "**/tests/**", "**/__tests__/**"],
       "linter": {
         "rules": {
           "style": {
@@ -138,11 +122,7 @@
       }
     },
     {
-      "includes": [
-        "**/*.config.ts",
-        "**/*.config.js",
-        "**/*.config.mjs"
-      ],
+      "includes": ["**/*.config.ts", "**/*.config.js", "**/*.config.mjs"],
       "linter": {
         "rules": {
           "style": {
