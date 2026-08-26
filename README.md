@@ -46,7 +46,7 @@ pnpm --filter @sowee/e2e-demo demo
 2. `bootstrapCompliance` then makes the fresh bond fund-ready in one call list: role grants, SSI issuer registration, and KYC for the protocol contracts and every participant. Skip any of that and transfers just revert, which is why it's a single batch.
 3. The Go API signs an EIP-712 discount quote under `SoweeDiscountOracle/1/296`. When the issuer calls `InvoiceMarket.listInvoice`, the quote gets verified on-chain by the DiscountOracle. A pull oracle in miniature.
 4. Investors fund in USDC at the discounted price. A Chainlink peg guard blocks new funding on a depeg or stale feed data; exits are never blocked. Until maturity, units trade on the compliant secondary market, and a transfer to a non-KYC'd wallet reverts at the token layer, even when the fill routes through the market.
-5. At maturity the contract settles itself via a Hedera Schedule Service call (`0x16b`). Holders surrender their units and claim pro-rata USDC.
+5. At maturity, settlement is designed to trigger itself through a Hedera Schedule Service call (`0x16b`, HIP-1215) — implemented and capacity-checked, but the dispatch is currently disabled on testnet ([diagnosed and reported upstream](https://github.com/hiero-ledger/hiero-consensus-node/issues/26959)), so the live lifecycle used the designed fallback: `settle()` is permissionless. Holders surrender their units and claim pro-rata USDC either way.
 6. Every lifecycle event lands on HCS together with the invoice document's sha256, so pledging the same invoice twice is publicly detectable.
 
 ## Compliance
@@ -79,8 +79,7 @@ apps/       Applications — each tracked in its own private repository
   backoffice/   Compliance-officer console    -> sowee-finance/backoffice
   api/          Quote/attestation service (Go)  -> sowee-finance/api
 contracts/  Solidity contracts — tracked by its own repository
-subgraph/   The Graph indexer — tracked by its own repository (sowee-finance/subgraph)
-subgraph/   Self-hosted The Graph subgraph (Hedera testnet via Hashio)
+subgraph/   Self-hosted The Graph subgraph — tracked by its own repository (sowee-finance/subgraph)
 assets/     Brand assets
 ```
 
