@@ -638,7 +638,9 @@ const STAGES: readonly [string, (ctx: Ctx) => Promise<void>][] = [
 async function main(): Promise<void> {
   const base = createContext();
   const ctx: Ctx = Object.assign(base, { accountId: await resolveAccountId(base) });
-  console.info(`Sowee e2e demo on Hedera testnet — wallet ${ctx.account.address} (${ctx.accountId})`);
+  console.info(
+    `Sowee e2e demo on Hedera testnet — wallet ${ctx.account.address} (${ctx.accountId})`,
+  );
   for (const [name, run] of STAGES) {
     console.info(`\n=== stage ${name}`);
     await run(ctx);
