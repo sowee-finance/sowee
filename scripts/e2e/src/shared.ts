@@ -37,10 +37,26 @@ export function readEnvKey(rootDir: string, name: string): string | undefined {
   for (const line of readFileSync(envPath, "utf8").split("\n")) {
     const match = ENV_LINE_REGEX.exec(line.trim());
     if (match?.[1] === name && match[2]) {
-      return match[2];
+      const value = cleanEnvValue(match[2]);
+      return value === "" ? undefined : value;
     }
   }
   return undefined;
+}
+
+/** Dotenv conventions: matched surrounding quotes come off; an unquoted
+    trailing `# comment` is not part of the value. */
+function cleanEnvValue(raw: string): string {
+  let value = raw.trim();
+  const quote = value[0];
+  if ((quote === '"' || quote === "'") && value.length > 1 && value.endsWith(quote)) {
+    return value.slice(1, -1);
+  }
+  const hash = value.indexOf(" #");
+  if (hash !== -1) {
+    value = value.slice(0, hash).trim();
+  }
+  return value;
 }
 
 export function readWalletPk(rootDir: string): string {
