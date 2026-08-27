@@ -31,6 +31,15 @@ export const ROLE_SSI_MANAGER: Hex =
 export const ROLE_ISSUER: Hex =
   "0x5eeaf5602c75bf26e73b5206d0bd6ee82f621166255e5fd73cc06bc7bd84a95f";
 
+/** freezePartialTokens/unfreezePartialTokens require FREEZE_MANAGER or AGENT
+ * (facets/freeze/Freeze.sol `onlyFreezeRoles`); pause/unpause require PAUSER.
+ * Verified against @hashgraph/asset-tokenization-contracts@8.0.0 roles.sol. */
+export const ROLE_FREEZE_MANAGER: Hex =
+  "0x71ae38482e1ab1c28e767d64766d686215b490c8c1bd7dfe6b101525187c2155";
+export const ROLE_AGENT: Hex = "0x9830aa071a741c08855dd42130bdb0ff50f7bdf5a4b72f12181eefded0c6542b";
+export const ROLE_PAUSER: Hex =
+  "0x3cb8b459fdb6e7dc3d2a2aa529e530f885d45e03584adb438423209c86a2731f";
+
 /** Solidity `enum RegulationType { NONE, REG_S, REG_D }`. */
 export const RegulationType = {
   NONE: 0,
