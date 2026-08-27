@@ -218,14 +218,23 @@ async function registerApiInvoice(ctx: Ctx, dueDate: Date): Promise<ApiInvoice> 
 // ----------------------------------------------------------------- stage d
 
 async function stageCompliance(ctx: Ctx): Promise<void> {
+  const bond = need(ctx.state.bondAddress, "bondAddress");
+  const investors = ctx.investor ? [ctx.investor.account.address] : [];
   if (ctx.state.complianceDone) {
-    console.info("  ok compliance already bootstrapped");
+    if (investors.length === 0) {
+      console.info("  ok compliance already bootstrapped");
+      return;
+    }
+    // The checkpoint predates today's participant set: an INVESTOR_PK added
+    // after the first run (exactly what the stage-f halt instructs) still
+    // needs its grants. The pass is idempotent per wallet — a covered
+    // investor costs two view calls, an uncovered one gets what's missing.
+    await ensureParticipantCompliance(ctx, bond, investors);
     return;
   }
-  const bond = need(ctx.state.bondAddress, "bondAddress");
   await ensureRoles(ctx, bond);
   await ensureSsiIssuer(ctx, bond);
-  await ensureParticipantCompliance(ctx, bond, ctx.investor ? [ctx.investor.account.address] : []);
+  await ensureParticipantCompliance(ctx, bond, investors);
   await ensureUnitsIssued(ctx, bond, UNITS);
   ctx.state.complianceDone = true;
   ctx.save();
