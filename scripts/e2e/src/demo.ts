@@ -49,7 +49,6 @@ const STATE_PATH = join(E2E_DIR, "state.json");
 const API_LOG_PATH = join(E2E_DIR, "api.log");
 const API_DIR = join(ROOT_DIR, "apps", "api");
 
-const DEPLOYER_ID = "0.0.7162116";
 /** Invoice face value: 10 USDC (6 decimals). */
 const FACE_VALUE = 10_000_000n;
 /** Bond units offered (nominal value 1 USDC per unit). */
@@ -89,7 +88,20 @@ function createContext() {
   };
 }
 
-type Ctx = ReturnType<typeof createContext>;
+type Ctx = ReturnType<typeof createContext> & { accountId: string };
+
+/** Resolve the wallet's Hedera account id (0.0.x) from its EVM address. */
+async function resolveAccountId(ctx: ReturnType<typeof createContext>): Promise<string> {
+  try {
+    const res = await ctx.mirror.get<{ account: string }>(`accounts/${ctx.account.address}`);
+    return res.account;
+  } catch {
+    throw new Halt(
+      `Wallet ${ctx.account.address} has no Hedera account yet — fund it with HBAR ` +
+        "(portal.hedera.com), wait ~30s for the mirror node, then re-run.",
+    );
+  }
+}
 
 function need<T>(value: T | undefined, name: string): T {
   if (value === undefined) {
@@ -104,7 +116,7 @@ async function stagePreflight(ctx: Ctx): Promise<void> {
   const hbar = await ctx.pub.getBalance({ address: ctx.account.address });
   console.info(`  HBAR balance: ${formatEther(hbar)}`);
   if (hbar === 0n) {
-    throw new Halt(`No HBAR — fund ${ctx.account.address} (account ${DEPLOYER_ID}) and re-run.`);
+    throw new Halt(`No HBAR — fund ${ctx.account.address} (account ${ctx.accountId}) and re-run.`);
   }
 
   await ensureUsdcAssociation(ctx);
@@ -116,7 +128,7 @@ async function stagePreflight(ctx: Ctx): Promise<void> {
         "USDC balance is 0 — fund the wallet from the Circle faucet, then re-run:",
         "  1. Open https://faucet.circle.com",
         "  2. Select network: Hedera Testnet",
-        `  3. Paste address: ${ctx.account.address}  (Hedera account ${DEPLOYER_ID})`,
+        `  3. Paste address: ${ctx.account.address}  (Hedera account ${ctx.accountId})`,
         "  4. Re-run: pnpm --filter @sowee/e2e-demo demo",
         "Progress so far is saved in scripts/e2e/state.json; the demo resumes automatically.",
       ].join("\n"),
@@ -131,13 +143,13 @@ async function ensureUsdcAssociation(ctx: Ctx): Promise<void> {
     return;
   }
   const page = await ctx.mirror.get<{ tokens: unknown[] }>(
-    `accounts/${DEPLOYER_ID}/tokens?token.id=${USDC_TESTNET.tokenId}`,
+    `accounts/${ctx.accountId}/tokens?token.id=${USDC_TESTNET.tokenId}`,
   );
   if (page.tokens.length === 0) {
     // HIP-719: an EOA associates by calling associate() on the token's facade address.
     ctx.state.associateTx = await send(
       ctx,
-      `associate ${DEPLOYER_ID} with USDC ${USDC_TESTNET.tokenId} (HIP-719)`,
+      `associate ${ctx.accountId} with USDC ${USDC_TESTNET.tokenId} (HIP-719)`,
       { to: USDC_TESTNET.evmAddress, data: ASSOCIATE_CALLDATA },
       { gas: ASSOCIATE_GAS },
     );
@@ -157,7 +169,7 @@ async function stageApiUp(ctx: Ctx): Promise<void> {
     await startApi({
       apiDir: API_DIR,
       logPath: API_LOG_PATH,
-      operatorId: DEPLOYER_ID,
+      operatorId: ctx.accountId,
       walletKey: ctx.walletPk,
       topicId: ctx.state.topicId,
       onTopicId: (topicId) => {
@@ -624,8 +636,9 @@ const STAGES: readonly [string, (ctx: Ctx) => Promise<void>][] = [
 ];
 
 async function main(): Promise<void> {
-  const ctx = createContext();
-  console.info(`Sowee e2e demo on Hedera testnet — wallet ${ctx.account.address} (${DEPLOYER_ID})`);
+  const base = createContext();
+  const ctx: Ctx = Object.assign(base, { accountId: await resolveAccountId(base) });
+  console.info(`Sowee e2e demo on Hedera testnet — wallet ${ctx.account.address} (${ctx.accountId})`);
   for (const [name, run] of STAGES) {
     console.info(`\n=== stage ${name}`);
     await run(ctx);
