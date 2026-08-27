@@ -287,6 +287,10 @@ async function stageQuoteAndList(ctx: Ctx): Promise<void> {
       ],
     }),
   });
+  // Checkpoint immediately: if the price readback below hiccups, a re-run must
+  // see listTx — re-sending listInvoice reverts AlreadyListed and wedges the
+  // pipeline until a fresh bond is burned.
+  ctx.save();
   const listing = await ctx.pub.readContract({
     address: SOWEE_TESTNET.invoiceMarket,
     abi: invoiceMarketAbi,
