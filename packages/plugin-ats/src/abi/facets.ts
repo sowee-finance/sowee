@@ -458,4 +458,25 @@ export const atsViewsAbi = [
     inputs: [{ name: "_account", type: "address" }],
     outputs: [{ name: "", type: "bool" }],
   },
+  {
+    type: "function",
+    name: "paused",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "getFrozenTokens",
+    stateMutability: "view",
+    inputs: [{ name: "_userAddress", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "isFrozen",
+    stateMutability: "view",
+    inputs: [{ name: "_userAddress", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
 ] as const;
