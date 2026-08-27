@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import type { Address, Hex } from "viem";
 
 /**
@@ -36,13 +36,32 @@ export interface DemoState {
 }
 
 export function loadState<T extends object>(path: string): Partial<T> {
+  let raw: string;
   try {
-    return JSON.parse(readFileSync(path, "utf8")) as Partial<T>;
+    raw = readFileSync(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return {}; // no checkpoint yet — a legitimate fresh start
+    }
+    throw error;
+  }
+  try {
+    return JSON.parse(raw) as Partial<T>;
   } catch {
-    return {};
+    // A torn or corrupted checkpoint must never read as a fresh start: the
+    // pipeline would re-deploy a ~7M-gas bond and re-deposit real USDC while
+    // orphaning the half-finished one. A human decides what to salvage.
+    throw new Error(
+      `${path} exists but is not valid JSON — refusing to restart the paid pipeline. ` +
+        "Inspect or delete the file, then re-run.",
+    );
   }
 }
 
 export function saveState(path: string, state: object): void {
-  writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
+  // Temp-file + rename: a crash mid-write can drop the newest checkpoint but
+  // can never tear the file into invalid JSON.
+  const tmp = `${path}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`);
+  renameSync(tmp, path);
 }
