@@ -1,7 +1,19 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { HEDERA_TESTNET, MirrorNodeClient, SOWEE_TESTNET } from "@sowee/core";
-import { bootstrapCompliance, factoryAbi, type PreparedCall } from "@sowee/plugin-ats";
+import {
+  addIssuer,
+  atsViewsAbi,
+  bootstrapCompliance,
+  factoryAbi,
+  grantRole,
+  issueUnits,
+  type PreparedCall,
+  ROLE_CONTROL_LIST,
+  ROLE_ISSUER,
+  ROLE_KYC,
+  ROLE_SSI_MANAGER,
+} from "@sowee/plugin-ats";
 import {
   type Address,
   BaseError,
@@ -16,7 +28,6 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { hederaTestnet } from "viem/chains";
-import { atsExtrasAbi, ROLE_CONTROL_LIST, ROLE_ISSUER, ROLE_KYC, ROLE_SSI_MANAGER } from "./abi.js";
 import { stripHexPrefix } from "./api.js";
 
 /**
@@ -217,7 +228,7 @@ export async function ensureRoles(cx: ChainCtx, bond: Address): Promise<void> {
   for (const { role, label } of SELF_ROLES) {
     const has = await cx.pub.readContract({
       address: bond,
-      abi: atsExtrasAbi,
+      abi: atsViewsAbi,
       functionName: "hasRole",
       args: [role, cx.account.address],
     });
@@ -225,14 +236,7 @@ export async function ensureRoles(cx: ChainCtx, bond: Address): Promise<void> {
       console.info(`  ok ${label} role already granted`);
       continue;
     }
-    await send(cx, `grant ${label} role to deployer`, {
-      to: bond,
-      data: encodeFunctionData({
-        abi: atsExtrasAbi,
-        functionName: "grantRole",
-        args: [role, cx.account.address],
-      }),
-    });
+    await send(cx, `grant ${label} role to deployer`, grantRole(bond, role, cx.account.address));
   }
 }
 
@@ -240,7 +244,7 @@ export async function ensureRoles(cx: ChainCtx, bond: Address): Promise<void> {
 export async function ensureSsiIssuer(cx: ChainCtx, bond: Address): Promise<void> {
   const listed = await cx.pub.readContract({
     address: bond,
-    abi: atsExtrasAbi,
+    abi: atsViewsAbi,
     functionName: "isIssuer",
     args: [cx.account.address],
   });
@@ -248,14 +252,7 @@ export async function ensureSsiIssuer(cx: ChainCtx, bond: Address): Promise<void
     console.info("  ok deployer already on SSI issuer list");
     return;
   }
-  await send(cx, "add deployer to SSI issuer list", {
-    to: bond,
-    data: encodeFunctionData({
-      abi: atsExtrasAbi,
-      functionName: "addIssuer",
-      args: [cx.account.address],
-    }),
-  });
+  await send(cx, "add deployer to SSI issuer list", addIssuer(bond, cx.account.address));
 }
 
 function needCall(calls: readonly PreparedCall[], i: number): PreparedCall {
@@ -287,7 +284,7 @@ export async function ensureParticipantCompliance(
   for (const [i, participant] of participants.entries()) {
     const status = await cx.pub.readContract({
       address: bond,
-      abi: atsExtrasAbi,
+      abi: atsViewsAbi,
       functionName: "getKycStatusFor",
       args: [participant],
     });
@@ -300,7 +297,7 @@ export async function ensureParticipantCompliance(
   for (const [i, participant] of participants.entries()) {
     const listed = await cx.pub.readContract({
       address: bond,
-      abi: atsExtrasAbi,
+      abi: atsViewsAbi,
       functionName: "isInControlList",
       args: [participant],
     });
@@ -322,12 +319,9 @@ export async function ensureUnitsIssued(cx: ChainCtx, bond: Address, units: bigi
     console.info(`  ok ${supply} bond units already issued`);
     return;
   }
-  await send(cx, `issue ${units} bond units to deployer`, {
-    to: bond,
-    data: encodeFunctionData({
-      abi: atsExtrasAbi,
-      functionName: "issue",
-      args: [cx.account.address, units - supply, "0x"],
-    }),
-  });
+  await send(
+    cx,
+    `issue ${units} bond units to deployer`,
+    issueUnits(bond, cx.account.address, units - supply),
+  );
 }
