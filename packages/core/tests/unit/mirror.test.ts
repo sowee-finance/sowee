@@ -83,3 +83,27 @@ describe("MirrorNodeClient", () => {
     expect(JSON.parse(init.body as string)).toMatchObject({ data: "0x12345678", estimate: false });
   });
 });
+
+describe("contractCall robustness", () => {
+  it("rejects a 200 body without a hex result instead of returning undefined", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ unexpected: true }));
+    const client = new MirrorNodeClient({ fetch: fetchMock as unknown as typeof fetch });
+    await expect(client.contractCall({ to: "0x01", data: "0x02" })).rejects.toThrow(
+      /no hex result/,
+    );
+  });
+
+  it("surfaces the error body's revert message", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ _status: { messages: [{ message: "CONTRACT_REVERT_EXECUTED" }] } }),
+          { status: 400, headers: { "content-type": "application/json" } },
+        ),
+    );
+    const client = new MirrorNodeClient({ fetch: fetchMock as unknown as typeof fetch });
+    await expect(client.contractCall({ to: "0x01", data: "0x02" })).rejects.toThrow(
+      /CONTRACT_REVERT_EXECUTED/,
+    );
+  });
+});

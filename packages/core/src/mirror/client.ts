@@ -68,9 +68,23 @@ export class MirrorNodeError extends Error {
   constructor(
     readonly status: number,
     readonly url: string,
+    detail?: string,
   ) {
-    super(`Mirror Node request failed: ${status} ${url}`);
+    super(`Mirror Node request failed: ${status} ${url}${detail ? ` — ${detail}` : ""}`);
     this.name = "MirrorNodeError";
+  }
+}
+
+/** Best-effort message out of a mirror error body (shape: {_status:{messages:[{message}]}} or {message}). */
+async function errorDetail(res: Response): Promise<string | undefined> {
+  try {
+    const body = (await res.json()) as {
+      _status?: { messages?: { message?: string }[] };
+      message?: string;
+    };
+    return body._status?.messages?.[0]?.message ?? body.message;
+  } catch {
+    return undefined;
   }
 }
 
@@ -78,6 +92,8 @@ export interface MirrorNodeClientOptions {
   /** REST base URL including /api/v1. Defaults to Hedera testnet. */
   baseUrl?: string;
   fetch?: typeof fetch;
+  /** Per-request timeout in ms; a hung connection must not stall callers. Default 15000. */
+  timeoutMs?: number;
 }
 
 /** Minimal typed Hedera Mirror Node REST client (native fetch, read-only). */
@@ -85,6 +101,7 @@ export class MirrorNodeClient {
   private readonly baseUrl: string;
   private readonly origin: string;
   private readonly fetchFn: typeof fetch;
+  private readonly timeoutMs: number;
 
   constructor(options: MirrorNodeClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? HEDERA_TESTNET.mirrorNodeUrl).replace(
@@ -93,14 +110,18 @@ export class MirrorNodeClient {
     );
     this.origin = new URL(this.baseUrl).origin;
     this.fetchFn = options.fetch ?? fetch;
+    this.timeoutMs = options.timeoutMs ?? 15_000;
   }
 
   /** GET a path relative to the base URL, or an absolute `/api/v1/...` path (pagination links). */
   async get<T>(path: string): Promise<T> {
     const url = path.startsWith("/") ? `${this.origin}${path}` : `${this.baseUrl}/${path}`;
-    const res = await this.fetchFn(url, { headers: { accept: "application/json" } });
+    const res = await this.fetchFn(url, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
     if (!res.ok) {
-      throw new MirrorNodeError(res.status, url);
+      throw new MirrorNodeError(res.status, url, await errorDetail(res));
     }
     return (await res.json()) as T;
   }
@@ -185,11 +206,21 @@ export class MirrorNodeClient {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({ ...params, estimate: false }),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok) {
-      throw new MirrorNodeError(res.status, url);
+      // The revert reason lives in the error body — surface it, not just the status.
+      throw new MirrorNodeError(res.status, url, await errorDetail(res));
     }
-    const body = (await res.json()) as { result: Hex };
-    return body.result;
+    let body: { result?: unknown };
+    try {
+      body = (await res.json()) as { result?: unknown };
+    } catch {
+      throw new MirrorNodeError(res.status, url, "response body is not JSON");
+    }
+    if (typeof body.result !== "string" || !body.result.startsWith("0x")) {
+      throw new MirrorNodeError(res.status, url, "response has no hex result field");
+    }
+    return body.result as Hex;
   }
 }
