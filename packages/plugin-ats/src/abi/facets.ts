@@ -420,3 +420,42 @@ export const controllerFacetAbi = [
     ],
   },
 ] as const;
+
+/**
+ * Compliance/role view fragments shared by every Sowee consumer (e2e demo,
+ * backoffice): one source of truth so an ATS version bump cannot leave stale
+ * copies silently probing the wrong facet.
+ */
+export const atsViewsAbi = [
+  {
+    type: "function",
+    name: "hasRole",
+    stateMutability: "view",
+    inputs: [
+      { name: "_role", type: "bytes32" },
+      { name: "_account", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "isIssuer",
+    stateMutability: "view",
+    inputs: [{ name: "_issuer", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "getKycStatusFor",
+    stateMutability: "view",
+    inputs: [{ name: "_account", type: "address" }],
+    outputs: [{ name: "kycStatus_", type: "uint8" }],
+  },
+  {
+    type: "function",
+    name: "isInControlList",
+    stateMutability: "view",
+    inputs: [{ name: "_account", type: "address" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
