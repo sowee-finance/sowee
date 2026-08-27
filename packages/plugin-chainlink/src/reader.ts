@@ -1,6 +1,6 @@
-import { MirrorNodeClient, trimTrailingZeros } from "@sowee/core";
+import { MirrorNodeClient } from "@sowee/core";
 import type { Address } from "viem";
-import { decodeFunctionResult, encodeFunctionData } from "viem";
+import { decodeFunctionResult, encodeFunctionData, formatUnits } from "viem";
 import { aggregatorV3Abi } from "./abi.js";
 import { CHAINLINK_FEEDS_TESTNET, type FeedSymbol } from "./feeds.js";
 
@@ -25,13 +25,7 @@ export interface FeedPrice {
 
 /** Format a raw feed answer as a decimal string. Pure bigint math, no floats. */
 export function formatAnswer(answer: bigint, decimals: number): string {
-  const negative = answer < 0n;
-  const abs = negative ? -answer : answer;
-  const base = 10n ** BigInt(decimals);
-  const whole = abs / base;
-  const frac = trimTrailingZeros((abs % base).toString().padStart(decimals, "0"));
-  const sign = negative ? "-" : "";
-  return frac.length > 0 ? `${sign}${whole}.${frac}` : `${sign}${whole}`;
+  return formatUnits(answer, decimals);
 }
 
 /**

@@ -1,5 +1,7 @@
 /** USDC 6-decimal fixed-point math. bigint only — no floats anywhere. */
 
+import { formatUnits } from "viem";
+
 export const USDC_DECIMALS = 6;
 const ONE_USDC = 10n ** BigInt(USDC_DECIMALS);
 const BPS_DENOMINATOR = 10_000n;
@@ -20,23 +22,9 @@ export function parseUsdc(value: string): bigint {
   return sign === "-" ? -units : units;
 }
 
-/** Trim trailing zeros from a digit string with a linear index scan (no regex backtracking). */
-export function trimTrailingZeros(digits: string): string {
-  let end = digits.length;
-  while (end > 0 && digits.charCodeAt(end - 1) === 48) {
-    end -= 1;
-  }
-  return digits.slice(0, end);
-}
-
 /** Format USDC base units as a decimal string, trimming trailing fractional zeros. */
 export function formatUsdc(units: bigint): string {
-  const sign = units < 0n ? "-" : "";
-  const abs = units < 0n ? -units : units;
-  const whole = abs / ONE_USDC;
-  const fraction = trimTrailingZeros((abs % ONE_USDC).toString().padStart(6, "0"));
-  const suffix = fraction === "" ? "" : `.${fraction}`;
-  return `${sign}${whole}${suffix}`;
+  return formatUnits(units, USDC_DECIMALS);
 }
 
 /**
