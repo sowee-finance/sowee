@@ -25,20 +25,25 @@ export type InvoiceStatus = z.infer<typeof InvoiceStatusSchema>;
 /** Amounts are USDC base units (6 decimals), bigint only. */
 const UsdcAmountSchema = z.bigint().positive();
 
-export const InvoiceSchema = z.object({
-  id: InvoiceIdSchema,
-  issuer: AddressSchema,
-  debtor: z.string().min(1),
-  /** Face value in USDC base units (6 decimals). */
-  faceValue: UsdcAmountSchema,
-  /** Unix timestamp (seconds). */
-  issuedAt: z.number().int().nonnegative(),
-  /** Unix timestamp (seconds); must be after issuedAt. */
-  dueAt: z.number().int().nonnegative(),
-  /** sha256 of the underlying invoice document, lowercase hex without 0x. */
-  docHash: z.string().regex(/^[0-9a-f]{64}$/, "expected lowercase sha256 hex"),
-  status: InvoiceStatusSchema,
-});
+export const InvoiceSchema = z
+  .object({
+    id: InvoiceIdSchema,
+    issuer: AddressSchema,
+    debtor: z.string().min(1),
+    /** Face value in USDC base units (6 decimals). */
+    faceValue: UsdcAmountSchema,
+    /** Unix timestamp (seconds). */
+    issuedAt: z.number().int().nonnegative(),
+    /** Unix timestamp (seconds); must be after issuedAt. */
+    dueAt: z.number().int().nonnegative(),
+    /** sha256 of the underlying invoice document, lowercase hex without 0x. */
+    docHash: z.string().regex(/^[0-9a-f]{64}$/, "expected lowercase sha256 hex"),
+    status: InvoiceStatusSchema,
+  })
+  .refine((invoice) => invoice.dueAt > invoice.issuedAt, {
+    message: "dueAt must be after issuedAt",
+    path: ["dueAt"],
+  });
 export type Invoice = z.infer<typeof InvoiceSchema>;
 
 /** uint64 range guard for EIP-712 fields. */
