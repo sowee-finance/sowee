@@ -93,12 +93,19 @@ export async function isHealthy(): Promise<boolean> {
   }
 }
 
-function scanForTopicId(chunk: string, onTopicId: (topicId: string) => void): void {
-  const match = TOPIC_LOG_REGEX.exec(chunk);
-  const topicId = match?.[1];
-  if (topicId && topicId !== "") {
-    onTopicId(topicId);
-  }
+/** Stateful scanner: chunks are arbitrary pipe slices, so a small rolling
+    tail is kept per stream — a log line split across two data events must
+    still match. 256 chars comfortably covers the longest matchable line. */
+function makeTopicIdScanner(onTopicId: (topicId: string) => void): (chunk: string) => void {
+  let tail = "";
+  return (chunk) => {
+    const text = tail + chunk;
+    const match = TOPIC_LOG_REGEX.exec(text);
+    if (match?.[1]) {
+      onTopicId(match[1]);
+    }
+    tail = text.slice(-256);
+  };
 }
 
 /**
@@ -123,10 +130,11 @@ export async function startApi(opts: StartOptions): Promise<ChildProcess> {
   const child = spawn("go", ["run", "./cmd/api"], { cwd: opts.apiDir, env });
   const log = createWriteStream(opts.logPath, { flags: "a" });
   for (const stream of [child.stdout, child.stderr]) {
+    const scan = makeTopicIdScanner(opts.onTopicId);
     stream?.on("data", (chunk: Buffer) => {
       const text = chunk.toString("utf8");
       log.write(text);
-      scanForTopicId(text, opts.onTopicId);
+      scan(text);
     });
   }
   process.once("exit", () => child.kill("SIGTERM"));
