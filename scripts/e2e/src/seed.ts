@@ -31,6 +31,7 @@ import {
   ensureUnitsIssued,
   fetchDeployedBond,
   Halt,
+  listInvoiceLeg,
   nowSeconds,
   readWalletPk,
   send,
@@ -396,9 +397,6 @@ async function ensureListed(
   const invoiceId = needField(bstate.invoiceId, "invoiceId", p.key);
   const maturity = needField(bstate.maturity, "maturity", p.key);
   const quote = await postJson<ApiQuote>(`/invoices/${uuid}/quote`, {});
-  if (quote.invoiceId.toLowerCase() !== invoiceId.toLowerCase()) {
-    throw new Error(`API quote invoiceId ${quote.invoiceId} does not match ${invoiceId}`);
-  }
   const bpsNote =
     quote.discountRateBps === p.expectedBps
       ? "as expected"
@@ -407,39 +405,17 @@ async function ensureListed(
     `  ok signed quote: ${quote.discountRateBps} bps (${bpsNote}) on ${formatUsdc(BigInt(quote.faceValue))} USDC (nonce ${quote.nonce})`,
   );
   const units = unitsOf(p);
-  await ensureAllowance(s.cx, bond, SOWEE_TESTNET.invoiceMarket, units, "bond -> market");
-  bstate.listTx = await send(s.cx, `listInvoice on InvoiceMarket (${units} units)`, {
-    to: SOWEE_TESTNET.invoiceMarket,
-    data: encodeFunctionData({
-      abi: invoiceMarketAbi,
-      functionName: "listInvoice",
-      args: [
-        invoiceId,
-        bond,
-        units,
-        BigInt(maturity),
-        {
-          invoiceId: quote.invoiceId,
-          faceValue: BigInt(quote.faceValue),
-          discountRateBps: quote.discountRateBps,
-          validUntil: BigInt(quote.validUntil),
-          nonce: BigInt(quote.nonce),
-        },
-        quote.signature,
-      ],
-    }),
-  });
-  const listing = await s.cx.pub.readContract({
-    address: SOWEE_TESTNET.invoiceMarket,
-    abi: invoiceMarketAbi,
-    functionName: "invoices",
-    args: [invoiceId],
-  });
-  bstate.pricePerUnit = listing[3].toString();
-  s.save();
-  console.info(
-    `  primary price: ${formatUsdc(listing[3])} USDC per unit, ${listing[4]} units listed`,
+  const pricePerUnit = await listInvoiceLeg(
+    s.cx,
+    { bond, invoiceId, units, maturity, quote },
+    (tx) => {
+      bstate.listTx = tx;
+      s.save();
+    },
   );
+  bstate.pricePerUnit = pricePerUnit.toString();
+  s.save();
+  console.info(`  primary price: ${formatUsdc(pricePerUnit)} USDC per unit`);
 }
 
 async function ensureAttested(s: Seeder, p: SeedProfile, bstate: SeedBondState): Promise<void> {
