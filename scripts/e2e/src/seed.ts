@@ -1,16 +1,8 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatUsdc, SOWEE_TESTNET, sha256Hex } from "@sowee/core";
+import { formatUsdc, sha256Hex } from "@sowee/core";
 import { buildCreateInvoiceBondCall } from "@sowee/plugin-ats";
-import {
-  type Address,
-  encodeFunctionData,
-  formatEther,
-  getAddress,
-  keccak256,
-  stringToHex,
-} from "viem";
-import { invoiceMarketAbi } from "./abi.js";
+import { type Address, formatEther, getAddress, keccak256, stringToHex } from "viem";
 import {
   type ApiAttestResult,
   type ApiInvoice,
@@ -24,7 +16,6 @@ import {
   type ChainCtx,
   contractLink,
   createChainCtx,
-  ensureAllowance,
   ensureParticipantCompliance,
   ensureRoles,
   ensureSsiIssuer,
