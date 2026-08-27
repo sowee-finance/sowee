@@ -28,7 +28,8 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { hederaTestnet } from "viem/chains";
-import { stripHexPrefix } from "./api.js";
+import { invoiceMarketAbi } from "./abi.js";
+import { type ApiQuote, stripHexPrefix } from "./api.js";
 
 /**
  * Chain-facing helpers shared by the e2e demo (demo.ts) and the market seeder
@@ -324,4 +325,53 @@ export async function ensureUnitsIssued(cx: ChainCtx, bond: Address, units: bigi
     `issue ${units} bond units to deployer`,
     issueUnits(bond, cx.account.address, units - supply),
   );
+}
+
+// ------------------------------------------------------------------ listing
+
+/**
+ * The shared listInvoice leg: allowance, the quote/invoiceId consistency
+ * check, the send (checkpointed IMMEDIATELY via `onListTx` — a price-readback
+ * hiccup must never cost the checkpoint, or every resume reverts
+ * AlreadyListed), then the price readback. Returns pricePerUnit.
+ */
+export async function listInvoiceLeg(
+  cx: ChainCtx,
+  args: { bond: Address; invoiceId: Hex; units: bigint; maturity: number; quote: ApiQuote },
+  onListTx: (tx: Hex) => void,
+): Promise<bigint> {
+  const { bond, invoiceId, units, maturity, quote } = args;
+  if (quote.invoiceId.toLowerCase() !== invoiceId.toLowerCase()) {
+    throw new Error(`API quote invoiceId ${quote.invoiceId} does not match ${invoiceId}`);
+  }
+  await ensureAllowance(cx, bond, SOWEE_TESTNET.invoiceMarket, units, "bond -> market");
+  const tx = await send(cx, `listInvoice on InvoiceMarket (${units} units)`, {
+    to: SOWEE_TESTNET.invoiceMarket,
+    data: encodeFunctionData({
+      abi: invoiceMarketAbi,
+      functionName: "listInvoice",
+      args: [
+        invoiceId,
+        bond,
+        units,
+        BigInt(maturity),
+        {
+          invoiceId: quote.invoiceId,
+          faceValue: BigInt(quote.faceValue),
+          discountRateBps: quote.discountRateBps,
+          validUntil: BigInt(quote.validUntil),
+          nonce: BigInt(quote.nonce),
+        },
+        quote.signature,
+      ],
+    }),
+  });
+  onListTx(tx);
+  const listing = await cx.pub.readContract({
+    address: SOWEE_TESTNET.invoiceMarket,
+    abi: invoiceMarketAbi,
+    functionName: "invoices",
+    args: [invoiceId],
+  });
+  return listing[3];
 }

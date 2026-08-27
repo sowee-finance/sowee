@@ -31,6 +31,7 @@ import {
   erc20BalanceOf,
   fetchDeployedBond,
   Halt,
+  listInvoiceLeg,
   nowSeconds,
   readEnvKey,
   readWalletPk,
@@ -270,50 +271,21 @@ async function stageQuoteAndList(ctx: Ctx): Promise<void> {
   const uuid = await ensureApiInvoice(ctx);
   const quote = await postJson<ApiQuote>(`/invoices/${uuid}/quote`, {});
   const invoiceId = need(ctx.state.invoiceId, "invoiceId");
-  if (quote.invoiceId.toLowerCase() !== invoiceId.toLowerCase()) {
-    throw new Error(`API quote invoiceId ${quote.invoiceId} does not match state ${invoiceId}`);
-  }
   console.info(
     `  ok signed quote: ${quote.discountRateBps} bps discount on ${formatUsdc(BigInt(quote.faceValue))} USDC (nonce ${quote.nonce})`,
   );
 
-  await ensureAllowance(ctx, bond, SOWEE_TESTNET.invoiceMarket, UNITS, "bond -> market");
-  ctx.state.listTx = await send(ctx, "listInvoice on InvoiceMarket", {
-    to: SOWEE_TESTNET.invoiceMarket,
-    data: encodeFunctionData({
-      abi: invoiceMarketAbi,
-      functionName: "listInvoice",
-      args: [
-        invoiceId,
-        bond,
-        UNITS,
-        BigInt(maturity),
-        {
-          invoiceId: quote.invoiceId,
-          faceValue: BigInt(quote.faceValue),
-          discountRateBps: quote.discountRateBps,
-          validUntil: BigInt(quote.validUntil),
-          nonce: BigInt(quote.nonce),
-        },
-        quote.signature,
-      ],
-    }),
-  });
-  // Checkpoint immediately: if the price readback below hiccups, a re-run must
-  // see listTx — re-sending listInvoice reverts AlreadyListed and wedges the
-  // pipeline until a fresh bond is burned.
-  ctx.save();
-  const listing = await ctx.pub.readContract({
-    address: SOWEE_TESTNET.invoiceMarket,
-    abi: invoiceMarketAbi,
-    functionName: "invoices",
-    args: [invoiceId],
-  });
-  ctx.state.pricePerUnit = listing[3].toString();
-  ctx.save();
-  console.info(
-    `  primary price: ${formatUsdc(listing[3])} USDC per unit, ${listing[4]} units listed`,
+  const pricePerUnit = await listInvoiceLeg(
+    ctx,
+    { bond, invoiceId, units: UNITS, maturity, quote },
+    (tx) => {
+      ctx.state.listTx = tx;
+      ctx.save();
+    },
   );
+  ctx.state.pricePerUnit = pricePerUnit.toString();
+  ctx.save();
+  console.info(`  primary price: ${formatUsdc(pricePerUnit)} USDC per unit`);
 }
 
 /**
