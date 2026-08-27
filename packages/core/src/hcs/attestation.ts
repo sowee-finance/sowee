@@ -5,23 +5,27 @@ import { InvoiceIdSchema } from "../domain/invoice.js";
 /** Maximum HCS single-transaction message payload we allow (bytes, UTF-8). */
 export const MAX_HCS_MESSAGE_BYTES = 1024;
 
-export const AttestationEventTypeSchema = z.enum([
-  "issued",
-  "verified",
-  "funded",
-  "traded",
-  "settled",
-]);
-export type AttestationEventType = z.infer<typeof AttestationEventTypeSchema>;
+/** Lifecycle event names the Sowee services anchor; the wire format accepts
+    any non-empty name up to 64 chars, exactly like the API's own validation. */
+export const KNOWN_ATTESTATION_EVENTS = [
+  "SUBMITTED",
+  "VERIFIED",
+  "ISSUED",
+  "FUNDED",
+  "TRADED",
+  "SETTLED",
+] as const;
 
-/** Audit-trail message published to the invoice's HCS topic. */
+/** Audit-trail message published to the invoice's HCS topic. This mirrors the
+    payload the Go API actually anchors: RFC3339 string timestamps and a
+    bounded free-form event name — not an enum, not unix seconds. */
 export const AttestationEventSchema = z.object({
   invoiceId: InvoiceIdSchema,
   /** sha256 of the underlying invoice document, lowercase hex without 0x. */
   docHash: z.string().regex(/^[0-9a-f]{64}$/, "expected lowercase sha256 hex"),
-  event: AttestationEventTypeSchema,
-  /** Unix timestamp (seconds). */
-  timestamp: z.number().int().nonnegative(),
+  event: z.string().min(1).max(64),
+  /** RFC3339 timestamp, e.g. "2026-08-26T12:02:48Z". */
+  timestamp: z.iso.datetime({ offset: true }),
   /** Optional attester signature over the JSON payload without `sig`. */
   sig: z.string().optional(),
 });
