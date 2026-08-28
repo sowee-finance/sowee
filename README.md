@@ -67,6 +67,19 @@ Where each control is enforced, and what actually happens when it fires:
 
 Two things are documented but deliberately not enabled on testnet: a multisig owner (Safe or a Hedera threshold-key account) and a timelock on upgrades. Migrating to either is one ownership transfer per contract, no code changes ([details](https://github.com/sowee-finance/contracts#security--ownership)).
 
+### Investor onboarding & identity
+
+The token-layer allowlist above is the *enforcement* point; getting onto it is a real compliance flow, not a manual grant. After connecting a wallet, an investor goes through a guided onboarding wizard at `/kyc`:
+
+1. **Suitability & declarations** — investor classification, source of funds, and enforced declarations (US person, sanctions exposure, PEP, beneficial ownership). Submitted server-side under an EIP-191 wallet-signature challenge, so only the wallet's owner can start or resume its verification.
+2. **Identity & liveness** — document capture and a liveness selfie through [Sumsub](https://sumsub.com) (currently its sandbox environment). Documents and biometrics are processed inside Sumsub's widget; the API only ever reads back the review outcome and the questionnaire answers.
+3. **Policy engine** — a GREEN review plus the answers are run through a suitability policy: **US persons are excluded** (Regulation S posture), residents of comprehensively sanctioned jurisdictions are **blocked**, and PEP or incomplete cases are **held** for review (fail-closed). Only an eligible verdict proceeds.
+4. **On-chain grant** — an eligible investor is granted on the compliance list of **every live bond** in one pass (and revoked across all of them if their status later turns blocked). **Only the eligibility decision reaches the chain** — no name, document, image, or hash of any of it. On-chain entries reference the wallet address alone (aligned with EDPB guidance against personal data on-chain).
+
+Grants land the moment Sumsub decides: a signature-verified webhook drives the same state machine the client poll uses, so an approval flips the investor to eligible even with the tab closed.
+
+**Try it yourself:** open [`app.sowee.site/kyc`](https://app.sowee.site/kyc), connect a wallet, and complete the wizard using Sumsub's [sandbox test documents](https://docs.sumsub.com/docs/test-verifications) — a GREEN result grants your wallet on the live testnet bonds and unlocks the buy flow.
+
 ## Repository layout
 
 ```
