@@ -2,9 +2,12 @@
 package server
 
 import (
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -14,23 +17,64 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/sowee-finance/sowee/apps/api/internal/config"
+	"github.com/sowee-finance/sowee/apps/api/internal/hcs"
 	"github.com/sowee-finance/sowee/apps/api/internal/quote"
 )
 
 // New builds the router. Routes are versioned under /v1.
-func New(cfg config.Config, signer *quote.Signer) http.Handler {
+func New(cfg config.Config, signer *quote.Signer, anchor *hcs.Anchor) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer, cors)
 
 	r.Get("/v1/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
-			"status":  "ok",
-			"chainId": cfg.ChainID,
-			"signer":  signer.Address().Hex(),
+			"status":   "ok",
+			"chainId":  cfg.ChainID,
+			"signer":   signer.Address().Hex(),
+			"hcs":      anchor.Enabled(),
+			"hcsTopic": anchor.TopicID(),
 		})
 	})
 	r.Post("/v1/invoices/{id}/quote", quoteHandler(signer))
+	r.Post("/v1/invoices/{id}/attest", attestHandler(anchor))
 	return r
+}
+
+type attestRequest struct {
+	DocHash string `json:"docHash"` // sha256 of the invoice document, hex (0x optional)
+	Event   string `json:"event"`   // lifecycle event name; defaults to "issued"
+}
+
+// attestHandler anchors {invoiceId, docHash, event} to the HCS topic. The same document may
+// not be pledged under two invoices: that is a 409 carrying the invoice that owns the hash.
+func attestHandler(anchor *hcs.Anchor) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req attestRequest
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		h := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(req.DocHash)), "0x")
+		if b, err := hex.DecodeString(h); err != nil || len(b) != 32 {
+			writeError(w, http.StatusBadRequest, "docHash must be a 32-byte sha256 hex")
+			return
+		}
+		if req.Event == "" {
+			req.Event = "issued"
+		}
+		res, err := anchor.Attest(r.Context(), chi.URLParam(r, "id"), h, req.Event)
+		switch {
+		case errors.Is(err, hcs.ErrDisabled):
+			writeError(w, http.StatusServiceUnavailable, err.Error())
+		case errors.Is(err, hcs.ErrDuplicateDocHash):
+			owner, _ := anchor.Known(h)
+			writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error(), "invoiceId": owner})
+		case err != nil:
+			writeError(w, http.StatusBadGateway, err.Error())
+		default:
+			writeJSON(w, http.StatusCreated, res)
+		}
+	}
 }
 
 // cors allows any origin. ponytail: tighten to the web app's origin before mainnet.

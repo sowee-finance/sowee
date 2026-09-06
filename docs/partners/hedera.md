@@ -38,7 +38,11 @@ From the scheme spec in `x402-foundation/x402` (`specs/schemes/exact/scheme_exac
 
 ## Live proof
 
-Filled in as transactions land (contract links, lifecycle txs, HCS topic, x402 settlement).
+| What | Link |
+|---|---|
+| HCS audit topic | https://hashscan.io/testnet/topic/0.0.10388277 (message 1 = first attestation, written by `POST /v1/invoices/{id}/attest`) |
+
+Contract links, lifecycle transactions and the x402 settlement are added as they land.
 
 ## Feedback (honest, specific)
 

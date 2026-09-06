@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/sowee-finance/sowee/apps/api/internal/config"
+	"github.com/sowee-finance/sowee/apps/api/internal/hcs"
 	"github.com/sowee-finance/sowee/apps/api/internal/quote"
 )
 
@@ -21,11 +23,23 @@ const (
 
 func newTestServer(t *testing.T) (http.Handler, *quote.Signer) {
 	t.Helper()
+	return newTestServerWith(t, hcs.New("", nil))
+}
+
+func newTestServerWith(t *testing.T, anchor *hcs.Anchor) (http.Handler, *quote.Signer) {
+	t.Helper()
 	signer, err := quote.NewSigner(testKey, 296, testOracle)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return New(config.Config{ChainID: 296, DiscountOracle: testOracle}, signer), signer
+	return New(config.Config{ChainID: 296, DiscountOracle: testOracle}, signer, anchor), signer
+}
+
+type memSubmitter struct{ n uint64 }
+
+func (m *memSubmitter) Submit(context.Context, []byte) (uint64, error) {
+	m.n++
+	return m.n, nil
 }
 
 func do(h http.Handler, method, path, body string) *httptest.ResponseRecorder {
@@ -123,5 +137,39 @@ func TestQuoteRejectsBadInput(t *testing.T) {
 		if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), `"error"`) {
 			t.Errorf("%s: status %d body %s", name, rec.Code, rec.Body)
 		}
+	}
+}
+
+const sha = "0x" + "ab" + "cd" + "ef" + "0123456789abcdef0123456789abcdef0123456789abcdef0123456789" // 32 bytes
+
+func TestAttestAnchorsAndRejectsDoublePledge(t *testing.T) {
+	h, _ := newTestServerWith(t, hcs.New("0.0.99", &memSubmitter{}))
+
+	rec := do(h, http.MethodPost, "/v1/invoices/INV-1/attest", `{"docHash":"`+sha+`","event":"issued"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("want 201, got %d: %s", rec.Code, rec.Body)
+	}
+	var res hcs.Result
+	_ = json.Unmarshal(rec.Body.Bytes(), &res)
+	if res.TopicID != "0.0.99" || res.SequenceNumber != 1 || !strings.Contains(res.Link, "0.0.99") {
+		t.Fatalf("unexpected result %+v", res)
+	}
+
+	rec = do(h, http.MethodPost, "/v1/invoices/INV-2/attest", `{"docHash":"`+sha+`"}`)
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), `"invoiceId":"INV-1"`) {
+		t.Fatalf("want 409 naming INV-1, got %d: %s", rec.Code, rec.Body)
+	}
+
+	rec = do(h, http.MethodPost, "/v1/invoices/INV-3/attest", `{"docHash":"0x1234"}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("want 400 for a short hash, got %d", rec.Code)
+	}
+}
+
+func TestAttestDisabledIs503(t *testing.T) {
+	h, _ := newTestServer(t)
+	rec := do(h, http.MethodPost, "/v1/invoices/INV-1/attest", `{"docHash":"`+sha+`"}`)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("want 503, got %d: %s", rec.Code, rec.Body)
 	}
 }

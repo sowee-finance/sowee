@@ -26,3 +26,6 @@ contracts/broadcast/**/dry-run/
 # local agent worktrees
 .claude/worktrees/
 **/.claude/worktrees/
+
+# turbo cache
+.turbo/

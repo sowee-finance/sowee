@@ -12,6 +12,11 @@ type Config struct {
 	ChainID        int64  // CHAIN_ID, default 296 (Hedera testnet)
 	DiscountOracle string // DISCOUNT_ORACLE, address of the deployed DiscountOracle
 	QuoteSignerPK  string // QUOTE_SIGNER_PK, hex private key whose address the oracle trusts
+
+	HCSTopicID        string // HCS_TOPIC_ID, audit topic; created at startup when empty and an operator is set
+	HederaOperatorID  string // HEDERA_OPERATOR_ID, e.g. 0.0.7162116 — pays for HCS messages
+	HederaOperatorKey string // HEDERA_OPERATOR_KEY, hex ECDSA private key of the operator
+	MirrorURL         string // MIRROR_URL, default https://testnet.mirrornode.hedera.com
 }
 
 // FromEnv builds a Config from the process environment.
@@ -21,6 +26,11 @@ func FromEnv() Config {
 		ChainID:        envInt("CHAIN_ID", 296),
 		DiscountOracle: os.Getenv("DISCOUNT_ORACLE"),
 		QuoteSignerPK:  os.Getenv("QUOTE_SIGNER_PK"),
+
+		HCSTopicID:        os.Getenv("HCS_TOPIC_ID"),
+		HederaOperatorID:  os.Getenv("HEDERA_OPERATOR_ID"),
+		HederaOperatorKey: os.Getenv("HEDERA_OPERATOR_KEY"),
+		MirrorURL:         env("MIRROR_URL", "https://testnet.mirrornode.hedera.com"),
 	}
 }
 
