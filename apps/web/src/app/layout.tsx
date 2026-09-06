@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { KycBadge } from "@/components/kyc-badge"
 import { WalletButton } from "@/components/wallet-button"
+import { activeChain } from "@/lib/chains"
 import "./globals.css"
 import { Providers } from "./providers"
 
@@ -45,7 +46,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </header>
           <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
           <footer className="border-zinc-200 border-t py-4 text-center text-xs text-zinc-500 dark:border-zinc-800">
-            Sowee runs on Hedera testnet. Nothing here is financial advice.
+            Sowee runs on {activeChain.name}. Nothing here is financial advice.
           </footer>
         </Providers>
       </body>

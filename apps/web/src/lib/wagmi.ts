@@ -6,7 +6,7 @@ import { chains } from "./chains"
 export const wagmiConfig = createConfig({
   chains,
   connectors: [injected()],
-  transports: { [chains[0].id]: http(), [chains[1].id]: http() },
+  transports: { [chains[0].id]: http(), [chains[1].id]: http(), [chains[2].id]: http() },
   ssr: true,
 })
 

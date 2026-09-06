@@ -14,7 +14,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.sumsub.com",
   "font-src 'self'",
-  `connect-src 'self' ${api} https://testnet.hashio.io https://testnet.mirrornode.hedera.com https://*.sumsub.com wss://*.sumsub.com${
+  `connect-src 'self' ${api} https://testnet.hashio.io https://testnet.mirrornode.hedera.com https://rpc.testnet.arc.network https://*.sumsub.com wss://*.sumsub.com${
     dev ? " http://127.0.0.1:8545 http://localhost:8545 ws://localhost:* ws://127.0.0.1:*" : ""
   }`,
   "frame-src https://*.sumsub.com",
