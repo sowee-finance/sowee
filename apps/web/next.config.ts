@@ -12,9 +12,9 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' https://static.sumsub.com${dev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.sumsub.com",
+  "img-src 'self' data: blob: https://*.sumsub.com https://*.worldcoin.org https://*.world.org",
   "font-src 'self'",
-  `connect-src 'self' ${api} https://testnet.hashio.io https://testnet.mirrornode.hedera.com https://rpc.testnet.arc.network https://*.sumsub.com wss://*.sumsub.com${
+  `connect-src 'self' ${api} https://testnet.hashio.io https://testnet.mirrornode.hedera.com https://rpc.testnet.arc.network https://*.sumsub.com wss://*.sumsub.com https://*.worldcoin.org https://*.world.org wss://*.worldcoin.org${
     dev ? " http://127.0.0.1:8545 http://localhost:8545 ws://localhost:* ws://127.0.0.1:*" : ""
   }`,
   "frame-src https://*.sumsub.com",

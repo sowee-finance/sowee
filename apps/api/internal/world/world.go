@@ -90,11 +90,23 @@ func (s *Service) NewRequest() (Request, error) {
 }
 
 // result is the slice of the IDKit payload the service inspects; the rest is forwarded as-is.
+// Selfie Check (Beta) still returns World ID 3.0 proofs, whose nullifier field is `nullifier_hash`.
 type result struct {
 	Action    string `json:"action"`
 	Responses []struct {
-		Nullifier string `json:"nullifier"`
+		Nullifier     string `json:"nullifier"`
+		NullifierHash string `json:"nullifier_hash"`
 	} `json:"responses"`
+}
+
+func (r result) nullifier() string {
+	if len(r.Responses) == 0 {
+		return ""
+	}
+	if r.Responses[0].Nullifier != "" {
+		return r.Responses[0].Nullifier
+	}
+	return r.Responses[0].NullifierHash
 }
 
 // Verify forwards the IDKit result to the Developer Portal and enforces one-proof-per-person.
@@ -104,13 +116,13 @@ func (s *Service) Verify(ctx context.Context, payload json.RawMessage) (string, 
 		return "", ErrDisabled
 	}
 	var r result
-	if err := json.Unmarshal(payload, &r); err != nil || len(r.Responses) == 0 || r.Responses[0].Nullifier == "" {
+	if err := json.Unmarshal(payload, &r); err != nil || r.nullifier() == "" {
 		return "", fmt.Errorf("%w: malformed IDKit result", ErrInvalid)
 	}
 	if r.Action != s.cfg.Action {
 		return "", ErrWrongAction
 	}
-	nullifier := r.Responses[0].Nullifier
+	nullifier := r.nullifier()
 	s.mu.Lock()
 	_, seen := s.used[nullifier]
 	s.mu.Unlock()

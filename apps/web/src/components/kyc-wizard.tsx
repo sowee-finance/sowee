@@ -338,7 +338,14 @@ export function KycWizard() {
     // Every step in between needs the signature; a disconnect sends the user back here.
     if (!wallet || !auth) return <Welcome wallet={wallet} onSigned={setAuth} />
     if (step === "selfie")
-      return <SelfieCheckStep wallet={wallet} onVerified={() => next("selfie")} />
+      return (
+        <SelfieCheckStep
+          wallet={wallet}
+          auth={auth}
+          onVerified={() => next("selfie")}
+          onSkip={() => next("selfie")}
+        />
+      )
     if (step === "profile") {
       return (
         <ProfileStep
