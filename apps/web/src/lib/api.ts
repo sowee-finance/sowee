@@ -25,16 +25,21 @@ export class ApiError extends Error {
   }
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${apiUrl}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  })
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${apiUrl}${path}`, init)
   const json = (await res.json().catch(() => ({}))) as T & { error?: string }
   if (!res.ok) throw new ApiError(res.status, json.error ?? `${res.status} ${res.statusText}`)
   return json
 }
+
+export const get = <T>(path: string) => request<T>(path)
+
+export const post = <T>(path: string, body: unknown) =>
+  request<T>(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  })
 
 type QuoteWire = {
   quote: {
