@@ -42,6 +42,7 @@ From the scheme spec in `x402-foundation/x402` (`specs/schemes/exact/scheme_exac
 |---|---|
 | HCS audit topic | https://hashscan.io/testnet/topic/0.0.10388277 (message 1 = first attestation, written by `POST /v1/invoices/{id}/attest`) |
 
+| x402 paid request | agent `0.0.10215221` paid 0.01 USDC for `GET /v1/market/insights`, settled by Blocky402: https://hashscan.io/testnet/transaction/0.0.7162784-1788673291-830215578 — receipt anchored on the HCS topic (message 2) |
 | x402 challenge | `GET /v1/market/insights` answers `402` with `accepts[0] = {exact, hedera:testnet, 10000 (0.01 USDC), asset 0.0.429274, payTo 0.0.7162116, feePayer 0.0.7162784}` — fee payer resolved live from the facilitator's `/supported` |
 
 Contract links, lifecycle transactions and the x402 settlement transaction are added as they land.
