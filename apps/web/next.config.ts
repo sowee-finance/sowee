@@ -1,13 +1,18 @@
 import type { NextConfig } from "next"
 
 const dev = process.env.NODE_ENV === "development"
+// A local chain is reached over plain http, which the CSP has to allow explicitly. This follows
+// the configured chain rather than the build mode: `bun run build && bun run start` against anvil
+// is a normal way to check a production build, and silently blocking its RPC reads as an empty
+// marketplace with nothing but a console violation to explain it.
+const localChain = (process.env.NEXT_PUBLIC_CHAIN_ID ?? "296") === "31337"
 // The Go API (quotes, attestations). Read at build time; the client bundle inlines the same value.
 const api = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").origin
 
-// Reads go from the browser straight to the RPC, so the relay and mirror node must be
-// reachable; anvil only in dev. Next's own inline bootstrap scripts need 'unsafe-inline'
-// without a nonce setup, and the dev overlay needs 'unsafe-eval'. The Sumsub WebSDK is a CDN
-// script that mounts an iframe on *.sumsub.com (KYC wizard, /kyc).
+// Reads go from the browser straight to the RPC, so the relay and mirror node must be reachable.
+// Next's own inline bootstrap scripts need 'unsafe-inline' without a nonce setup, and the dev
+// overlay needs 'unsafe-eval'. The Sumsub WebSDK is a CDN script that mounts an iframe on
+// *.sumsub.com (KYC wizard, /kyc).
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' https://static.sumsub.com${dev ? " 'unsafe-eval'" : ""}`,
@@ -15,8 +20,8 @@ const csp = [
   "img-src 'self' data: blob: https://*.sumsub.com https://*.worldcoin.org https://*.world.org",
   "font-src 'self'",
   `connect-src 'self' ${api} https://testnet.hashio.io https://testnet.mirrornode.hedera.com https://rpc.testnet.arc.network https://*.sumsub.com wss://*.sumsub.com https://*.worldcoin.org https://*.world.org wss://*.worldcoin.org${
-    dev ? " http://127.0.0.1:8545 http://localhost:8545 ws://localhost:* ws://127.0.0.1:*" : ""
-  }`,
+    localChain ? " http://127.0.0.1:8545 http://localhost:8545" : ""
+  }${dev ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
   "frame-src https://*.sumsub.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",

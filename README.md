@@ -139,6 +139,9 @@ cd apps/api && PORT=8080 CHAIN_ID=31337 DISCOUNT_ORACLE=<from contracts/deployme
 cd apps/web && NEXT_PUBLIC_CHAIN_ID=31337 bun run dev
 ```
 
+`bun run build && bun run start` works against the local chain too — the CSP follows
+`NEXT_PUBLIC_CHAIN_ID`, so a local build is allowed to reach anvil while a testnet build is not.
+
 Against Hedera testnet, set `NEXT_PUBLIC_CHAIN_ID=296` (addresses come from
 `contracts/deployments/296.json`) and give the API the environment in
 [`apps/api/.env.example`](apps/api/.env.example): Hedera operator (HCS), Sumsub sandbox pair
