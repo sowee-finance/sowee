@@ -34,8 +34,8 @@ An unpaid invoice becomes a compliance-gated, fractional bond token. The lifecyc
 | # | Milestone | Issues | Status |
 |---|---|---|---|
 | M1 | Foundations: scaffold, contracts, app shells | #1 #2 #3 #4 #5 | done — contracts live on Hedera testnet |
-| M2 | Core lifecycle end-to-end on testnet | #10 #11 #12 #13 #14 | API + HCS done; live lifecycle and web flows in progress |
-| M3 | Compliance: Sumsub KYC, policy engine, on-chain grant, World Selfie Check | #17 #18 #19 #20 #21 #22 #23 | API side done; World access pending |
+| M2 | Core lifecycle end-to-end on testnet | #10 #11 #12 #13 #14 | done — ten live transactions |
+| M3 | Compliance: Sumsub KYC, policy engine, on-chain grant, World Selfie Check | #17 #18 #19 #20 #21 #22 #23 | KYC live end-to-end; World API done, live test pending access; wizard in progress |
 | M4 | x402-gated API + agent consumer | #24 #25 #26 | done — real paid request on testnet |
 | M5 | Arc testnet port (stretch, cut first) | to be filed | |
 | M6 | Hedera Harness PR (stretch) | to be filed | |
