@@ -20,6 +20,8 @@ const csp = [
 ].join("; ")
 
 const nextConfig: NextConfig = {
+  // Do not write AGENTS.md / CLAUDE.md into this package; the repo root has its own guide.
+  agentRules: false,
   headers: async () => [
     {
       source: "/(.*)",
