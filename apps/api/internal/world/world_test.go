@@ -61,6 +61,15 @@ func TestVerifyForwardsPayloadAndBlocksReplay(t *testing.T) {
 	}
 }
 
+func TestVerifyAcceptsWorldId3Result(t *testing.T) {
+	s := newService(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"success":true}`)) })
+	v3 := json.RawMessage(`{"protocol_version":"3.0","nonce":"0x01","action":"sowee-selfie-check","environment":"sandbox","responses":[{"identifier":"selfie_check","proof":"0x00","merkle_root":"0x01","nullifier_hash":"0xv3","verification_level":"selfie"}]}`)
+	n, err := s.Verify(context.Background(), v3)
+	if err != nil || n != "0xv3" {
+		t.Fatalf("v3 result: %v %q", err, n)
+	}
+}
+
 func TestVerifyRejections(t *testing.T) {
 	s := newService(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
