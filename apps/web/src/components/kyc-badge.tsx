@@ -1,5 +1,6 @@
 "use client"
 
+import { BadgeCheck } from "lucide-react"
 import Link from "next/link"
 import { useAccount } from "wagmi"
 import { describeState } from "@/lib/kyc"
@@ -16,13 +17,12 @@ export function KycBadge() {
     <Link
       href="/kyc"
       title={describeState(state).detail}
-      className={`rounded-full border px-2.5 py-1 text-xs ${
-        granted
-          ? "border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400"
-          : "border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-400"
+      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 font-medium text-xs ${
+        granted ? "bg-emerald-50 text-emerald-700" : "bg-amber-400 text-ink hover:bg-amber-300"
       }`}
     >
-      {granted ? "✓ Verified" : state === "none" ? "Verify" : describeState(state).title}
+      {granted && <BadgeCheck className="size-3.5" aria-hidden />}
+      {granted ? "Verified" : state === "none" ? "Verify now" : describeState(state).title}
     </Link>
   )
 }
