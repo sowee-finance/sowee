@@ -18,18 +18,37 @@ bun test                    # unit tests (data mapping, hashing, error decoding)
 |---|---|---|
 | `NEXT_PUBLIC_CHAIN_ID` | `296` | chain the UI reads from and asks the wallet to join: `296` (Hedera testnet) or `31337` (anvil) |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8080` | origin of `apps/api` (quotes, attestations, KYC); read at build time and added to the CSP `connect-src` |
-| `NEXT_PUBLIC_HCS_TOPIC_ID` | `0.0.10388277` | HCS topic behind the audit-trail panel and the "x402 calls paid" tile, read from the public mirror node; only on Hedera (chain 296) |
+| `NEXT_PUBLIC_HCS_TOPIC_ID` | `0.0.10388277` | HCS topic behind the bond page's audit trail, read from the public mirror node; only on Hedera (chain 296) |
 | `NEXT_PUBLIC_WORLD_APP_ID` | unset | World app id; unset hides the Selfie Check step of the KYC wizard |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | public origin, used to resolve the Open Graph image URL |
 
 Only injected wallets are supported.
 
+## Design
+
+Light theme on Geist (`next/font/google`): ink `#16181a`, hero green `#0c2d1d`, positive
+`#007a4b`, a 1400px `.container-page`, pill inputs and black primary buttons. Tokens live in
+`src/app/theme.pcss` (Tailwind v4 `@theme`, imported by `globals.css`); the shared primitives
+(company marks, status badge, progress bar, dropdown, bottom sheet, amount panel) are in
+`src/components/ui.tsx`. Icons come from `lucide-react`. Every page except the onboarding
+wizard renders inside `src/app/(site)/layout.tsx` (sticky header with search and the wallet
+pill, legal footer with `/terms` and `/privacy`); `/kyc` has its own full-page chrome.
+
+A bond's token name is `<issuer company> · <payor>` (set by the issuer form, `src/lib/issuer.ts`);
+the UI splits it back on ` · ` for the title, subtitle and search, and shows any other name
+whole. Amounts render as `$9,800`, APY is the implied simple yield (discount × 365 / days left),
+and the status pill follows the chain: **Funding** (supply below face), **Funded** (supply equals
+face), **Matured** (past maturity), **Settled** (`MaturitySettlement.repayments(id).settled`).
+The card sparkline and the bond page chart are the synthetic accretion of the discounted price
+to par over the tenor (`pricePath` in `src/lib/market.ts`); there is no on-chain price history.
+
 ## Screenshots
 
-Hedera testnet, dark theme, 1280×900 (`docs/screenshots/` also holds the 390×844 mobile shots).
+Hedera testnet, 1280×900 (`docs/screenshots/` also holds the 390×844 mobile shots).
 
-![Marketplace: hero, live stat tiles and the bond grid](../../docs/screenshots/marketplace.png)
+![Marketplace: hero, top lists and the bond grid](../../docs/screenshots/marketplace.png)
 
-![Bond page: position, primary buy, secondary asks and the HCS audit trail](../../docs/screenshots/bond.png)
+![Bond page: implied APY, accretion chart, buy panel, secondary asks and the HCS audit trail](../../docs/screenshots/bond.png)
 
 ## How contracts flow in
 
@@ -45,12 +64,13 @@ Hedera testnet, dark theme, 1280×900 (`docs/screenshots/` also holds the 390×8
 
 | Route | What it reads |
 |---|---|
-| `/` | `listingCount`, `invoiceIds(i)`, `listing(id)` on `InvoiceMarket`; `name`, `symbol`, `totalSupply`, `faceValue` on each `BondToken`. The stat tiles are computed from those same reads (bonds listed, sum of supplies, best implied APR = discount × 365 / days to maturity) plus the count of `x402.receipt.v1` messages on the HCS topic |
-| `/invoices/[id]` | the above plus `balanceOf` and `isEligible` for the wallet, `primaryCost`, `feeBps`, USDC `allowance` and `balanceOf`; writes `approve` then `buyPrimary`. Secondary market: `nextAskId` and `asks(i)`; writes USDC `approve` + `fillAsk`, bond `approve` + `makeAsk`, `cancelAsk`. Audit trail: the topic's `attestation.v1` messages whose `invoiceId` is this bond's reference or its `keccak256` (`src/lib/hcs.ts`), with consensus time, sequence number and a HashScan link; hidden off Hedera |
-| `/issuer` | the wallet's own listings (`listing(id).issuer`) with a link to `/issuer/new` |
-| `/issuer/new` | three steps: `POST /v1/invoices/{ref}/quote` on the API, `listInvoice(name, symbol, maturity, quote, signature)`, then `POST /v1/invoices/{ref}/attest` with the document's sha256 (hashed in the browser with Web Crypto; the file is never uploaded) |
-| `/portfolio` | every bond with `balanceOf > 0` plus `isEligible` and `MaturitySettlement.claimable`; writes `claim`; the wallet's open asks with `cancelAsk` |
+| `/` | `listingCount`, `invoiceIds(i)`, `listing(id)` on `InvoiceMarket`; `name`, `symbol`, `totalSupply`, `faceValue` on each `BondToken`; `repayments(id)` on `MaturitySettlement`. The top lists (Top Yields, Maturing Soon, Newly Issued = highest listing index), the search (issuer, payor, symbol), status chips, sort and 6-per-page grid are all computed from those reads; the header search suggests the top-APY open bonds |
+| `/invoices/[id]` | the above plus `balanceOf` and `isEligible` for the wallet, `primaryCost`, `feeBps`, USDC `allowance` and `balanceOf`; writes `approve` then `buyPrimary` (below `lg` the buy panel is a bottom sheet). Secondary market: `nextAskId` and `asks(i)`; writes USDC `approve` + `fillAsk`, bond `approve` + `makeAsk`, `cancelAsk`; hidden once matured. Audit trail: the topic's `attestation.v1` messages whose `invoiceId` is this bond's reference or its `keccak256` (`src/lib/hcs.ts`), with consensus time, sequence number and a HashScan link; hidden off Hedera |
+| `/issuer` | the wallet's own listings (`listing(id).issuer`) as stat tiles and a table, with a link to `/issuer/new` |
+| `/issuer/new` | the tokenize form (issuer company, payor, reference, face value, due date, PDF hashed in the browser with Web Crypto — never uploaded), then a checklist: `POST /v1/invoices/{ref}/quote` on the API, `listInvoice(name, symbol, maturity, quote, signature)` from the wallet, then `POST /v1/invoices/{ref}/attest` with the document's sha256 |
+| `/portfolio` | every bond with `balanceOf > 0` plus `isEligible` and `MaturitySettlement.claimable`; writes `claim`; the wallet's open asks with `cancelAsk`; the wallet's KYC state from the API |
 | `/kyc` | the investor onboarding wizard (below); every "not eligible" notice links here |
+| `/terms`, `/privacy` | static legal copy, linked from the footer |
 
 Every write is simulated with `eth_call` first, so a revert (`AlreadyListed`, `QuoteExpired`,
 `NonceUsed`, `NotEligible`, ...) shows as a readable message instead of an opaque wallet error
@@ -59,22 +79,24 @@ Every write is simulated with `eth_call` first, so a revert (`AlreadyListed`, `Q
 ## KYC wizard (`/kyc`)
 
 Wallet → Sumsub → suitability policy → on-chain grant, driven by the API's `/v1/kyc/*` routes
-(`apps/api/README.md`, "KYC and on-chain eligibility"). `src/components/kyc-wizard.tsx`:
+(`apps/api/README.md`, "KYC and on-chain eligibility"). `src/components/kyc-wizard.tsx` is a
+full-page wizard: a light-blue sidebar stepper (Welcome, Selfie Check when enabled, Investor
+Profile, Declarations, Identity Verification — progress bars on mobile), "Exit" top right, and
+the steps stacked as cards on the right, the active one expanded:
 
 | Step | What happens |
 |---|---|
-| Welcome | what will be asked and what never reaches the chain (only eligible / not eligible per wallet) |
-| Sign in | connect, `GET /v1/kyc/challenge`, `personal_sign` the message; `{issuedAt, signature}` stay in React state for the hour they are valid and authenticate every write |
+| Welcome | what will be asked and what never reaches the chain (only eligible / not eligible per wallet); the wallet sign-in is the card's button: connect, `GET /v1/kyc/challenge`, `personal_sign` the message; `{issuedAt, signature}` stay in React state for the hour they are valid and authenticate every write |
 | Selfie Check | World anti-sybil gate. Skipped unless `NEXT_PUBLIC_WORLD_APP_ID` is set; with it set, `src/components/selfie-check-step.tsx` renders a "coming soon" placeholder that is the extension point for `@worldcoin/idkit` (it receives `wallet` and calls `onVerified()`) |
 | Profile | first and last name, date of birth (`<input type="date">`), country of residence (ISO 3166-1 alpha-3 `<select>`) |
 | Declarations | the `sowee-investor-suitability` questionnaire; every answer is required and submitted as-is with the profile in one `POST /v1/kyc/profile` (`202` + status). The policy decides, the form does not filter |
-| Identity | `POST /v1/kyc/session` for a WebSDK token, then the Sumsub WebSDK from `static.sumsub.com` (no npm package) mounts its iframe for document + liveness; `idCheck.onApplicantSubmitted` moves on, the token refresh callback mints a new one |
-| Status | `GET /v1/kyc/status` every 5 s: `pending / held / blocked / granting / granted` in plain words with the API's reason; `granted` links to the marketplace and lists the grant transactions on HashScan |
+| Identity | "Start KYC" calls `POST /v1/kyc/session` for a WebSDK token, then the Sumsub WebSDK from `static.sumsub.com` (no npm package) mounts its iframe for document + liveness; `idCheck.onApplicantSubmitted` moves on, the token refresh callback mints a new one |
+| Status | the same card: `GET /v1/kyc/status` every 5 s, `pending / held / blocked / granting / granted` in plain words with the API's reason; `granted` links to the marketplace and lists the grant transactions on HashScan |
 
 On load the wizard reads the status: a wallet with a file open (`pending`, `held`, `blocked`,
 `granting`, `granted`) lands on Status, `none` starts at Welcome. Switching wallets starts
-over. The header shows a `KycBadge` with the connected wallet's state ("Verify" for `none`, a
-check mark once `granted`). The CSP allows `static.sumsub.com` scripts and `*.sumsub.com`
+over. The header shows a `KycBadge` with the connected wallet's state ("Verify now" for `none`,
+a check mark once `granted`). The CSP allows `static.sumsub.com` scripts and `*.sumsub.com`
 frames, connections and images; `Permissions-Policy` already grants camera and microphone.
 
 The API needs `SUMSUB_APP_TOKEN` / `SUMSUB_SECRET_KEY` (sandbox), the level with its

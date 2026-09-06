@@ -6,7 +6,9 @@ export async function sha256Hex(file: Blob): Promise<Hex> {
   return bytesToHex(new Uint8Array(digest))
 }
 
-export const nameFor = (ref: string) => `Sowee Bond ${ref}`
+/** Token name `<issuer company> · <payor>`; the marketplace splits it back (`market.ts`). */
+export const nameFor = (company: string, payor: string) =>
+  `${company.trim().replaceAll(" · ", " - ")} · ${payor.trim().replaceAll(" · ", " - ")}`
 
 /** `s<REF>`: uppercase alphanumerics of the reference, 8 characters at most. */
 export const symbolFor = (ref: string) =>

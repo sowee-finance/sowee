@@ -1,5 +1,4 @@
 import { activeChain } from "@/lib/chains"
-import { secondary } from "./styles"
 
 /** A list with nothing in it: what it would show, and the one action that fills it. */
 export function EmptyState({
@@ -12,10 +11,10 @@ export function EmptyState({
   action?: React.ReactNode
 }) {
   return (
-    <div className="rounded-lg border border-zinc-300 border-dashed px-6 py-8 text-center dark:border-zinc-700">
+    <div className="flex flex-col items-center gap-3 py-16 text-center">
       <p className="font-medium text-sm">{title}</p>
-      <p className="mt-1 text-sm text-zinc-500">{children}</p>
-      {action && <div className="mt-4 flex justify-center">{action}</div>}
+      <p className="max-w-xs text-sm text-soft">{children}</p>
+      {action && <div className="mt-1 flex justify-center">{action}</div>}
     </div>
   )
 }
@@ -23,47 +22,47 @@ export function EmptyState({
 /** A read that failed. Never shows the raw error; the retry refetches. */
 export function ErrorState({ what, onRetry }: { what: string; onRetry: () => void }) {
   return (
-    <div className="rounded-lg border border-red-300 bg-red-50 px-6 py-6 text-center dark:border-red-900 dark:bg-red-950/40">
-      <p className="font-medium text-red-800 text-sm dark:text-red-200">Could not read {what}.</p>
-      <p className="mt-1 text-red-700/80 text-sm dark:text-red-300/80">
+    <div className="flex flex-col items-center gap-3 py-16 text-center">
+      <p className="font-medium text-sm">Could not read {what}.</p>
+      <p className="max-w-xs text-sm text-soft">
         {activeChain.name} did not answer. Check your connection and try again.
       </p>
-      <button type="button" className={`${secondary} mt-4 text-sm`} onClick={onRetry}>
+      <button
+        type="button"
+        className="mt-1 rounded-full border border-line px-4 py-2 font-medium text-sm hover:border-ink"
+        onClick={onRetry}
+      >
         Retry
       </button>
     </div>
   )
 }
 
-const shimmer = "animate-pulse rounded bg-zinc-200 dark:bg-zinc-800"
+const shimmer = "animate-pulse rounded-lg bg-shade"
 
 /** Placeholder with the silhouette of a BondCard. */
 export function SkeletonCard() {
   return (
-    <div
-      aria-hidden
-      className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
-    >
-      <div className="flex justify-between">
-        <div className={`${shimmer} h-5 w-40`} />
-        <div className={`${shimmer} h-4 w-12`} />
+    <div aria-hidden className="overflow-hidden rounded-3xl border border-line bg-white">
+      <div className="flex items-center gap-3 p-5 pb-0">
+        <div className="size-10 shrink-0 animate-pulse rounded-full bg-shade" />
+        <div className="flex flex-col gap-1.5">
+          <div className={`${shimmer} h-4 w-36`} />
+          <div className={`${shimmer} h-3 w-28`} />
+        </div>
       </div>
-      <div className="flex flex-col gap-2">
-        {["a", "b", "c", "d", "e"].map((k) => (
-          <div key={k} className="flex justify-between">
-            <div className={`${shimmer} h-4 w-20`} />
-            <div className={`${shimmer} h-4 w-24`} />
-          </div>
-        ))}
+      <div className="px-5 pt-4">
+        <div className={`${shimmer} h-8 w-32`} />
+        <div className={`${shimmer} mt-2 h-3 w-44`} />
       </div>
-      <div className={`${shimmer} h-1.5 w-full`} />
+      <div className={`${shimmer} mx-5 mt-2 mb-5 h-24 rounded-xl`} />
     </div>
   )
 }
 
 export function SkeletonGrid({ count = 3 }: { count?: number }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: count }, (_, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: identical static placeholders
         <SkeletonCard key={i} />

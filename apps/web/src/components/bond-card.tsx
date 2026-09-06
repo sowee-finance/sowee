@@ -1,64 +1,61 @@
+"use client"
+
 import Link from "next/link"
-import { explorerUrl, shortAddress } from "@/lib/chains"
 import {
   type Bond,
-  bpsToPct,
+  bondStatus,
+  dollars,
   fundedPct,
   impliedApr,
-  maturityDate,
   pct,
-  relativeMaturity,
-  usdc,
+  pricePath,
+  splitName,
+  tenorDays,
 } from "@/lib/market"
+import { Sparkline } from "./charts"
+import { CompanyAvatar, STATUS_TREND, StatusBadge, TREND_FILL, TrendText } from "./ui"
 
+/** Issuer company and payor from the token name; a bond named otherwise shows its symbol. */
+export const bondNames = (b: Pick<Bond, "name">) => splitName(b.name)
+
+/** Marketplace card for one invoice bond. */
 export function BondCard({ bond }: { bond: Bond }) {
-  const funded = fundedPct(bond)
+  const status = bondStatus(bond)
+  const trend = STATUS_TREND[status]
   const apr = impliedApr(bond)
-  const explorer = explorerUrl(bond.bond)
+  const days = Math.max(tenorDays(bond.maturity), 0)
+  const { issuer, payor } = bondNames(bond)
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-baseline justify-between gap-2">
-        <Link href={`/invoices/${bond.invoiceId}`} className="font-medium hover:underline">
-          {bond.name}
-        </Link>
-        <span className="font-mono text-xs text-zinc-500">{bond.symbol}</span>
-      </div>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        <dt className="text-zinc-500">Discount</dt>
-        <dd className="text-right">{bpsToPct(bond.discountRateBps)}</dd>
-        <dt className="text-zinc-500">Implied APR</dt>
-        <dd className="text-right">{apr === undefined ? "—" : pct(apr)}</dd>
-        <dt className="text-zinc-500">Face value</dt>
-        <dd className="text-right">{usdc(bond.faceValue)}</dd>
-        <dt className="text-zinc-500">Maturity</dt>
-        <dd className="text-right">
-          {maturityDate(bond.maturity)}
-          <span className="block text-xs text-zinc-500">{relativeMaturity(bond.maturity)}</span>
-        </dd>
-        <dt className="text-zinc-500">Issuer</dt>
-        <dd className="text-right font-mono text-xs" title={bond.issuer}>
-          {shortAddress(bond.issuer)}
-        </dd>
-      </dl>
-      <div>
-        <div className="flex justify-between text-xs text-zinc-500">
-          <span>Funded</span>
-          <span>{pct(funded)}</span>
+    <Link
+      href={`/invoices/${bond.invoiceId}`}
+      className="asset-card block overflow-hidden rounded-3xl border border-line"
+      style={{ "--card-tint": TREND_FILL[trend] } as React.CSSProperties}
+    >
+      <div className="flex items-center gap-3 p-5 pb-0">
+        <CompanyAvatar name={issuer} />
+        <div className="min-w-0">
+          <div className="truncate font-medium text-[15px]">{issuer}</div>
+          <div className="truncate text-[13px] text-soft">
+            {payor ? `Payor: ${payor}` : bond.symbol}
+          </div>
         </div>
-        <div className="mt-1 h-1.5 w-full overflow-hidden rounded bg-zinc-200 dark:bg-zinc-800">
-          <div className="h-full bg-emerald-500" style={{ width: `${Math.min(funded, 100)}%` }} />
-        </div>
+        <StatusBadge status={status} className="ml-auto" />
       </div>
-      {explorer && (
-        <a
-          href={explorer}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs text-zinc-500 hover:underline"
-        >
-          View on HashScan
-        </a>
-      )}
-    </div>
+
+      <div className="px-5 pt-4">
+        <div className="tabular font-medium text-[28px] tracking-tight">
+          {dollars(bond.faceValue)}
+        </div>
+        <TrendText trend={trend} className="mt-1 text-xs">
+          {apr === undefined ? "Matured" : `${pct(apr)} APY`} ({fundedPct(bond).toFixed(0)}% funded){" "}
+          {days}D
+        </TrendText>
+      </div>
+
+      {/* h-27.5 = 110px, the Sparkline viewBox height */}
+      <div className="mt-2 h-27.5">
+        <Sparkline values={pricePath(bond)} trend={trend} />
+      </div>
+    </Link>
   )
 }

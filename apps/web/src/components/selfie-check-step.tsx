@@ -1,7 +1,8 @@
 "use client"
 
+import { ChevronRight } from "lucide-react"
 import type { Address } from "viem"
-import { box, secondary } from "./styles"
+import { StepCard } from "./kyc-wizard"
 
 /**
  * World Selfie Check: the anti-sybil signal in front of full KYC.
@@ -19,18 +20,29 @@ export function SelfieCheckStep({
   onVerified: () => void
 }) {
   return (
-    <section className={box}>
-      <h2 className="font-medium">Selfie Check</h2>
-      <p className="mt-2 text-amber-700 dark:text-amber-400">
-        Coming soon: requires Selfie Check access.
-      </p>
-      <p className="mt-1 text-zinc-500">
-        A one-time World Selfie Check will prove that {wallet} belongs to one real person before the
-        identity check. Until access is granted this step does nothing.
-      </p>
-      <button type="button" className={`${secondary} mt-3`} onClick={onVerified}>
-        Continue
-      </button>
-    </section>
+    <StepCard
+      title="Selfie Check"
+      lede="A one-time World Selfie Check proves that this wallet belongs to one real person before the identity check."
+      footer={
+        <div className="mt-auto pt-5 lg:pt-6">
+          <button
+            type="button"
+            onClick={onVerified}
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#141416] font-medium text-base text-white transition-colors hover:bg-black"
+          >
+            Continue <ChevronRight className="size-4" aria-hidden />
+          </button>
+        </div>
+      }
+    >
+      <div className="rounded-xl bg-[#f4f4f5] p-6">
+        <p className="font-medium text-amber-700 text-sm">
+          Coming soon: requires Selfie Check access.
+        </p>
+        <p className="mt-2 text-sm text-soft">
+          Until access is granted this step does nothing for {wallet}.
+        </p>
+      </div>
+    </StepCard>
   )
 }
