@@ -44,17 +44,18 @@ type Flow struct {
 	grant  Grantor
 	now    func() time.Time
 
-	mu       sync.Mutex
-	granted  map[string][]string // wallet -> grant txs (this process)
-	inflight map[string]bool     // wallet -> grant running
-	selfie   map[string]bool     // wallet -> Selfie Check verified
-	wg       sync.WaitGroup      // tests wait for background grants
+	mu        sync.Mutex
+	granted   map[string][]string  // wallet -> grant txs (this process)
+	checkedAt map[string]time.Time // wallet -> last time bonds were re-checked
+	inflight  map[string]bool      // wallet -> grant running
+	selfie    map[string]bool      // wallet -> Selfie Check verified
+	wg        sync.WaitGroup       // tests wait for background grants
 }
 
 // NewFlow wires the flow. A nil Grantor leaves eligible wallets in "granting".
 func NewFlow(s SumsubAPI, g Grantor) *Flow {
 	return &Flow{sumsub: s, grant: g, now: time.Now,
-		granted: map[string][]string{}, inflight: map[string]bool{}, selfie: map[string]bool{}}
+		granted: map[string][]string{}, checkedAt: map[string]time.Time{}, inflight: map[string]bool{}, selfie: map[string]bool{}}
 }
 
 // ErrDisabled is returned when Sumsub is not configured.
@@ -136,15 +137,25 @@ func (f *Flow) Status(ctx context.Context, wallet string) (Status, error) {
 	return st, nil
 }
 
-// ensureGranted starts one background grant per wallet and reports the current state.
+// RecheckEvery bounds how often a granted wallet is re-checked against the bond list, so a
+// bond listed after the grant is picked up without turning every status read into RPC calls.
+const RecheckEvery = time.Minute
+
+// ensureGranted starts one background grant per wallet and reports the current state. A
+// wallet already granted stays "granted" while a periodic re-check covers bonds listed later
+// (the granter only sends transactions for bonds that lack the flag).
 func (f *Flow) ensureGranted(w string) (State, []string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if txs, ok := f.granted[w]; ok {
-		return StateGranted, txs
-	}
+	txs, granted := f.granted[w]
 	if f.grant == nil || f.inflight[w] {
+		if granted {
+			return StateGranted, txs
+		}
 		return StateGranting, nil
+	}
+	if granted && f.now().Sub(f.checkedAt[w]) < RecheckEvery {
+		return StateGranted, txs
 	}
 	f.inflight[w] = true
 	f.wg.Add(1)
@@ -152,7 +163,7 @@ func (f *Flow) ensureGranted(w string) (State, []string) {
 		defer f.wg.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
-		txs, err := f.grant.Grant(ctx, w)
+		newTxs, err := f.grant.Grant(ctx, w)
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		delete(f.inflight, w)
@@ -160,9 +171,15 @@ func (f *Flow) ensureGranted(w string) (State, []string) {
 			log.Printf("kyc: grant %s failed: %v", w, err)
 			return
 		}
-		f.granted[w] = txs
-		log.Printf("kyc: granted %s on %d bond(s)", w, len(txs))
+		f.granted[w] = append(f.granted[w], newTxs...)
+		f.checkedAt[w] = f.now()
+		if len(newTxs) > 0 || !granted {
+			log.Printf("kyc: granted %s on %d bond(s)", w, len(newTxs))
+		}
 	}()
+	if granted {
+		return StateGranted, txs
+	}
 	return StateGranting, nil
 }
 
