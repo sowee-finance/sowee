@@ -40,7 +40,7 @@ An unpaid invoice becomes a compliance-gated, fractional bond token. The lifecyc
 | — | Asset Tokenization Studio issuance | #70 | done — Reg S security live on testnet |
 | — | Security review and its fixes | #58 #59 #68 | done — contracts redeployed, API hardened |
 | M5 | Arc testnet port (stretch, cut first) | #43 | done — deployed, verified, funded in native USDC |
-| M6 | Hedera Harness contribution (stretch) | to be filed | under review |
+| M6 | Hedera Harness contribution | #74 | done — open PR hedera-dev/hedera-harness#42 |
 | M7 | Polish, README, video, submission | #48 #52 #72 | docs and polish done; video and submission with the team |
 
 ## Design decisions
