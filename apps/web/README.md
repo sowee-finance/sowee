@@ -95,3 +95,14 @@ A wallet needs eligibility on a bond before it can buy or fill, and USDC to pay 
 cast send $BOND "setEligible(address,bool)" $WALLET true --private-key $ANVIL_PK   # deployer holds COMPLIANCE_ROLE
 cast send $USDC "mint(address,uint256)" $WALLET 100000000000 --private-key $ANVIL_PK
 ```
+
+## Chains
+
+| `NEXT_PUBLIC_CHAIN_ID` | Network | Addresses from |
+|---|---|---|
+| `296` (default) | Hedera testnet | `contracts/deployments/296.json` |
+| `5042002` | Arc testnet (USDC is the gas token) | `contracts/deployments/5042002.json` |
+| `31337` | anvil | `contracts/deployments/31337.json` (local, git-ignored) |
+
+Explorer links follow the active chain (HashScan or Arcscan). The API pricing quotes for Arc
+must run with `CHAIN_ID=5042002` and the Arc oracle address.
