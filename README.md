@@ -27,6 +27,8 @@ Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments) �
 All contract sources are exact-match verified on Sourcify. The same bytecode also runs on
 **Arc testnet** with a bond funded in native USDC — see [`contracts/README.md`](contracts/README.md#arc-testnet-chain-5042002).
 
+![Marketplace](docs/screenshots/marketplace.png)
+
 ## How it works
 
 ```mermaid
@@ -82,6 +84,8 @@ Regulation S; sanctioned jurisdictions → blocked; PEP → held) and, on *eligi
 `setEligible` on every live bond. Only the decision reaches the chain — no name, document or
 hash. World Selfie Check sits in front as an anti-sybil signal that unlocks the demo faucet and
 a larger API allowance; it is a signal, not a substitute for KYC.
+
+![Bond page with secondary market and HCS audit trail](docs/screenshots/bond.png)
 
 **Agentic payments.** `GET /v1/market/insights` is x402-gated: 0.01 USDC per call on
 `hedera:testnet`, verified and settled by the Blocky402 facilitator. `apps/agent` discovers the
