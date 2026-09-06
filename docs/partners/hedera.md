@@ -62,7 +62,7 @@ account id, so usage is publicly auditable.
 
 | Item | Status |
 |---|---|
-| **Asset Tokenization Studio** | invoice `INV-2026-010` issued as a `Reg S` bond security token through the ATS v8 factory: https://hashscan.io/testnet/contract/0xb438390fE710b12d1951E3b250889A673356e078 — ISIN `XSHUZWMQSU19`, compliance configured (credential issuer, `grantKyc`, allowlist) and 25 units issued; issuing to a wallet that was never KYC'd reverts. Code and every transaction: [`apps/ats/`](../../apps/ats/) |
+| **Asset Tokenization Studio** | invoice `INV-2026-010` issued as a `Reg S` bond security token through the ATS v8 factory: https://hashscan.io/testnet/contract/0xb438390fE710b12d1951E3b250889A673356e078 — ISIN `XSHUZWMQSU19`, compliance configured (credential issuer, `grantKyc`, allowlist) and 25 units issued; issuing to a wallet that was never KYC'd reverts. Code and every transaction: [`apps/ats/`](../../apps/ats/). The invoice's page in the app shows it as a **Regulated issuance** panel |
 | Token issuance with compliance controls | `BondToken` allowlist on every transfer, freeze, face-value cap — live |
 | Full lifecycle on testnet | issue → fund → trade → settle, ten transactions — live |
 | Secondary market | allowance-based asks with partial fills — live fill |

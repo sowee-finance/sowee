@@ -26,6 +26,7 @@ import { bondNames } from "./bond-card"
 import { BuyForm } from "./buy-form"
 import { type Point, PriceChart } from "./charts"
 import { NotDeployed } from "./not-deployed"
+import { RegulatedIssuance } from "./regulated-issuance"
 import { EmptyState, ErrorState, SkeletonLine } from "./states"
 import {
   blackPill,
@@ -231,6 +232,8 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
               )}
             </div>
           </section>
+
+          <RegulatedIssuance deployment={deployment} invoiceId={bond.invoiceId} />
 
           <AuditTrail invoiceId={bond.invoiceId} />
         </div>
