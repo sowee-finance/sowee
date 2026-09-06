@@ -1,9 +1,13 @@
 "use client"
 
+import Link from "next/link"
+import { activeChain } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
 import { useBonds } from "@/lib/use-bonds"
 import { BondCard } from "./bond-card"
 import { NotDeployed } from "./not-deployed"
+import { EmptyState, ErrorState, SkeletonGrid } from "./states"
+import { primary } from "./styles"
 
 export function Marketplace({ deployment }: { deployment?: Deployment }) {
   if (!deployment) return <NotDeployed />
@@ -11,20 +15,21 @@ export function Marketplace({ deployment }: { deployment?: Deployment }) {
 }
 
 function Listings({ market }: { market: Deployment["invoiceMarket"] }) {
-  const { data, error, isPending } = useBonds(market)
-  if (isPending) return <p className="text-sm text-zinc-500">Loading listings…</p>
-  if (error) {
-    return (
-      <p className="rounded-md border border-red-300 bg-red-50 p-3 text-red-800 text-sm dark:bg-red-950 dark:text-red-200">
-        Could not read the market: {error.message}
-      </p>
-    )
-  }
+  const { data, error, isPending, refetch } = useBonds(market)
+  if (isPending) return <SkeletonGrid />
+  if (error) return <ErrorState what="the market" onRetry={() => refetch()} />
   if (data.length === 0) {
     return (
-      <p className="rounded-lg border border-zinc-300 border-dashed p-6 text-center text-sm text-zinc-500">
-        No invoices listed yet.
-      </p>
+      <EmptyState
+        title="No bonds listed yet"
+        action={
+          <Link href="/issuer/new" className={primary}>
+            Tokenize an invoice
+          </Link>
+        }
+      >
+        The first invoice tokenized on {activeChain.name} will show up here.
+      </EmptyState>
     )
   }
   return (

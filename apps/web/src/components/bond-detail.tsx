@@ -20,6 +20,8 @@ import { useBond } from "@/lib/use-bonds"
 import { KycNotice, SecondaryMarket } from "./asks"
 import { BuyForm } from "./buy-form"
 import { NotDeployed } from "./not-deployed"
+import { EmptyState, ErrorState, SkeletonGrid, SkeletonLine } from "./states"
+import { primary } from "./styles"
 
 export function BondDetail({ deployment, invoiceId }: { deployment?: Deployment; invoiceId: Hex }) {
   if (!deployment) return <NotDeployed />
@@ -27,15 +29,40 @@ export function BondDetail({ deployment, invoiceId }: { deployment?: Deployment;
 }
 
 function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: Hex }) {
-  const { data: bond, error, isPending } = useBond(deployment.invoiceMarket, invoiceId)
-  if (isPending) return <p className="text-sm text-zinc-500">Loading bond…</p>
-  if (error) {
-    const unknown = error.message.includes("UnknownInvoice")
+  const { data: bond, error, isPending, refetch } = useBond(deployment.invoiceMarket, invoiceId)
+  if (isPending) {
     return (
-      <p className="rounded-md border border-red-300 bg-red-50 p-3 text-red-800 text-sm dark:bg-red-950 dark:text-red-200">
-        {unknown ? "No listing with this invoice id." : `Could not read the bond: ${error.message}`}
-      </p>
+      <div className="grid gap-8 md:grid-cols-[1fr_20rem]">
+        <div>
+          <SkeletonLine className="w-24" />
+          <SkeletonLine className="mt-4 h-7 w-72" />
+          <SkeletonLine className="w-16" />
+          <div className="mt-6 flex flex-col gap-1">
+            {["a", "b", "c", "d", "e", "f"].map((k) => (
+              <SkeletonLine key={k} className="w-64" />
+            ))}
+          </div>
+        </div>
+        <SkeletonGrid count={1} />
+      </div>
     )
+  }
+  if (error) {
+    if (error.message.includes("UnknownInvoice")) {
+      return (
+        <EmptyState
+          title="No bond with this invoice id"
+          action={
+            <Link href="/" className={primary}>
+              Back to the marketplace
+            </Link>
+          }
+        >
+          Nothing is listed under this id on {activeChain.name}. The link may be for another chain.
+        </EmptyState>
+      )
+    }
+    return <ErrorState what="this bond" onRetry={() => refetch()} />
   }
   const explorer = explorerUrl(bond.bond)
   const apr = impliedApr(bond)
