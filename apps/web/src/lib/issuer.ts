@@ -6,8 +6,12 @@ export async function sha256Hex(file: Blob): Promise<Hex> {
   return bytesToHex(new Uint8Array(digest))
 }
 
-/** The mark is stored with the record on a public topic, so it is deliberately tiny. */
-export const LOGO_SIZE = 64
+/**
+ * The mark is stored with the record on a public topic, so it is deliberately tiny. 96px covers
+ * twice the largest place it is drawn (a 40px card avatar), so it stays sharp on a retina screen
+ * without the file growing to the point where it does not belong on a topic.
+ */
+export const LOGO_SIZE = 96
 const LOGO_MAX_BYTES = 12 * 1024
 
 /**

@@ -122,8 +122,9 @@ func insightsHandler(cfg config.Config, reader *market.Reader) http.HandlerFunc 
 	}
 }
 
-// maxLogoBytes bounds what goes on the topic. The browser downscales to 64x64 before sending, so
-// a real mark lands well inside this; anything larger is a file being pushed through a log.
+// maxLogoBytes bounds what goes on the topic. The browser downscales the image to a small square
+// before sending, so a real mark lands well inside this; anything larger is a file being pushed
+// through a log.
 const maxLogoBytes = 12 * 1024
 
 // checkLogo accepts an empty logo, or a data URI holding a small raster image. It is rendered by

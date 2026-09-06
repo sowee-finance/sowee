@@ -159,7 +159,7 @@ function InvoiceForm({ onQuoted }: { onQuoted: (draft: Draft, quote: SignedQuote
           />
         </label>
         <label
-          title="Optional company logo, resized to 64px and anchored with the invoice"
+          title="Optional company logo, resized in your browser and anchored with the invoice"
           className="flex size-12 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-line border-dashed bg-white hover:border-faint"
         >
           {logo ? (

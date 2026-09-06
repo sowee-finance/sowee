@@ -67,7 +67,7 @@ export function CompanyAvatar({
 }) {
   if (src) {
     return (
-      // Not next/image: the source is a data URI carried on the audit trail, already 64px.
+      // Not next/image: the source is a data URI carried on the audit trail, already small.
       // biome-ignore lint/performance/noImgElement: data URI, nothing to optimise
       <img src={src} alt={name} className={`shrink-0 rounded-full object-cover ${className}`} />
     )
