@@ -139,3 +139,11 @@ describe("market", () => {
     expect(relativeMaturity(1_700_000_000 - 3 * 86_400, now)).toBe("matured 3 days ago")
   })
 })
+
+test("all bonds means the ones still worth looking at, not the finished ones", () => {
+  const base = { supply: 0n, faceValue: 100n, maturity: Math.floor(Date.now() / 1000) + 86_400 }
+  expect(bondStatus({ ...base, settled: false })).toBe("open")
+  expect(bondStatus({ ...base, supply: 100n, settled: false })).toBe("funded")
+  expect(bondStatus({ ...base, maturity: 1, settled: false })).toBe("matured")
+  expect(bondStatus({ ...base, maturity: 1, settled: true })).toBe("settled")
+})
