@@ -4,5 +4,13 @@
   "invoiceMarket": "0xe7f89692940f5BCc30096cd48f360F2144155962",
   "maturitySettlement": "0x68faa98A8e42ef8ffC946e3d571C3940Dc0f6219",
   "quoteSigner": "0x17CaD6366c73955bBb05194882D5B906B5D1c116",
-  "usdc": "0x0000000000000000000000000000000000068cDa"
+  "usdc": "0x0000000000000000000000000000000000068cDa",
+  "atsBonds": {
+    "0x8f15ed85361884c35e45888789498e83a2e2593eb19d32522558bcba758b1a79": {
+      "address": "0xb438390fE710b12d1951E3b250889A673356e078",
+      "isin": "XSHUZWMQSU19",
+      "reference": "INV-2026-010",
+      "regulation": "Reg S"
+    }
+  }
 }
