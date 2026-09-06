@@ -45,7 +45,7 @@ issue → price (signed discount quote) → fund in USDC → trade → settle pr
 | Network | Chain id | RPC |
 |---|---|---|
 | Hedera testnet | 296 | `https://testnet.hashio.io/api` |
-| Arc testnet | see `contracts/README.md` when added | |
+| Arc testnet | 5042002 | `https://rpc.testnet.arc.network` |
 
 ## Commands
 
