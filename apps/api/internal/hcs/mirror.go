@@ -11,8 +11,10 @@ import (
 // MirrorBase is the public testnet mirror node.
 const MirrorBase = "https://testnet.mirrornode.hedera.com"
 
-// FetchTopicMessages reads every message of a topic from the mirror node, oldest first.
-func FetchTopicMessages(ctx context.Context, base, topicID string) ([][]byte, error) {
+// FetchTopicMessages reads every message of a topic from the mirror node, oldest first. When
+// payer is set, only messages paid for by that account are returned: the topic is public, so
+// anything else could be a forged attestation meant to poison the double-pledge index.
+func FetchTopicMessages(ctx context.Context, base, topicID, payer string) ([][]byte, error) {
 	var out [][]byte
 	next := fmt.Sprintf("/api/v1/topics/%s/messages?limit=100&order=asc", topicID)
 	for next != "" {
@@ -27,6 +29,7 @@ func FetchTopicMessages(ctx context.Context, base, topicID string) ([][]byte, er
 		var page struct {
 			Messages []struct {
 				Message string `json:"message"`
+				Payer   string `json:"payer_account_id"`
 			} `json:"messages"`
 			Links struct {
 				Next *string `json:"next"`
@@ -38,6 +41,9 @@ func FetchTopicMessages(ctx context.Context, base, topicID string) ([][]byte, er
 			return nil, fmt.Errorf("mirror node decode: %w", err)
 		}
 		for _, m := range page.Messages {
+			if payer != "" && m.Payer != payer {
+				continue
+			}
 			raw, err := base64.StdEncoding.DecodeString(m.Message)
 			if err != nil {
 				continue
