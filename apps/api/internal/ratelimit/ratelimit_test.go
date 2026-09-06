@@ -57,3 +57,23 @@ func TestForwardedForIsIgnoredUnlessTrusted(t *testing.T) {
 		t.Fatalf("spoofed XFF must not reset the bucket: %v", codes)
 	}
 }
+
+func TestIdleBucketsAreDropped(t *testing.T) {
+	l := New(5, 5, nil, false)
+	now := time.Date(2026, 9, 7, 12, 0, 0, 0, time.UTC)
+	l.now = func() time.Time { return now }
+	l.Allow("ip:1.2.3.4", 5)
+	l.Allow("ip:5.6.7.8", 5)
+	if len(l.buckets) != 2 {
+		t.Fatalf("want 2 buckets, got %d", len(l.buckets))
+	}
+	// One client keeps going; the other goes quiet and its bucket is reclaimed.
+	now = now.Add(idleTTL + time.Minute)
+	l.Allow("ip:1.2.3.4", 5)
+	if len(l.buckets) != 1 {
+		t.Fatalf("idle bucket not swept: %d remain", len(l.buckets))
+	}
+	if _, alive := l.buckets["ip:1.2.3.4"]; !alive {
+		t.Fatal("the active bucket was swept")
+	}
+}

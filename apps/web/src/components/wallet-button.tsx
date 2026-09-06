@@ -47,13 +47,13 @@ function WalletMenu({ address }: { address: `0x${string}` }) {
         aria-haspopup="menu"
         className="flex items-center gap-2 rounded-full bg-shade px-4 py-2 font-mono text-xs hover:bg-line"
       >
-        <WalletAvatar className="size-4" />
+        <WalletAvatar address={address} className="size-4" />
         {shortAddress(address)}
       </button>
       {open && (
         <div className="absolute right-0 z-30 mt-2 w-56 rounded-2xl border border-line bg-white p-2 shadow-[0_12px_32px_rgba(0,0,0,0.10)]">
           <div className="flex items-center gap-2 px-2 py-2">
-            <WalletAvatar className="size-6" />
+            <WalletAvatar address={address} className="size-6" />
             <span className="font-mono text-xs">{shortAddress(address)}</span>
           </div>
           <div className="mt-1 rounded-xl bg-shade/60 p-1">

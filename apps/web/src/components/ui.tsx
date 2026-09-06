@@ -3,7 +3,7 @@
 import { ChevronDown } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { txUrl } from "@/lib/chains"
+import { accountUrl, explorerUrl, shortAddress, txUrl } from "@/lib/chains"
 import { type BondStatus, statusLabel } from "@/lib/market"
 
 // Shared design-system primitives: identity marks, badges, popovers, sheets and the
@@ -57,11 +57,21 @@ const SKIP = new Set(["PT", "CV", "UD"])
  */
 export function CompanyAvatar({
   name,
+  src,
   className = "size-10 text-sm",
 }: {
   name: string
+  /** The issuer's own mark, when they attached one. Falls back to the generated avatar. */
+  src?: string
   className?: string
 }) {
+  if (src) {
+    return (
+      // Not next/image: the source is a data URI carried on the audit trail, already small.
+      // biome-ignore lint/performance/noImgElement: data URI, nothing to optimise
+      <img src={src} alt={name} className={`shrink-0 rounded-full object-cover ${className}`} />
+    )
+  }
   const h = hashName(name)
   const p = PALETTES[h % PALETTES.length]
   const motif = Math.floor(h / PALETTES.length) % 6
@@ -118,12 +128,26 @@ export function CompanyAvatar({
 }
 
 /** The connected-wallet identicon (blue radial orb); size via className. */
-export function WalletAvatar({ className = "" }: { className?: string }) {
-  return (
-    <span
-      className={`inline-block shrink-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,#7fb2ff_0%,#2f6fed_45%,#1b2f6e_100%)] ${className}`}
-    />
-  )
+/**
+ * The connected wallet's mark. Derived from the address so a person recognises their own account
+ * wherever it appears, and identical in the header and on the portfolio. Falls back to a plain
+ * disc before a wallet is connected, when there is no address to derive anything from.
+ */
+export function WalletAvatar({
+  address,
+  className = "",
+}: {
+  address?: string
+  className?: string
+}) {
+  if (!address) {
+    return (
+      <span
+        className={`inline-block shrink-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,#7fb2ff_0%,#2f6fed_45%,#1b2f6e_100%)] ${className}`}
+      />
+    )
+  }
+  return <CompanyAvatar name={address} className={`${className} text-[9px]`} />
 }
 
 export function UsdcIcon({ size = 20 }: { size?: number }) {
@@ -415,6 +439,34 @@ export function Card({
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="font-medium text-xl tracking-tight">{children}</h2>
+}
+
+/**
+ * A short address that goes to the explorer. Every address on a page is a thing a reader may want
+ * to check, so they all behave the same way rather than some being links and some being text.
+ */
+export function AddressLink({
+  address,
+  kind = "contract",
+  className = "font-mono text-[13px]",
+}: {
+  address: string
+  kind?: "contract" | "account"
+  className?: string
+}) {
+  const href = kind === "account" ? accountUrl(address) : explorerUrl(address)
+  if (!href) return <span className={className}>{shortAddress(address)}</span>
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      title={address}
+      className={`${className} hover:underline`}
+    >
+      {shortAddress(address)} ↗
+    </a>
+  )
 }
 
 export function KVRow({

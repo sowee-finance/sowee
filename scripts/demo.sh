@@ -47,7 +47,8 @@ up() {
 
   stop_port "$api_port"
   echo "starting the api on :${api_port}…"
-  ( cd "$root/apps/api" && PORT="$api_port" CHAIN_ID="${CHAIN_ID:-296}" nohup "$api_bin" \
+  ( cd "$root/apps/api" && PORT="$api_port" CHAIN_ID="${CHAIN_ID:-296}" \
+      WEB_ORIGIN="${WEB_ORIGIN:-http://localhost:$web_port}" nohup "$api_bin" \
       > "$log_dir/sowee-demo-api.log" 2>&1 & )
   wait_for "http://localhost:$api_port/v1/healthz" || die "the api did not come up — see $log_dir/sowee-demo-api.log"
 

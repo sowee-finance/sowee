@@ -32,15 +32,17 @@ export default function PrivacyPolicyPage() {
         <li>
           <span className="text-ink">The audit topic.</span> Sowee anchors its audit trail to a
           public Hedera Consensus Service topic that anyone can read. It carries invoice references,
-          the sha256 of an invoice document, the lifecycle event, and receipts for x402 payments
-          (the endpoint, the payer&apos;s Hedera account id, the amount and the settlement
-          transaction).
+          the sha256 of an invoice document, the lifecycle event, any logo the issuer attached, and
+          receipts for x402 payments (the endpoint, the payer&apos;s Hedera account id, the amount
+          and the settlement transaction). If you pass the Selfie Check, it also carries your wallet
+          address next to your World nullifier, so that the anti-sybil check survives a restart.
         </li>
       </List>
       <p>
-        Nothing you submit through the identity check is written to either place. But treat every
-        invoice reference and every wallet address you use here as published forever, because it is.
-        If you would not want something public and permanent, do not put it into this demonstration.
+        Nothing you submit through the identity check is written to either place, except the
+        nullifier described above, which names nobody. Treat every invoice reference, every logo and
+        every wallet address you use here as published forever, because it is. If you would not want
+        something public and permanent, do not put it into this demonstration.
       </p>
 
       <H2>What is collected, and why</H2>
@@ -108,9 +110,10 @@ export default function PrivacyPolicyPage() {
           <code className="text-ink">pending</code>, <code className="text-ink">held</code>,{" "}
           <code className="text-ink">blocked</code>, <code className="text-ink">granting</code>,{" "}
           <code className="text-ink">granted</code>), the reason for it, your Sumsub applicant id,
-          the grant transactions, the Selfie Check flag and the used nullifiers, and the rate-limit
-          and metering counters. There is no database. A restart erases all of it, and restarts are
-          frequent in a demonstration.
+          the grant transactions, and the rate-limit and metering counters. There is no database. A
+          restart erases all of it, and restarts are frequent in a demonstration. The one exception
+          is the Selfie Check: it is replayed from the topic on start, so a passed check and its
+          spent nullifier come back.
         </li>
         <li>
           <span className="text-ink">With Sumsub, for as long as Sumsub keeps it.</span> Your
@@ -124,9 +127,10 @@ export default function PrivacyPolicyPage() {
 
       <H2>What never reaches the chain</H2>
       <p>
-        No name, no date of birth, no country, no document, no image, and no hash of any of them.
-        The chain holds one boolean per wallet address on each bond: eligible, or not. The reason
-        for a decision stays off chain.
+        No name, no date of birth, no country, no identity document, and no hash of any of them. The
+        chain holds one boolean per wallet address on each bond: eligible, or not. The reason for a
+        decision stays off chain. A company logo is the one image that does go on the topic, because
+        an issuer chose to put it there.
       </p>
       <p>
         An invoice document attached in the issuer form is hashed in your browser with the Web

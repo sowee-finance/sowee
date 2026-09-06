@@ -20,20 +20,35 @@ export const activeChain =
 /** How copy names the network: "Hedera" for its testnet, the chain name elsewhere. */
 export const networkBrand = activeChain.id === hederaTestnet.id ? "Hedera" : activeChain.name
 
-const explorers: Record<number, { contract: string; tx: string }> = {
-  [hederaTestnet.id]: {
-    contract: "https://hashscan.io/testnet/contract/",
-    tx: "https://hashscan.io/testnet/transaction/",
-  },
-  [arcTestnet.id]: {
-    contract: "https://testnet.arcscan.app/address/",
-    tx: "https://testnet.arcscan.app/tx/",
-  },
-}
+const explorers: Record<number, { contract: string; account: string; tx: string; topic?: string }> =
+  {
+    [hederaTestnet.id]: {
+      contract: "https://hashscan.io/testnet/contract/",
+      account: "https://hashscan.io/testnet/account/",
+      tx: "https://hashscan.io/testnet/transaction/",
+      topic: "https://hashscan.io/testnet/topic/",
+    },
+    [arcTestnet.id]: {
+      // Arcscan puts accounts and contracts on the same path.
+      contract: "https://testnet.arcscan.app/address/",
+      account: "https://testnet.arcscan.app/address/",
+      tx: "https://testnet.arcscan.app/tx/",
+    },
+  }
 
 export function explorerUrl(address: string): string | undefined {
   const e = explorers[activeChain.id]
   return e ? e.contract + address : undefined
+}
+
+/** A wallet rather than a contract; HashScan keeps them on separate paths. */
+export function accountUrl(address: string): string | undefined {
+  const e = explorers[activeChain.id]
+  return e ? e.account + address : undefined
+}
+
+export function topicUrl(topicId: string): string | undefined {
+  return explorers[activeChain.id]?.topic?.concat(topicId)
 }
 
 export function txUrl(hash: string): string | undefined {

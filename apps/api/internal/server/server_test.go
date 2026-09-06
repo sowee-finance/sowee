@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -172,5 +173,29 @@ func TestAttestDisabledIs503(t *testing.T) {
 	rec := do(h, http.MethodPost, "/v1/invoices/INV-1/attest", `{"docHash":"`+sha+`"}`)
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("want 503, got %d: %s", rec.Code, rec.Body)
+	}
+}
+
+func TestAttestChecksTheLogoItWillRender(t *testing.T) {
+	h, _ := newTestServerWith(t, hcs.New("0.0.1", nil))
+	body := `{"docHash":"0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08","logo":%s}`
+	// Every visitor's browser renders this, so the type is pinned: an SVG or a remote link is not
+	// an image we control, and a huge payload is a file being pushed through a log.
+	bad := []string{
+		`"https://example.com/logo.png"`,
+		`"data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="`,
+		`"data:image/png;base64,not base64!!"`,
+		`"data:image/png;base64,` + strings.Repeat("A", 13*1024) + `"`,
+	}
+	for _, b := range bad {
+		rec := do(h, http.MethodPost, "/v1/invoices/INV-1/attest", fmt.Sprintf(body, b))
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s…: want 400, got %d", b[:40], rec.Code)
+		}
+	}
+	// A small webp is what the browser actually sends, and it is accepted (503: HCS is disabled).
+	rec := do(h, http.MethodPost, "/v1/invoices/INV-1/attest", fmt.Sprintf(body, `"data:image/webp;base64,UklGRg=="`))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("valid logo: want 503 from the disabled anchor, got %d %s", rec.Code, rec.Body)
 	}
 }

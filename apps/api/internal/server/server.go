@@ -2,11 +2,14 @@
 package server
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -46,7 +49,7 @@ func New(cfg config.Config, d Deps) http.Handler {
 	if cfg.TrustedProxy {
 		r.Use(middleware.RealIP) // X-Forwarded-For is only meaningful behind our own proxy
 	}
-	r.Use(middleware.Logger, middleware.Recoverer, cors)
+	r.Use(middleware.Logger, middleware.Recoverer, corsFor(cfg.WebOrigins))
 
 	r.Get("/v1/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -79,7 +82,7 @@ func New(cfg config.Config, d Deps) http.Handler {
 				r.Get("/status", kycStatus(d.KYC))
 			})
 			r.Get("/v1/world/request", worldRequest(d.World))
-			r.Post("/v1/world/verify", worldVerify(d.World, d.KYC))
+			r.Post("/v1/world/verify", worldVerify(d.World, d.KYC, anchor))
 			r.Post("/v1/faucet", faucetHandler(d.Faucet, d.KYC))
 		})
 		r.Post("/v1/kyc/webhook", kycWebhook(d.KYC, cfg.SumsubWebhookSecret))
@@ -119,9 +122,37 @@ func insightsHandler(cfg config.Config, reader *market.Reader) http.HandlerFunc 
 	}
 }
 
+// maxLogoBytes bounds what goes on the topic. The browser downscales the image to a small square
+// before sending, so a real mark lands well inside this; anything larger is a file being pushed
+// through a log.
+const maxLogoBytes = 12 * 1024
+
+// checkLogo accepts an empty logo, or a data URI holding a small raster image. It is rendered by
+// every visitor's browser, so the type is pinned rather than trusted: an SVG would carry script.
+func checkLogo(logo string) error {
+	if logo == "" {
+		return nil
+	}
+	if len(logo) > maxLogoBytes {
+		return fmt.Errorf("logo must be at most %d bytes, got %d", maxLogoBytes, len(logo))
+	}
+	prefix, payload, ok := strings.Cut(logo, ",")
+	if !ok || !slices.Contains(
+		[]string{"data:image/webp;base64", "data:image/png;base64", "data:image/jpeg;base64"},
+		prefix,
+	) {
+		return errors.New("logo must be a data URI holding a webp, png or jpeg image")
+	}
+	if _, err := base64.StdEncoding.DecodeString(payload); err != nil {
+		return errors.New("logo is not valid base64")
+	}
+	return nil
+}
+
 type attestRequest struct {
 	DocHash string `json:"docHash"` // sha256 of the invoice document, hex (0x optional)
 	Event   string `json:"event"`   // lifecycle event name; defaults to "issued"
+	Logo    string `json:"logo"`    // optional data: URI of a small image, downscaled by the browser
 }
 
 // attestHandler anchors {invoiceId, docHash, event} to the HCS topic. The same document may
@@ -141,7 +172,12 @@ func attestHandler(anchor *hcs.Anchor) http.HandlerFunc {
 		if req.Event == "" {
 			req.Event = "issued"
 		}
-		res, err := anchor.Attest(r.Context(), chi.URLParam(r, "id"), h, req.Event)
+		logo := strings.TrimSpace(req.Logo)
+		if err := checkLogo(logo); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		res, err := anchor.Attest(r.Context(), chi.URLParam(r, "id"), h, req.Event, logo)
 		switch {
 		case errors.Is(err, hcs.ErrDisabled):
 			writeError(w, http.StatusServiceUnavailable, err.Error())
@@ -156,20 +192,38 @@ func attestHandler(anchor *hcs.Anchor) http.HandlerFunc {
 	}
 }
 
-// cors allows any origin. ponytail: tighten to the web app's origin before mainnet.
-func cors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h := w.Header()
-		h.Set("Access-Control-Allow-Origin", "*")
-		h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, "+x402.HeaderSignature)
-		h.Set("Access-Control-Expose-Headers", x402.HeaderRequired+", "+x402.HeaderResponse)
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
+// cors reflects an allowed origin rather than answering `*`. The x402 endpoint is paid and the
+// KYC endpoints act on a signed wallet challenge, so there is no reason for an arbitrary page to
+// be able to call them from a visitor's browser. `WEB_ORIGIN=*` opens it again when a demo needs
+// to be reachable from somewhere else.
+func corsFor(allowed []string) func(http.Handler) http.Handler {
+	any := len(allowed) == 0
+	for _, o := range allowed {
+		if o == "*" {
+			any = true
 		}
-		next.ServeHTTP(w, r)
-	})
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := w.Header()
+			origin := r.Header.Get("Origin")
+			switch {
+			case any:
+				h.Set("Access-Control-Allow-Origin", "*")
+			case origin != "" && slices.Contains(allowed, origin):
+				h.Set("Access-Control-Allow-Origin", origin)
+				h.Set("Vary", "Origin")
+			}
+			h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, "+x402.HeaderSignature)
+			h.Set("Access-Control-Expose-Headers", x402.HeaderRequired+", "+x402.HeaderResponse)
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 type quoteRequest struct {

@@ -57,3 +57,36 @@ describe("hcs", () => {
     await expect(fetchTopic(fetchFn)).rejects.toThrow("503")
   })
 })
+
+test("the trail follows the mirror node's pages instead of stopping at the first", async () => {
+  const encode = (body: unknown) => btoa(JSON.stringify(body))
+  const page = (seq: number, next: string | null) => ({
+    messages: [
+      {
+        sequence_number: seq,
+        consensus_timestamp: "1788700000.0",
+        message: encode({
+          type: "attestation.v1",
+          invoiceId: "INV-1",
+          docHash: "aa",
+          event: "issued",
+        }),
+      },
+    ],
+    links: { next },
+  })
+  const seen: string[] = []
+  const fetchFn = (async (url: string) => {
+    seen.push(String(url))
+    const first = String(url).includes("order=desc")
+    return {
+      ok: true,
+      json: async () => (first ? page(2, "/api/v1/topics/0.0.1/messages?page=2") : page(1, null)),
+    }
+  }) as unknown as typeof fetch
+
+  const messages = await fetchTopic(fetchFn)
+  expect(messages).toHaveLength(2)
+  expect(seen).toHaveLength(2)
+  expect(seen[1]).toBe("https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.1/messages?page=2")
+})

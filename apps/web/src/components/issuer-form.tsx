@@ -7,6 +7,7 @@ import {
   CircleCheck,
   CircleX,
   FileUp,
+  ImagePlus,
   LoaderCircle,
 } from "lucide-react"
 import Link from "next/link"
@@ -17,7 +18,7 @@ import { invoiceMarketAbi } from "@/lib/abi/invoiceMarket"
 import { ApiError, type Attestation, attest, requestQuote, type SignedQuote } from "@/lib/api"
 import { activeChain, shortAddress, txUrl } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
-import { maturityFrom, nameFor, sha256Hex, symbolFor } from "@/lib/issuer"
+import { downscaleLogo, maturityFrom, nameFor, sha256Hex, symbolFor } from "@/lib/issuer"
 import { bpsToPct, dollars, maturityDate } from "@/lib/market"
 import { useTx } from "@/lib/use-tx"
 import { NotDeployed } from "./not-deployed"
@@ -33,6 +34,8 @@ type Draft = {
   amount: string
   due: string
   docHash: Hex
+  /** Square data URI, downscaled in the browser; anchored with the attestation. */
+  logo?: string
 }
 
 export function IssuerForm({ deployment }: { deployment?: Deployment }) {
@@ -75,6 +78,7 @@ function InvoiceForm({ onQuoted }: { onQuoted: (draft: Draft, quote: SignedQuote
   const [amount, setAmount] = useState("")
   const [fileName, setFileName] = useState<string>()
   const [docHash, setDocHash] = useState<Hex>()
+  const [logo, setLogo] = useState<string>()
   const [hashing, setHashing] = useState(false)
   const [quoting, setQuoting] = useState(false)
   const [error, setError] = useState<string>()
@@ -88,6 +92,16 @@ function InvoiceForm({ onQuoted }: { onQuoted: (draft: Draft, quote: SignedQuote
       setDocHash(await sha256Hex(file))
     } finally {
       setHashing(false)
+    }
+  }
+
+  const onLogo = async (file?: File) => {
+    setLogo(undefined)
+    if (!file) return
+    try {
+      setLogo(await downscaleLogo(file))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -124,7 +138,7 @@ function InvoiceForm({ onQuoted }: { onQuoted: (draft: Draft, quote: SignedQuote
         parseUnits(amount, 6),
         maturityFrom(draft.due),
       )
-      onQuoted({ ...draft, docHash }, quote)
+      onQuoted({ ...draft, docHash, logo }, quote)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -134,15 +148,36 @@ function InvoiceForm({ onQuoted }: { onQuoted: (draft: Draft, quote: SignedQuote
 
   return (
     <form className="mt-8 flex flex-col gap-5" onSubmit={submit}>
-      <label className="flex flex-col gap-1.5 font-medium text-sm">
-        Issuer company
-        <input
-          name="company"
-          required
-          placeholder="Your company, as printed on the invoice"
-          className={pillInput}
-        />
-      </label>
+      <div className="flex items-end gap-4">
+        <label className="flex min-w-0 flex-1 flex-col gap-1.5 font-medium text-sm">
+          Issuer company
+          <input
+            name="company"
+            required
+            placeholder="Your company, as printed on the invoice"
+            className={pillInput}
+          />
+        </label>
+        <label
+          title="Optional company logo, resized in your browser and anchored with the invoice"
+          className="flex size-12 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-line border-dashed bg-white hover:border-faint"
+        >
+          {logo ? (
+            // Not next/image: the source is a data URI built in this browser a moment ago.
+            // biome-ignore lint/performance/noImgElement: data URI, nothing to optimise
+            <img src={logo} alt="Chosen logo" className="size-full object-cover" />
+          ) : (
+            <ImagePlus size={17} className="text-faint" strokeWidth={1.5} />
+          )}
+          <span className="sr-only">Company logo</span>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="sr-only"
+            onChange={(e) => onLogo(e.target.files?.[0])}
+          />
+        </label>
+      </div>
       <label className="flex flex-col gap-1.5 font-medium text-sm">
         Payor
         <input
@@ -302,7 +337,7 @@ function Checklist({
   const anchor = async () => {
     setAttestError(undefined)
     try {
-      setAttestation(await attest(draft.ref, draft.docHash))
+      setAttestation(await attest(draft.ref, draft.docHash, draft.logo))
     } catch (err) {
       setAttestError(err instanceof Error ? err : new Error(String(err)))
     }

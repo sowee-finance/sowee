@@ -4,7 +4,7 @@ import { X } from "lucide-react"
 import Link from "next/link"
 import { useCallback, useMemo, useState } from "react"
 import type { Hex } from "viem"
-import { activeChain, explorerUrl, shortAddress } from "@/lib/chains"
+import { activeChain, shortAddress, topicUrl } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
 import { hcsAvailable, topicId } from "@/lib/hcs"
 import {
@@ -20,6 +20,7 @@ import {
   tenorDays,
 } from "@/lib/market"
 import { useBond } from "@/lib/use-bonds"
+import { useLogo } from "@/lib/use-hcs"
 import { SecondaryMarket } from "./asks"
 import { AuditTrail } from "./audit-trail"
 import { bondNames } from "./bond-card"
@@ -29,6 +30,7 @@ import { NotDeployed } from "./not-deployed"
 import { RegulatedIssuance } from "./regulated-issuance"
 import { EmptyState, ErrorState, SkeletonLine } from "./states"
 import {
+  AddressLink,
   blackPill,
   CompanyAvatar,
   KVRow,
@@ -70,6 +72,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
   const closeSheet = useCallback(() => setSheetOpen(false), [])
   // Client-only clock, fixed per load, so the chart never renders on the server.
   const [now] = useState(() => Date.now())
+  const logo = useLogo(invoiceId)
   const points = useMemo(() => (bond ? accretion(bond, now) : []), [bond, now])
 
   if (isPending) {
@@ -108,7 +111,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
   const { issuer, payor } = bondNames(bond)
   const apr = impliedApr(bond)
   const days = tenorDays(bond.maturity)
-  const explorer = explorerUrl(bond.bond)
+  const topicHref = topicUrl(topicId)
   const target = (bond.faceValue * BigInt(10_000 - bond.discountRateBps)) / 10_000n
   const raised = (bond.supply * BigInt(10_000 - bond.discountRateBps)) / 10_000n
   const widget = <BuyForm bond={bond} deployment={deployment} />
@@ -125,7 +128,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
             >
               <X size={16} />
             </Link>
-            <CompanyAvatar name={issuer} className="size-7 text-[9px]" />
+            <CompanyAvatar name={issuer} src={logo} className="size-7 text-[9px]" />
             <h1 className="font-medium text-lg">
               {issuer} <span className="font-normal text-soft">{bond.symbol}</span>
             </h1>
@@ -189,9 +192,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
                 </KVRow>
               )}
               <KVRow label="Issuer wallet">
-                <span className="font-mono text-[13px]" title={bond.issuer}>
-                  {shortAddress(bond.issuer)}
-                </span>
+                <AddressLink address={bond.issuer} kind="account" />
               </KVRow>
               <KVRow label="Maturity">{maturityDate(bond.maturity)}</KVRow>
               <KVRow label="Time to Maturity">{days > 0 ? `${days} days` : "Matured"}</KVRow>
@@ -203,19 +204,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
                 {dollars(bond.supply)} of {dollars(bond.faceValue)}
               </KVRow>
               <KVRow label="Bond token">
-                {explorer ? (
-                  <a
-                    href={explorer}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-mono text-[13px] hover:underline"
-                    title={bond.bond}
-                  >
-                    {shortAddress(bond.bond)} ↗
-                  </a>
-                ) : (
-                  <span className="font-mono text-[13px]">{shortAddress(bond.bond)}</span>
-                )}
+                <AddressLink address={bond.bond} />
               </KVRow>
               <KVRow
                 label="Invoice id"
@@ -227,7 +216,18 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
               </KVRow>
               {hcsAvailable && (
                 <KVRow label="HCS Topic">
-                  <span className="font-mono text-[13px]">{topicId}</span>
+                  {topicHref ? (
+                    <a
+                      href={topicHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono text-[13px] hover:underline"
+                    >
+                      {topicId} ↗
+                    </a>
+                  ) : (
+                    <span className="font-mono text-[13px]">{topicId}</span>
+                  )}
                 </KVRow>
               )}
             </div>

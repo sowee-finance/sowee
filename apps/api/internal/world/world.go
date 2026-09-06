@@ -109,6 +109,28 @@ func (r result) nullifier() string {
 	return r.Responses[0].NullifierHash
 }
 
+// Restore marks nullifiers as already used. The service keeps them in memory, so without this a
+// restart would let the same World ID pass a second time and the one-person rule would only hold
+// for as long as the process did.
+func (s *Service) Restore(nullifiers []string) int {
+	if s == nil {
+		return 0
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for _, nullifier := range nullifiers {
+		if nullifier == "" {
+			continue
+		}
+		if _, seen := s.used[nullifier]; !seen {
+			s.used[nullifier] = time.Time{}
+			n++
+		}
+	}
+	return n
+}
+
 // Verify forwards the IDKit result to the Developer Portal and enforces one-proof-per-person.
 // It returns the nullifier on success.
 func (s *Service) Verify(ctx context.Context, payload json.RawMessage) (string, error) {
