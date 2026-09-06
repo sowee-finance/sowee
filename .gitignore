@@ -29,3 +29,6 @@ contracts/broadcast/**/dry-run/
 
 # turbo cache
 .turbo/
+
+# local deploy artefacts
+contracts/deployments/31337.json
