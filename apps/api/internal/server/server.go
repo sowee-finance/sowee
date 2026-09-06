@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math/big"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -46,7 +47,7 @@ func New(cfg config.Config, d Deps) http.Handler {
 	if cfg.TrustedProxy {
 		r.Use(middleware.RealIP) // X-Forwarded-For is only meaningful behind our own proxy
 	}
-	r.Use(middleware.Logger, middleware.Recoverer, cors)
+	r.Use(middleware.Logger, middleware.Recoverer, corsFor(cfg.WebOrigins))
 
 	r.Get("/v1/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -79,7 +80,7 @@ func New(cfg config.Config, d Deps) http.Handler {
 				r.Get("/status", kycStatus(d.KYC))
 			})
 			r.Get("/v1/world/request", worldRequest(d.World))
-			r.Post("/v1/world/verify", worldVerify(d.World, d.KYC))
+			r.Post("/v1/world/verify", worldVerify(d.World, d.KYC, anchor))
 			r.Post("/v1/faucet", faucetHandler(d.Faucet, d.KYC))
 		})
 		r.Post("/v1/kyc/webhook", kycWebhook(d.KYC, cfg.SumsubWebhookSecret))
@@ -156,20 +157,38 @@ func attestHandler(anchor *hcs.Anchor) http.HandlerFunc {
 	}
 }
 
-// cors allows any origin. ponytail: tighten to the web app's origin before mainnet.
-func cors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h := w.Header()
-		h.Set("Access-Control-Allow-Origin", "*")
-		h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, "+x402.HeaderSignature)
-		h.Set("Access-Control-Expose-Headers", x402.HeaderRequired+", "+x402.HeaderResponse)
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
+// cors reflects an allowed origin rather than answering `*`. The x402 endpoint is paid and the
+// KYC endpoints act on a signed wallet challenge, so there is no reason for an arbitrary page to
+// be able to call them from a visitor's browser. `WEB_ORIGIN=*` opens it again when a demo needs
+// to be reachable from somewhere else.
+func corsFor(allowed []string) func(http.Handler) http.Handler {
+	any := len(allowed) == 0
+	for _, o := range allowed {
+		if o == "*" {
+			any = true
 		}
-		next.ServeHTTP(w, r)
-	})
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := w.Header()
+			origin := r.Header.Get("Origin")
+			switch {
+			case any:
+				h.Set("Access-Control-Allow-Origin", "*")
+			case origin != "" && slices.Contains(allowed, origin):
+				h.Set("Access-Control-Allow-Origin", origin)
+				h.Set("Vary", "Origin")
+			}
+			h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, "+x402.HeaderSignature)
+			h.Set("Access-Control-Expose-Headers", x402.HeaderRequired+", "+x402.HeaderResponse)
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 type quoteRequest struct {

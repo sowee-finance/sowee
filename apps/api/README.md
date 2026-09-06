@@ -221,6 +221,7 @@ the browser; the Sumsub sandbox reviews it and calls the webhook.
 | `SUMSUB_LEVEL` / `SUMSUB_QUESTIONNAIRE_ID` | the level applicants are created on and its questionnaire |
 | `SUMSUB_WEBHOOK_SECRET` | verifies `x-payload-digest` on the webhook |
 | `COMPLIANCE_OPERATOR_PK` | key holding `COMPLIANCE_ROLE` on every bond (defaults to `QUOTE_SIGNER_PK`) |
+| `WEB_ORIGIN` | origins a browser may call this API from, comma-separated; defaults to `http://localhost:3000`, `*` opens it |
 
 ## World Selfie Check — a signal in front of KYC
 
