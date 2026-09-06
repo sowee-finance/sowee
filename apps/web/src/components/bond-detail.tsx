@@ -20,6 +20,7 @@ import {
   tenorDays,
 } from "@/lib/market"
 import { useBond } from "@/lib/use-bonds"
+import { useLogo } from "@/lib/use-hcs"
 import { SecondaryMarket } from "./asks"
 import { AuditTrail } from "./audit-trail"
 import { bondNames } from "./bond-card"
@@ -71,6 +72,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
   const closeSheet = useCallback(() => setSheetOpen(false), [])
   // Client-only clock, fixed per load, so the chart never renders on the server.
   const [now] = useState(() => Date.now())
+  const logo = useLogo(invoiceId)
   const points = useMemo(() => (bond ? accretion(bond, now) : []), [bond, now])
 
   if (isPending) {
@@ -126,7 +128,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
             >
               <X size={16} />
             </Link>
-            <CompanyAvatar name={issuer} className="size-7 text-[9px]" />
+            <CompanyAvatar name={issuer} src={logo} className="size-7 text-[9px]" />
             <h1 className="font-medium text-lg">
               {issuer} <span className="font-normal text-soft">{bond.symbol}</span>
             </h1>

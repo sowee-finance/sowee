@@ -57,11 +57,21 @@ const SKIP = new Set(["PT", "CV", "UD"])
  */
 export function CompanyAvatar({
   name,
+  src,
   className = "size-10 text-sm",
 }: {
   name: string
+  /** The issuer's own mark, when they attached one. Falls back to the generated avatar. */
+  src?: string
   className?: string
 }) {
+  if (src) {
+    return (
+      // Not next/image: the source is a data URI carried on the audit trail, already 64px.
+      // biome-ignore lint/performance/noImgElement: data URI, nothing to optimise
+      <img src={src} alt={name} className={`shrink-0 rounded-full object-cover ${className}`} />
+    )
+  }
   const h = hashName(name)
   const p = PALETTES[h % PALETTES.length]
   const motif = Math.floor(h / PALETTES.length) % 6

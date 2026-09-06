@@ -2,9 +2,11 @@
 package server
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
 	"slices"
@@ -120,9 +122,36 @@ func insightsHandler(cfg config.Config, reader *market.Reader) http.HandlerFunc 
 	}
 }
 
+// maxLogoBytes bounds what goes on the topic. The browser downscales to 64x64 before sending, so
+// a real mark lands well inside this; anything larger is a file being pushed through a log.
+const maxLogoBytes = 12 * 1024
+
+// checkLogo accepts an empty logo, or a data URI holding a small raster image. It is rendered by
+// every visitor's browser, so the type is pinned rather than trusted: an SVG would carry script.
+func checkLogo(logo string) error {
+	if logo == "" {
+		return nil
+	}
+	if len(logo) > maxLogoBytes {
+		return fmt.Errorf("logo must be at most %d bytes, got %d", maxLogoBytes, len(logo))
+	}
+	prefix, payload, ok := strings.Cut(logo, ",")
+	if !ok || !slices.Contains(
+		[]string{"data:image/webp;base64", "data:image/png;base64", "data:image/jpeg;base64"},
+		prefix,
+	) {
+		return errors.New("logo must be a data URI holding a webp, png or jpeg image")
+	}
+	if _, err := base64.StdEncoding.DecodeString(payload); err != nil {
+		return errors.New("logo is not valid base64")
+	}
+	return nil
+}
+
 type attestRequest struct {
 	DocHash string `json:"docHash"` // sha256 of the invoice document, hex (0x optional)
 	Event   string `json:"event"`   // lifecycle event name; defaults to "issued"
+	Logo    string `json:"logo"`    // optional data: URI of a small image, downscaled by the browser
 }
 
 // attestHandler anchors {invoiceId, docHash, event} to the HCS topic. The same document may
@@ -142,7 +171,12 @@ func attestHandler(anchor *hcs.Anchor) http.HandlerFunc {
 		if req.Event == "" {
 			req.Event = "issued"
 		}
-		res, err := anchor.Attest(r.Context(), chi.URLParam(r, "id"), h, req.Event)
+		logo := strings.TrimSpace(req.Logo)
+		if err := checkLogo(logo); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		res, err := anchor.Attest(r.Context(), chi.URLParam(r, "id"), h, req.Event, logo)
 		switch {
 		case errors.Is(err, hcs.ErrDisabled):
 			writeError(w, http.StatusServiceUnavailable, err.Error())

@@ -88,5 +88,9 @@ export async function requestQuote(
 }
 
 /** Anchor the document hash on the HCS topic. 409 = already pledged, 503 = HCS disabled. */
-export const attest = (ref: string, docHash: Hex) =>
-  post<Attestation>(`/v1/invoices/${encodeURIComponent(ref)}/attest`, { docHash, event: "issued" })
+export const attest = (ref: string, docHash: Hex, logo?: string) =>
+  post<Attestation>(`/v1/invoices/${encodeURIComponent(ref)}/attest`, {
+    docHash,
+    event: "issued",
+    logo,
+  })

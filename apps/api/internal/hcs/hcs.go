@@ -26,6 +26,10 @@ type Attestation struct {
 	InvoiceID string `json:"invoiceId"`
 	DocHash   string `json:"docHash"` // sha256 of the invoice document, hex, hashed client-side
 	Event     string `json:"event"`   // issued | funded | traded | settled | ...
+	// Logo is the issuer's own mark: a small image the browser downscaled, carried as a data URI
+	// so it lives with the record rather than behind a link that can rot. Like every other field
+	// here it is public and permanent.
+	Logo      string `json:"logo,omitempty"`
 	Timestamp string `json:"timestamp"`
 }
 
@@ -92,7 +96,7 @@ func (a *Anchor) TopicID() string {
 
 // Attest anchors a lifecycle event. The first attestation of a docHash binds it to invoiceID;
 // a later attestation of the same hash under a different invoice is rejected.
-func (a *Anchor) Attest(ctx context.Context, invoiceID, docHash, event string) (Result, error) {
+func (a *Anchor) Attest(ctx context.Context, invoiceID, docHash, event, logo string) (Result, error) {
 	if !a.Enabled() {
 		return Result{}, ErrDisabled
 	}
@@ -107,6 +111,7 @@ func (a *Anchor) Attest(ctx context.Context, invoiceID, docHash, event string) (
 		InvoiceID: invoiceID,
 		DocHash:   docHash,
 		Event:     event,
+		Logo:      logo,
 		Timestamp: a.now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {

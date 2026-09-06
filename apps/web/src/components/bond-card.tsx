@@ -13,6 +13,7 @@ import {
   splitName,
   tenorDays,
 } from "@/lib/market"
+import { useLogo } from "@/lib/use-hcs"
 import { Sparkline } from "./charts"
 import { CompanyAvatar, STATUS_TREND, StatusBadge, TREND_FILL, TrendText } from "./ui"
 
@@ -39,6 +40,7 @@ export function BondCard({ bond }: { bond: Bond }) {
   const apr = impliedApr(bond)
   const days = Math.max(tenorDays(bond.maturity), 0)
   const { issuer, payor } = bondNames(bond)
+  const logo = useLogo(bond.invoiceId)
   return (
     <Link
       href={`/invoices/${bond.invoiceId}`}
@@ -46,7 +48,7 @@ export function BondCard({ bond }: { bond: Bond }) {
       style={{ "--card-tint": TREND_FILL[trend] } as React.CSSProperties}
     >
       <div className="flex items-center gap-3 p-5 pb-0">
-        <CompanyAvatar name={issuer} />
+        <CompanyAvatar name={issuer} src={logo} />
         <div className="min-w-0">
           <div className="truncate font-medium text-[15px]">{issuer}</div>
           <div className="truncate text-[13px] text-soft">

@@ -31,7 +31,7 @@ func newAnchor(t *testing.T) (*Anchor, *fakeSub) {
 
 func TestAttestWritesJSONAndBindsDocHash(t *testing.T) {
 	a, sub := newAnchor(t)
-	res, err := a.Attest(context.Background(), "INV-1", "0xABCDEF", "issued")
+	res, err := a.Attest(context.Background(), "INV-1", "0xABCDEF", "issued", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,15 +52,15 @@ func TestAttestWritesJSONAndBindsDocHash(t *testing.T) {
 
 func TestAttestRejectsSameDocHashForAnotherInvoice(t *testing.T) {
 	a, sub := newAnchor(t)
-	if _, err := a.Attest(context.Background(), "INV-1", "aa", "issued"); err != nil {
+	if _, err := a.Attest(context.Background(), "INV-1", "aa", "issued", ""); err != nil {
 		t.Fatal(err)
 	}
 	// same invoice, later event: fine
-	if _, err := a.Attest(context.Background(), "INV-1", "aa", "funded"); err != nil {
+	if _, err := a.Attest(context.Background(), "INV-1", "aa", "funded", ""); err != nil {
 		t.Fatal(err)
 	}
 	// another invoice pledging the same document: rejected, nothing written
-	_, err := a.Attest(context.Background(), "INV-2", "0xAA", "issued")
+	_, err := a.Attest(context.Background(), "INV-2", "0xAA", "issued", "")
 	if !errors.Is(err, ErrDuplicateDocHash) {
 		t.Fatalf("want ErrDuplicateDocHash, got %v", err)
 	}
@@ -72,7 +72,7 @@ func TestAttestRejectsSameDocHashForAnotherInvoice(t *testing.T) {
 func TestSubmitFailureDoesNotBind(t *testing.T) {
 	a, sub := newAnchor(t)
 	sub.fail = errors.New("network down")
-	if _, err := a.Attest(context.Background(), "INV-1", "aa", "issued"); err == nil {
+	if _, err := a.Attest(context.Background(), "INV-1", "aa", "issued", ""); err == nil {
 		t.Fatal("expected error")
 	}
 	if _, ok := a.Known("aa"); ok {
@@ -90,7 +90,7 @@ func TestLoadRebuildsIndexFromRawMessages(t *testing.T) {
 	if n := a.Load(raw); n != 1 {
 		t.Fatalf("want 1 loaded, got %d", n)
 	}
-	if _, err := a.Attest(context.Background(), "INV-1", "beef", "issued"); !errors.Is(err, ErrDuplicateDocHash) {
+	if _, err := a.Attest(context.Background(), "INV-1", "beef", "issued", ""); !errors.Is(err, ErrDuplicateDocHash) {
 		t.Fatalf("index not rebuilt: %v", err)
 	}
 }
@@ -108,7 +108,7 @@ func TestReceiptAndDisabled(t *testing.T) {
 	}
 
 	off := New("", nil)
-	if _, err := off.Attest(context.Background(), "x", "y", "z"); !errors.Is(err, ErrDisabled) {
+	if _, err := off.Attest(context.Background(), "x", "y", "z", ""); !errors.Is(err, ErrDisabled) {
 		t.Fatalf("want ErrDisabled, got %v", err)
 	}
 	if off.Enabled() {
