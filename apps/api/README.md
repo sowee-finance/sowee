@@ -92,3 +92,32 @@ Bad input returns `400 {"error":"…"}`.
 - **Validity.** `validUntil = now + 15 min`. The oracle burns each nonce on `consume`, so a quote
   opens at most one listing.
 - **Nonce.** `unix_seconds << 16 | counter`, unique across restarts, below 2^53 for JSON clients.
+
+## Audit trail (HCS)
+
+Lifecycle events and the invoice document's sha256 are anchored to a Hedera Consensus Service
+topic. The document itself never leaves the issuer's browser; only the hash is written.
+
+Live topic (testnet): [`0.0.10388277`](https://hashscan.io/testnet/topic/0.0.10388277)
+
+```sh
+curl -s -X POST localhost:8080/v1/invoices/INV-1/attest \
+  -H 'content-type: application/json' \
+  -d '{"docHash":"0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08","event":"issued"}'
+# 201 {"topicId":"0.0.10388277","sequenceNumber":1,"link":"https://hashscan.io/testnet/topic/0.0.10388277"}
+```
+
+Pledging the same document under a second invoice is refused with `409` naming the invoice that
+owns the hash. The index behind that check is rebuilt from the topic on every start (mirror
+node replay), so a restart cannot forget a pledge. Message shapes:
+
+```json
+{"type":"attestation.v1","invoiceId":"INV-1","docHash":"9f86…0a08","event":"issued","timestamp":"2026-09-06T05:31:36Z"}
+{"type":"x402.receipt.v1","endpoint":"/v1/market/insights","payer":"0.0.x","amount":"10000","asset":"0.0.429274","settlementTx":"0.0.y@…","timestamp":"…"}
+```
+
+| Env | Meaning |
+|---|---|
+| `HEDERA_OPERATOR_ID` / `HEDERA_OPERATOR_KEY` | account that pays for topic messages (ECDSA hex key) |
+| `HCS_TOPIC_ID` | topic to write to; created and logged when empty |
+| `MIRROR_URL` | mirror node used to replay the topic at startup |
