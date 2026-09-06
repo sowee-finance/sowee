@@ -1,5 +1,6 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import type { Address } from "viem"
@@ -15,6 +16,7 @@ import {
   getChallenge,
   initialStep,
   type KycAuth,
+  type KycStatus,
   missingAnswers,
   nextStep,
   type Profile,
@@ -40,6 +42,7 @@ export function KycWizard() {
   const [override, setOverride] = useState<Step>()
   const [auth, setAuth] = useState<KycAuth>()
   const [profile, setProfile] = useState<Profile>()
+  const queryClient = useQueryClient()
 
   // Switching wallets starts over: the signature and the resume point belong to the old one.
   const prev = useRef(wallet)
@@ -114,7 +117,11 @@ export function KycWizard() {
             profile={profile}
             onBack={() => go("profile")}
             onSignIn={() => go("signin")}
-            onDone={() => next("declarations")}
+            onDone={(s) => {
+              // The 202 carries the new status: the header badge flips to "Under review" now.
+              queryClient.setQueryData(["kyc", wallet.toLowerCase()], s)
+              next("declarations")
+            }}
           />
         ) : (
           <ProfileStep initial={profile} onDone={(p) => setProfile(p)} />
@@ -309,7 +316,7 @@ function Declarations({
   profile: Profile
   onBack: () => void
   onSignIn: () => void
-  onDone: () => void
+  onDone: (status: KycStatus) => void
 }) {
   const [other, setOther] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -327,8 +334,7 @@ function Declarations({
     setBusy(true)
     setError(undefined)
     try {
-      await submitProfile(auth, profile, answers)
-      onDone()
+      onDone(await submitProfile(auth, profile, answers))
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)))
     } finally {
