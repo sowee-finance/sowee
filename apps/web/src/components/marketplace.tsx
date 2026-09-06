@@ -60,22 +60,22 @@ function Stats({ bonds }: { bonds?: Bond[] }) {
   const calls = topic.data?.filter(isReceipt).length
   return (
     <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Tile label="Bonds listed" value={bonds?.length} hint="live on the market contract" />
+      <Tile label="Bonds listed" value={bonds?.length} hint="on the market contract" />
       <Tile
         label="USDC funded"
         value={funded === undefined ? undefined : usdcAmount(funded)}
-        hint="units minted across every bond"
+        hint="units minted, all bonds"
       />
       <Tile
         label="Best implied APR"
         value={bonds && (best ? pct(best.apr) : "—")}
-        hint={best ? `${best.b.symbol}, simple, discount over tenor` : "nothing open right now"}
+        hint={best ? `${best.b.symbol}, simple yield` : "nothing open right now"}
       />
       {hcsAvailable && (
         <Tile
           label="x402 calls paid"
           value={topic.error ? "—" : calls}
-          hint="market-insights receipts on the HCS topic"
+          hint="receipts on the HCS topic"
         />
       )}
     </dl>

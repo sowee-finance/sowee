@@ -2,12 +2,13 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { KycBadge } from "@/components/kyc-badge"
 import { WalletButton } from "@/components/wallet-button"
-import { activeChain } from "@/lib/chains"
+import { activeChain, explorerUrl } from "@/lib/chains"
+import { getDeployment } from "@/lib/deployments"
 import "./globals.css"
 import { Providers } from "./providers"
 
 export const metadata: Metadata = {
-  title: "Sowee",
+  title: { default: "Sowee", template: "%s · Sowee" },
   description: "Compliant invoice financing on-chain: KYC-gated, fractional invoice bonds.",
 }
 
@@ -18,16 +19,19 @@ const nav = [
 ] as const
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  const market = getDeployment(activeChain.id)?.invoiceMarket
+  const marketUrl = market && explorerUrl(market)
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col bg-zinc-50 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
         <Providers>
           <header className="border-zinc-200 border-b bg-white dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mx-auto flex max-w-5xl items-center gap-6 px-4 py-3">
+            {/* Two rows under `sm`: brand + wallet, then a scrollable nav. One row above. */}
+            <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
               <Link href="/" className="font-semibold text-lg tracking-tight">
                 Sowee
               </Link>
-              <nav className="flex gap-4 text-sm text-zinc-600 dark:text-zinc-400">
+              <nav className="order-last flex w-full items-center gap-4 overflow-x-auto whitespace-nowrap text-sm text-zinc-600 sm:order-none sm:w-auto dark:text-zinc-400">
                 {nav.map((n) => (
                   <Link
                     key={n.href}
@@ -37,6 +41,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                     {n.label}
                   </Link>
                 ))}
+                {marketUrl && (
+                  <a
+                    href={marketUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="InvoiceMarket contract on the explorer"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-300 px-2.5 py-0.5 text-emerald-700 text-xs dark:border-emerald-800 dark:text-emerald-400"
+                  >
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                    Live on {activeChain.name}
+                  </a>
+                )}
               </nav>
               <div className="ml-auto flex items-center gap-3">
                 <KycBadge />

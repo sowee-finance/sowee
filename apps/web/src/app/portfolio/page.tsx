@@ -1,6 +1,9 @@
+import type { Metadata } from "next"
 import { Portfolio } from "@/components/portfolio"
 import { activeChain } from "@/lib/chains"
 import { getDeployment } from "@/lib/deployments"
+
+export const metadata: Metadata = { title: "Portfolio" }
 
 export default function PortfolioPage() {
   return (

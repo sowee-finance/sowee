@@ -1,7 +1,10 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { IssuerListings } from "@/components/issuer-listings"
 import { activeChain } from "@/lib/chains"
 import { getDeployment } from "@/lib/deployments"
+
+export const metadata: Metadata = { title: "Issuer" }
 
 export default function Issuer() {
   return (

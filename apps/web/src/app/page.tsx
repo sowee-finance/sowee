@@ -5,7 +5,8 @@ import { primary, secondary } from "@/components/styles"
 import { activeChain } from "@/lib/chains"
 import { getDeployment } from "@/lib/deployments"
 
-export const metadata: Metadata = { title: "Marketplace" }
+// The root segment shares the layout's segment, so the `%s · Sowee` template does not apply here.
+export const metadata: Metadata = { title: "Marketplace · Sowee" }
 
 export default function Home() {
   return (

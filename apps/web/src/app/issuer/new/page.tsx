@@ -1,7 +1,10 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { IssuerForm } from "@/components/issuer-form"
 import { activeChain } from "@/lib/chains"
 import { getDeployment } from "@/lib/deployments"
+
+export const metadata: Metadata = { title: "Tokenize an invoice" }
 
 export default function NewInvoice() {
   return (
