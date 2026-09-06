@@ -6,8 +6,9 @@ market, settled pro-rata at maturity — with the audit trail anchored to Hedera
 Service and a pay-per-call market-data API that autonomous agents pay for over x402.
 
 Built from scratch for [ETHOnline 2026](https://ethglobal.com/events/ethonline2026), 4–13
-September 2026. Nothing here predates the hacking window; see the commit history, the issues
-and pull requests, and [`AI-USAGE.md`](AI-USAGE.md).
+September 2026. No code here predates the hacking window; see the commit history, the issues
+and pull requests, and [`AI-USAGE.md`](AI-USAGE.md). The web app's visual design and brand
+assets follow Sowee's existing brand; the implementation is new.
 
 Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments) · **World**
 (Selfie Check) · **Arc** (stretch). Partner notes: [`docs/partners/`](docs/partners/).

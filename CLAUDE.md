@@ -19,9 +19,10 @@ issue → price (signed discount quote) → fund in USDC → trade → settle pr
 
 ## Rules that bind this repository (ETHGlobal)
 
-1. **From scratch.** Every line here was written after the window opened. Public libraries,
-   boilerplate and starter kits are fine; code, designs or assets from any earlier project
-   are not copied in. Using prior project code forfeits partner-prize eligibility.
+1. **From scratch.** Every line of code here was written after the window opened. Public
+   libraries, boilerplate and starter kits are fine; no code from any earlier project is
+   copied in. The **visual design and brand assets** (logo, colours, layout) follow Sowee's
+   existing brand by the team's decision — the web app re-implements that look in new code.
 2. **Integrations must actually run.** A partner integration is only claimed when it works
    end-to-end on a live network. A claim that does not run is a full disqualification.
 3. **AI attribution.** `AI-USAGE.md` states exactly where and how AI assisted. Update it in
