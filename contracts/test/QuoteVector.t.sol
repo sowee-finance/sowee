@@ -19,7 +19,9 @@ contract QuoteVectorTest is Test {
         DiscountOracle oracle = DiscountOracle(ORACLE);
         DiscountOracle.Quote memory q = DiscountOracle.Quote({
             invoiceId: keccak256("INV-1"),
+            issuer: 0x2222222222222222222222222222222222222222,
             faceValue: 10_000e6,
+            maturity: 1_802_592_000,
             discountRateBps: 300,
             validUntil: 1_800_000_000,
             nonce: 42
@@ -30,5 +32,5 @@ contract QuoteVectorTest is Test {
         assertEq(digest, VECTOR);
     }
 
-    bytes32 constant VECTOR = 0x7aedd5248f766c874b7287d842ae529c6b21bcad2b922996390ca72ff4486537;
+    bytes32 constant VECTOR = 0x5b0882ed8db5191c229239578fad37ba5792de7c0f5aed352a241a541b0536a3;
 }

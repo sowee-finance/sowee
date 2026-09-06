@@ -21,7 +21,9 @@ contract DiscountOracleTest is Test {
     function quote(uint64 nonce) internal view returns (DiscountOracle.Quote memory q) {
         q = DiscountOracle.Quote({
             invoiceId: keccak256("INV-1"),
+            issuer: address(0xBEEF),
             faceValue: 10_000e6,
+            maturity: uint64(block.timestamp + 30 days),
             discountRateBps: 300,
             validUntil: uint64(block.timestamp + 15 minutes),
             nonce: nonce

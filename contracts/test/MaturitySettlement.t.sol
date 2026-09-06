@@ -42,15 +42,16 @@ contract MaturitySettlementTest is Test {
         maturity = uint64(block.timestamp + 30 days);
         DiscountOracle.Quote memory q = DiscountOracle.Quote({
             invoiceId: INV,
+            issuer: issuer,
             faceValue: FACE,
+            maturity: maturity,
             discountRateBps: 300,
             validUntil: uint64(block.timestamp + 15 minutes),
             nonce: 1
         });
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, oracle.hashQuote(q));
         vm.prank(issuer);
-        bond =
-            market.listInvoice("Sowee Bond INV-1", "sINV1", maturity, q, abi.encodePacked(r, s, v));
+        bond = market.listInvoice("Sowee Bond INV-1", "sINV1", q, abi.encodePacked(r, s, v));
 
         address[3] memory who = [alice, bob, payor];
         for (uint256 i; i < who.length; i++) {
@@ -109,6 +110,11 @@ contract MaturitySettlementTest is Test {
         vm.prank(payor);
         settlement.registerRepayment(INV, 5000e6); // 50% recovery
         vm.warp(maturity);
+        // a stranger cannot freeze a partial repayment before the grace period
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(MaturitySettlement.SettleNotOpen.selector, INV));
+        settlement.settle(INV);
+        vm.prank(issuer);
         settlement.settle(INV);
         assertEq(settlement.claimable(INV, alice), 3000e6);
         assertEq(settlement.claimable(INV, bob), 2000e6);
@@ -157,6 +163,59 @@ contract MaturitySettlementTest is Test {
         settlement.settle(INV);
         assertEq(settlement.claimable(INV, alice), 5000e6);
         assertEq(settlement.claimable(INV, bob), 5000e6);
+    }
+
+    function test_partialRepayment_anyoneAfterGrace() public {
+        vm.prank(payor);
+        settlement.registerRepayment(INV, 5000e6);
+        vm.warp(maturity + settlement.GRACE());
+        vm.prank(bob);
+        settlement.settle(INV);
+        assertEq(settlement.claimable(INV, alice), 3000e6);
+    }
+
+    function test_settleZeroSupplyRevertsAndPayerWithdraws() public {
+        // a second invoice that nobody funds
+        bytes32 inv2 = keccak256("INV-2");
+        DiscountOracle.Quote memory q = DiscountOracle.Quote({
+            invoiceId: inv2,
+            issuer: issuer,
+            faceValue: 1000e6,
+            maturity: maturity,
+            discountRateBps: 300,
+            validUntil: uint64(block.timestamp + 15 minutes),
+            nonce: 2
+        });
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, oracle.hashQuote(q));
+        vm.prank(issuer);
+        market.listInvoice("Sowee Bond INV-2", "sINV2", q, abi.encodePacked(r, s, v));
+
+        vm.prank(payor);
+        settlement.registerRepayment(inv2, 700e6);
+        vm.warp(maturity);
+        vm.expectRevert(abi.encodeWithSelector(MaturitySettlement.NothingToSettle.selector, inv2));
+        settlement.settle(inv2);
+
+        uint256 before = usdc.balanceOf(payor);
+        vm.prank(payor);
+        settlement.withdrawRepayment(inv2);
+        assertEq(usdc.balanceOf(payor) - before, 700e6);
+        (uint256 amount,,) = settlement.repayments(inv2);
+        assertEq(amount, 0);
+        vm.prank(payor);
+        vm.expectRevert(
+            abi.encodeWithSelector(MaturitySettlement.NothingToWithdraw.selector, payor)
+        );
+        settlement.withdrawRepayment(inv2);
+    }
+
+    function test_withdrawBlockedWhileUnitsOutstanding() public {
+        vm.prank(payor);
+        settlement.registerRepayment(INV, 100e6);
+        vm.warp(maturity);
+        vm.prank(payor);
+        vm.expectRevert(abi.encodeWithSelector(MaturitySettlement.UnitsOutstanding.selector, INV));
+        settlement.withdrawRepayment(INV);
     }
 
     // ---- Hedera association ---------------------------------------------------------------
