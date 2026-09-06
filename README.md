@@ -24,7 +24,8 @@ Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments) �
 | x402 payment settled for an agent | [`0.0.7162784@1788673291.830215578`](https://hashscan.io/testnet/transaction/0.0.7162784-1788673291-830215578) |
 | Full lifecycle: list → KYC grant → fund → ask → fill → repay → settle → claim | [ten transactions](contracts/README.md#live-lifecycle-testnet-transactions) |
 
-All contract sources are exact-match verified on Sourcify.
+All contract sources are exact-match verified on Sourcify. The same bytecode also runs on
+**Arc testnet** with a bond funded in native USDC — see [`contracts/README.md`](contracts/README.md#arc-testnet-chain-5042002).
 
 ## How it works
 
