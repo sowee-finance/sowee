@@ -18,6 +18,7 @@ import (
 
 	"github.com/sowee-finance/sowee/apps/api/internal/config"
 	"github.com/sowee-finance/sowee/apps/api/internal/hcs"
+	"github.com/sowee-finance/sowee/apps/api/internal/kyc"
 	"github.com/sowee-finance/sowee/apps/api/internal/market"
 	"github.com/sowee-finance/sowee/apps/api/internal/quote"
 	"github.com/sowee-finance/sowee/apps/api/internal/x402"
@@ -29,6 +30,7 @@ type Deps struct {
 	Anchor *hcs.Anchor
 	Gate   *x402.Gate
 	Market *market.Reader // nil until the market is deployed
+	KYC    *kyc.Flow
 }
 
 // New builds the router. Routes are versioned under /v1.
@@ -48,6 +50,15 @@ func New(cfg config.Config, d Deps) http.Handler {
 	})
 	r.Post("/v1/invoices/{id}/quote", quoteHandler(signer))
 	r.Post("/v1/invoices/{id}/attest", attestHandler(anchor))
+	if d.KYC != nil {
+		r.Route("/v1/kyc", func(r chi.Router) {
+			r.Get("/challenge", kycChallenge)
+			r.Post("/session", kycSession(d.KYC))
+			r.Post("/profile", kycProfile(d.KYC))
+			r.Get("/status", kycStatus(d.KYC))
+			r.Post("/webhook", kycWebhook(d.KYC, cfg.SumsubWebhookSecret))
+		})
+	}
 	if d.Gate != nil {
 		r.With(d.Gate.Middleware("Sowee market insights: every listed invoice bond with funded %, tenor and implied APR")).
 			Get("/v1/market/insights", insightsHandler(cfg, d.Market))

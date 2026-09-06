@@ -158,3 +158,58 @@ again with the reason in `error`; a malformed header is `400`; a facilitator out
 | `X402_FACILITATOR_URL` | facilitator base URL (`/supported`, `/verify`, `/settle`) |
 | `X402_NETWORK` / `X402_ASSET` / `X402_PAY_TO` / `X402_AMOUNT` | the single accepted requirement; `extra.feePayer` is read from `/supported` |
 | `RPC_URL` / `INVOICE_MARKET` | where insights read live state from; empty market → empty list, payment still works |
+
+## KYC and on-chain eligibility
+
+Wallet → Sumsub (document + liveness + suitability questionnaire) → policy → `BondToken.setEligible`
+on every live bond. Only the decision reaches the chain; no name, document or hash ever does.
+
+| Route | Auth | Does |
+|---|---|---|
+| `GET /v1/kyc/challenge?wallet=0x…` | — | the exact text to `personal_sign` (`Sowee KYC session` + wallet + `Issued-At`), valid 1 h |
+| `POST /v1/kyc/session` | signed | mints a Sumsub WebSDK access token bound to the wallet (`externalUserId`) and level |
+| `POST /v1/kyc/profile` | signed | creates the applicant if needed, writes `fixedInfo` and the suitability questionnaire; answers `202` with the status |
+| `GET /v1/kyc/status?wallet=0x…` | — | `none · pending · held · blocked · granting · granted` + reason + grant txs |
+| `POST /v1/kyc/webhook` | HMAC | Sumsub `applicantReviewed` → re-evaluate → grant if eligible |
+
+"signed" means the body carries `{wallet, issuedAt, signature}` from the challenge; a signature
+for another wallet, an expired timestamp or a tampered message is a `401`.
+
+### Policy (fail-closed)
+
+On a `GREEN` review with the `sowee-investor-suitability` questionnaire complete:
+
+| Condition | Decision |
+|---|---|
+| `jurisdiction.us_person = true` | **blocked** (Regulation S) |
+| `jurisdiction.sanctioned = true` or residence in IRN / PRK / CUB / SYR | **blocked** |
+| `aml.pep = true` or not the sole beneficial owner | **held** (manual review) |
+| any required answer missing | **held** |
+| review not `GREEN` | **pending** (`RED` + `FINAL` → blocked) |
+| otherwise | **eligible** → granted on-chain |
+
+Blocked and held wallets are never granted. The grant runs in the background once per wallet
+(`granting` → `granted`), skips bonds that already have it, and retries on the next status read
+if a transaction failed (a wallet that becomes eligible before a bond exists is granted on the
+next check after listing).
+
+```sh
+# sign the challenge with the wallet, then:
+curl -s -X POST localhost:8080/v1/kyc/profile -H 'content-type: application/json' -d '{
+  "wallet":"0x…","issuedAt":"2026-09-06T05:51:07Z","signature":"0x…",
+  "profile":{"firstName":"Ana","lastName":"Sandbox","dob":"1990-01-01","country":"IDN"},
+  "answers":{"jurisdiction.residence":"IDN","jurisdiction.us_person":"false","jurisdiction.sanctioned":"false",
+             "classification.investor_class":"professional","classification.experience":"experienced",
+             "aml.source_of_funds":"salary","aml.pep":"false","aml.beneficial_owner":"true"}}'
+# 202 {"wallet":"0x…","state":"pending","reason":"identity verification not completed",...}
+```
+
+Then the WebSDK (token from `/v1/kyc/session`) collects the document and the liveness selfie in
+the browser; the Sumsub sandbox reviews it and calls the webhook.
+
+| Env | Meaning |
+|---|---|
+| `SUMSUB_APP_TOKEN` / `SUMSUB_SECRET_KEY` | sandbox App Token pair; KYC routes answer 503 without them |
+| `SUMSUB_LEVEL` / `SUMSUB_QUESTIONNAIRE_ID` | the level applicants are created on and its questionnaire |
+| `SUMSUB_WEBHOOK_SECRET` | verifies `x-payload-digest` on the webhook |
+| `COMPLIANCE_OPERATOR_PK` | key holding `COMPLIANCE_ROLE` on every bond (defaults to `QUOTE_SIGNER_PK`) |
