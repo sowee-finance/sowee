@@ -148,9 +148,17 @@ export const feeOn = (cost: bigint, feeBps: number) => ceilDiv(cost * BigInt(fee
 export const fundedPct = (b: Pick<Bond, "supply" | "faceValue">) =>
   b.faceValue === 0n ? 0 : Number((b.supply * 10_000n) / b.faceValue) / 100
 
-export const bpsToPct = (bps: number) => `${(bps / 100).toFixed(2)}%`
+export const pct = (p: number) => `${p.toFixed(2)}%`
 
-export const usdc = (v: bigint) => `${formatUnits(v, 6)} USDC`
+export const bpsToPct = (bps: number) => pct(bps / 100)
+
+const twoDecimals = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+/** USDC base units as `1,234.50 USDC`; always two decimals so amounts line up. */
+export const usdc = (v: bigint) => `${twoDecimals.format(Number(formatUnits(v, 6)))} USDC`
 
 export const maturityDate = (maturity: number) =>
   new Date(maturity * 1000).toLocaleDateString("en-GB", {
@@ -160,4 +168,26 @@ export const maturityDate = (maturity: number) =>
     timeZone: "UTC",
   })
 
-export const isMatured = (maturity: number) => Date.now() / 1000 >= maturity
+export const isMatured = (maturity: number, now = Date.now()) => now / 1000 >= maturity
+
+/** Whole days until maturity, negative once past (mirrors the API's `Yield`). */
+export const tenorDays = (maturity: number, now = Date.now()) =>
+  Math.floor((maturity - now / 1000) / 86_400)
+
+/** Simple annualised yield in percent: discount × 365 / days left; undefined once matured. */
+export function impliedApr(
+  b: Pick<Bond, "discountRateBps" | "maturity">,
+  now = Date.now(),
+): number | undefined {
+  const days = tenorDays(b.maturity, now)
+  return days > 0 ? (b.discountRateBps * 365) / days / 100 : undefined
+}
+
+/** `matures in 29 days`, `matures today`, `matured 3 days ago`. */
+export function relativeMaturity(maturity: number, now = Date.now()): string {
+  const days = Math.ceil((maturity * 1000 - now) / 86_400_000)
+  const unit = (n: number) => `${n} day${n === 1 ? "" : "s"}`
+  if (days > 0) return `matures in ${unit(days)}`
+  if (days === 0) return "matures today"
+  return `matured ${unit(-days)} ago`
+}

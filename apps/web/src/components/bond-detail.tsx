@@ -6,7 +6,16 @@ import { useAccount, useReadContract } from "wagmi"
 import { bondTokenAbi } from "@/lib/abi/bondToken"
 import { activeChain, explorerUrl, shortAddress } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
-import { type Bond, bpsToPct, fundedPct, maturityDate, usdc } from "@/lib/market"
+import {
+  type Bond,
+  bpsToPct,
+  fundedPct,
+  impliedApr,
+  maturityDate,
+  pct,
+  relativeMaturity,
+  usdc,
+} from "@/lib/market"
 import { useBond } from "@/lib/use-bonds"
 import { KycNotice, SecondaryMarket } from "./asks"
 import { BuyForm } from "./buy-form"
@@ -29,6 +38,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
     )
   }
   const explorer = explorerUrl(bond.bond)
+  const apr = impliedApr(bond)
   return (
     <>
       <div className="grid gap-8 md:grid-cols-[1fr_20rem]">
@@ -40,9 +50,18 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
           <p className="font-mono text-sm text-zinc-500">{bond.symbol}</p>
           <dl className="mt-6 grid grid-cols-[10rem_1fr] gap-y-2 text-sm">
             <Row k="Discount" v={bpsToPct(bond.discountRateBps)} />
+            <Row k="Implied APR" v={apr === undefined ? "—" : pct(apr)} />
             <Row k="Face value" v={usdc(bond.faceValue)} />
-            <Row k="Funded" v={`${usdc(bond.supply)} (${fundedPct(bond)}%)`} />
-            <Row k="Maturity" v={maturityDate(bond.maturity)} />
+            <Row k="Funded" v={`${usdc(bond.supply)} (${pct(fundedPct(bond))})`} />
+            <Row
+              k="Maturity"
+              v={
+                <>
+                  {maturityDate(bond.maturity)}{" "}
+                  <span className="text-xs text-zinc-500">{relativeMaturity(bond.maturity)}</span>
+                </>
+              }
+            />
             <Row k="Issuer" v={<Mono text={bond.issuer} />} />
             <Row k="Bond token" v={<Mono text={bond.bond} href={explorer} />} />
             <Row k="Invoice id" v={<Mono text={bond.invoiceId} />} />
