@@ -23,16 +23,21 @@ contract MaturitySettlement is ReentrancyGuard, HederaAssociable {
         bool settled;
     }
 
+    /// @notice After maturity + grace, anyone may settle whatever was repaid.
+    uint64 public constant GRACE = 7 days;
+
     IERC20 public immutable usdc;
     InvoiceMarket public immutable market;
 
     mapping(bytes32 invoiceId => Repayment) public repayments;
+    mapping(bytes32 invoiceId => mapping(address payer => uint256)) public deposits;
 
     event RepaymentRegistered(
         bytes32 indexed invoiceId, address indexed payer, uint256 amount, uint256 total
     );
     event Settled(bytes32 indexed invoiceId, uint256 amount, uint256 supplySnapshot);
     event Claimed(bytes32 indexed invoiceId, address indexed holder, uint256 units, uint256 payout);
+    event RepaymentWithdrawn(bytes32 indexed invoiceId, address indexed payer, uint256 amount);
 
     error ZeroAmount();
     error NotMatured(uint64 maturity);
@@ -40,6 +45,10 @@ contract MaturitySettlement is ReentrancyGuard, HederaAssociable {
     error AlreadySettled(bytes32 invoiceId);
     error NotSettled(bytes32 invoiceId);
     error NothingToClaim(address holder);
+    error NothingToSettle(bytes32 invoiceId);
+    error SettleNotOpen(bytes32 invoiceId);
+    error NothingToWithdraw(address payer);
+    error UnitsOutstanding(bytes32 invoiceId);
 
     constructor(IERC20 usdc_, InvoiceMarket market_) {
         usdc = usdc_;
@@ -55,19 +64,46 @@ contract MaturitySettlement is ReentrancyGuard, HederaAssociable {
         if (r.settled) revert AlreadySettled(invoiceId);
         usdc.safeTransferFrom(msg.sender, address(this), amount);
         r.amount += amount;
+        deposits[invoiceId][msg.sender] += amount;
         emit RepaymentRegistered(invoiceId, msg.sender, amount, r.amount);
     }
 
-    /// @notice Permissionless once the bond has matured. Freezes the supply snapshot for claims.
+    /// @notice Freezes the supply snapshot for claims. Open to anyone once holders are fully
+    /// covered (repayment >= outstanding units) or after maturity + grace; the issuer may settle a
+    /// partial repayment as soon as the bond matures. Never settles a bond nobody holds.
     function settle(bytes32 invoiceId) external {
         BondToken bond = market.bondOf(invoiceId);
         Repayment storage r = repayments[invoiceId];
-        if (block.timestamp < bond.maturity()) revert NotMatured(bond.maturity());
+        uint64 maturity = bond.maturity();
+        if (block.timestamp < maturity) revert NotMatured(maturity);
         if (r.settled) revert AlreadySettled(invoiceId);
         if (r.amount == 0) revert NothingRepaid(invoiceId);
-        r.supplySnapshot = bond.totalSupply();
+        uint256 supply = bond.totalSupply();
+        if (supply == 0) revert NothingToSettle(invoiceId);
+        bool covered = r.amount >= supply;
+        bool grace = block.timestamp >= maturity + GRACE;
+        if (!covered && !grace && msg.sender != market.listing(invoiceId).issuer) {
+            revert SettleNotOpen(invoiceId);
+        }
+        r.supplySnapshot = supply;
         r.settled = true;
         emit Settled(invoiceId, r.amount, r.supplySnapshot);
+    }
+
+    /// @notice A payer takes back a deposit that can never be claimed: the bond matured with no
+    /// units outstanding (nothing was funded, or every holder already exited) and is unsettled.
+    function withdrawRepayment(bytes32 invoiceId) external nonReentrant {
+        BondToken bond = market.bondOf(invoiceId);
+        Repayment storage r = repayments[invoiceId];
+        if (r.settled) revert AlreadySettled(invoiceId);
+        if (block.timestamp < bond.maturity()) revert NotMatured(bond.maturity());
+        if (bond.totalSupply() != 0) revert UnitsOutstanding(invoiceId);
+        uint256 amount = deposits[invoiceId][msg.sender];
+        if (amount == 0) revert NothingToWithdraw(msg.sender);
+        deposits[invoiceId][msg.sender] = 0;
+        r.amount -= amount;
+        usdc.safeTransfer(msg.sender, amount);
+        emit RepaymentWithdrawn(invoiceId, msg.sender, amount);
     }
 
     /// @notice Surrender all units held and receive the pro-rata share of the repayment.
