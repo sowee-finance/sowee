@@ -213,3 +213,21 @@ the browser; the Sumsub sandbox reviews it and calls the webhook.
 | `SUMSUB_LEVEL` / `SUMSUB_QUESTIONNAIRE_ID` | the level applicants are created on and its questionnaire |
 | `SUMSUB_WEBHOOK_SECRET` | verifies `x-payload-digest` on the webhook |
 | `COMPLIANCE_OPERATOR_PK` | key holding `COMPLIANCE_ROLE` on every bond (defaults to `QUOTE_SIGNER_PK`) |
+
+## World Selfie Check — a signal in front of KYC
+
+Selfie Check (World ID credential 11) is a medium-assurance liveness + face-similarity proof.
+Sowee uses it as an **anti-sybil signal**, not as KYC: it unlocks the demo faucet and a larger
+API allowance before the heavier Sumsub flow, and full eligibility still needs the review +
+policy pass above.
+
+| Route | Auth | Does |
+|---|---|---|
+| `GET /v1/world/request` | — | `{app_id, rp_id, action, environment, rp_context:{sig,nonce,created_at,expires_at}}` — the RP signature IDKit needs (World ID 4.0, signed server-side with the Developer Portal key, 5-minute validity) |
+| `POST /v1/world/verify` | signed | `{…, result: <IDKit success payload>}` → forwarded as-is to `POST https://developer.world.org/api/v4/verify/{rp_id}`; on success the nullifier is stored (one proof per person) and `selfieCheck=true` for the wallet; `409` on a reused proof, `400` when the portal rejects it |
+| `POST /v1/faucet` | signed | drips `FAUCET_USDC_AMOUNT` from the treasury to the wallet; `403` without the Selfie Check signal, `429` inside the cooldown, `502` if the wallet is not associated with USDC |
+
+Rate limits on `/v1/kyc/*`, `/v1/world/*` and `/v1/faucet`: `RATE_BASE_PER_MIN` per client IP, or
+`RATE_VERIFIED_PER_MIN` per wallet once it carries the signal (send `X-Wallet` or `?wallet=`).
+The Selfie Check step in the web wizard is skipped until `WORLD_*` is configured; the routes
+answer `503` meanwhile.

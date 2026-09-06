@@ -21,6 +21,13 @@ Selfie Check proof first; the API verifies it, records `selfieCheck = true` for 
 uses that to unlock the demo faucet and a looser rate limit. Full eligibility still requires the
 Sumsub review plus the suitability policy. Issues: #21, #22, #23.
 
+## Implemented (API side, waiting for access to test live)
+
+- `GET /v1/world/request` — RP signature via `github.com/worldcoin/idkit/go/idkit` (`NewSigner(key).SignRequest(WithAction("sowee-selfie-check"))`), 5-minute validity, sandbox/production switch.
+- `POST /v1/world/verify` — forwards the IDKit result unchanged to `POST /api/v4/verify/{rp_id}`, enforces one nullifier per person, records `selfieCheck=true` for the wallet (visible in `GET /v1/kyc/status`).
+- The signal gates `POST /v1/faucet` (403 without it) and lifts the API allowance from 30 to 300 requests per minute for the wallet.
+- The web wizard has a Selfie Check step that switches on when `NEXT_PUBLIC_WORLD_APP_ID` is set.
+
 ## Feedback document (required by the track)
 
 To be filled while integrating:

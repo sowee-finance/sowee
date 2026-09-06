@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/sowee-finance/sowee/apps/api/internal/config"
+	"github.com/sowee-finance/sowee/apps/api/internal/faucet"
 	"github.com/sowee-finance/sowee/apps/api/internal/grant"
 	"github.com/sowee-finance/sowee/apps/api/internal/hcs"
 	"github.com/sowee-finance/sowee/apps/api/internal/kyc"
 	"github.com/sowee-finance/sowee/apps/api/internal/market"
 	"github.com/sowee-finance/sowee/apps/api/internal/quote"
 	"github.com/sowee-finance/sowee/apps/api/internal/server"
+	"github.com/sowee-finance/sowee/apps/api/internal/world"
 	"github.com/sowee-finance/sowee/apps/api/internal/x402"
 )
 
@@ -38,12 +40,33 @@ func main() {
 		}
 	})
 	flow := newFlow(cfg)
+	worldSvc, err := world.New(world.Config{
+		AppID: cfg.WorldAppID, RPID: cfg.WorldRPID, SigningKeyHex: cfg.WorldRPSigningKey,
+		Action: cfg.WorldAction, Environment: cfg.WorldEnvironment, VerifyBase: cfg.WorldVerifyURL,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("world: selfie check enabled=%v", worldSvc.Enabled())
+	drip, err := faucet.New(cfg.RPCURL, usdcOrEmpty(cfg), cfg.ComplianceOperatorPK, cfg.ChainID, cfg.FaucetAmount, cfg.FaucetCooldown)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("faucet: enabled=%v amount=%d cooldown=%s", drip.Enabled(), cfg.FaucetAmount, cfg.FaucetCooldown)
 	log.Printf("api listening on :%s chainId=%d oracle=%s signer=%s hcsTopic=%q market=%q x402=%s/%s→%s",
 		cfg.Port, cfg.ChainID, cfg.DiscountOracle, signer.Address().Hex(), anchor.TopicID(),
 		reader.Address(), cfg.X402Network, cfg.X402Amount, cfg.X402PayTo)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, server.New(cfg, server.Deps{
-		Signer: signer, Anchor: anchor, Gate: gate, Market: reader, KYC: flow,
+		Signer: signer, Anchor: anchor, Gate: gate, Market: reader, KYC: flow, World: worldSvc, Faucet: drip,
 	})))
+}
+
+// usdcOrEmpty disables the faucet unless the market (and thus the USDC address) is known.
+func usdcOrEmpty(cfg config.Config) string {
+	if cfg.InvoiceMarket == "" || cfg.FaucetAmount == 0 {
+		return ""
+	}
+	return cfg.X402AssetEVM()
 }
 
 // newFlow wires Sumsub and the on-chain granter. Without Sumsub credentials KYC endpoints

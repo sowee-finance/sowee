@@ -17,10 +17,13 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/sowee-finance/sowee/apps/api/internal/config"
+	"github.com/sowee-finance/sowee/apps/api/internal/faucet"
 	"github.com/sowee-finance/sowee/apps/api/internal/hcs"
 	"github.com/sowee-finance/sowee/apps/api/internal/kyc"
 	"github.com/sowee-finance/sowee/apps/api/internal/market"
 	"github.com/sowee-finance/sowee/apps/api/internal/quote"
+	"github.com/sowee-finance/sowee/apps/api/internal/ratelimit"
+	"github.com/sowee-finance/sowee/apps/api/internal/world"
 	"github.com/sowee-finance/sowee/apps/api/internal/x402"
 )
 
@@ -31,6 +34,8 @@ type Deps struct {
 	Gate   *x402.Gate
 	Market *market.Reader // nil until the market is deployed
 	KYC    *kyc.Flow
+	World  *world.Service // nil when Selfie Check is not configured
+	Faucet *faucet.Faucet // nil when disabled
 }
 
 // New builds the router. Routes are versioned under /v1.
@@ -51,13 +56,21 @@ func New(cfg config.Config, d Deps) http.Handler {
 	r.Post("/v1/invoices/{id}/quote", quoteHandler(signer))
 	r.Post("/v1/invoices/{id}/attest", attestHandler(anchor))
 	if d.KYC != nil {
-		r.Route("/v1/kyc", func(r chi.Router) {
-			r.Get("/challenge", kycChallenge)
-			r.Post("/session", kycSession(d.KYC))
-			r.Post("/profile", kycProfile(d.KYC))
-			r.Get("/status", kycStatus(d.KYC))
-			r.Post("/webhook", kycWebhook(d.KYC, cfg.SumsubWebhookSecret))
+		// Selfie Check is a signal: verified wallets get a larger allowance on the gated routes.
+		limiter := ratelimit.New(nz(cfg.RateBase, 30), nz(cfg.RateVerified, 300), d.KYC.SelfieCheck)
+		r.Group(func(r chi.Router) {
+			r.Use(limiter.Middleware)
+			r.Route("/v1/kyc", func(r chi.Router) {
+				r.Get("/challenge", kycChallenge)
+				r.Post("/session", kycSession(d.KYC))
+				r.Post("/profile", kycProfile(d.KYC))
+				r.Get("/status", kycStatus(d.KYC))
+			})
+			r.Get("/v1/world/request", worldRequest(d.World))
+			r.Post("/v1/world/verify", worldVerify(d.World, d.KYC))
+			r.Post("/v1/faucet", faucetHandler(d.Faucet, d.KYC))
 		})
+		r.Post("/v1/kyc/webhook", kycWebhook(d.KYC, cfg.SumsubWebhookSecret))
 	}
 	if d.Gate != nil {
 		r.With(d.Gate.Middleware("Sowee market insights: every listed invoice bond with funded %, tenor and implied APR")).
@@ -228,4 +241,11 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+func nz(v, def int) int {
+	if v <= 0 {
+		return def
+	}
+	return v
 }

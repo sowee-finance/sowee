@@ -4,6 +4,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"time"
 )
 
 // Config is everything the API needs to start. Defaults target Hedera testnet.
@@ -33,6 +34,19 @@ type Config struct {
 	SumsubQuestionnaireID string // SUMSUB_QUESTIONNAIRE_ID, default sowee-investor-suitability
 	SumsubWebhookSecret   string // SUMSUB_WEBHOOK_SECRET, verifies x-payload-digest
 	ComplianceOperatorPK  string // COMPLIANCE_OPERATOR_PK, holds COMPLIANCE_ROLE; defaults to QUOTE_SIGNER_PK
+
+	WorldAppID        string // WORLD_APP_ID (app_…); World Selfie Check is off unless app, rp id and key are set
+	WorldRPID         string // WORLD_RP_ID (rp_…)
+	WorldRPSigningKey string // WORLD_RP_SIGNING_KEY, 32-byte hex from the Developer Portal
+	WorldAction       string // WORLD_ACTION, default sowee-selfie-check
+	WorldEnvironment  string // WORLD_ENVIRONMENT, sandbox (default) or production
+	WorldVerifyURL    string // WORLD_VERIFY_URL, default https://developer.world.org/api/v4/verify
+
+	USDCAddress    string        // USDC_ADDRESS (EVM), default Hedera testnet USDC 0x…68cDa; used by the faucet
+	FaucetAmount   uint64        // FAUCET_USDC_AMOUNT in base units, default 1000000 (1 USDC); 0 disables
+	FaucetCooldown time.Duration // FAUCET_COOLDOWN, default 24h
+	RateBase       int           // RATE_BASE_PER_MIN, default 30 (per client IP)
+	RateVerified   int           // RATE_VERIFIED_PER_MIN, default 300 (per Selfie-verified wallet)
 }
 
 // FromEnv builds a Config from the process environment.
@@ -63,6 +77,19 @@ func FromEnv() Config {
 		SumsubQuestionnaireID: env("SUMSUB_QUESTIONNAIRE_ID", "sowee-investor-suitability"),
 		SumsubWebhookSecret:   os.Getenv("SUMSUB_WEBHOOK_SECRET"),
 		ComplianceOperatorPK:  env("COMPLIANCE_OPERATOR_PK", os.Getenv("QUOTE_SIGNER_PK")),
+
+		WorldAppID:        os.Getenv("WORLD_APP_ID"),
+		WorldRPID:         os.Getenv("WORLD_RP_ID"),
+		WorldRPSigningKey: os.Getenv("WORLD_RP_SIGNING_KEY"),
+		WorldAction:       env("WORLD_ACTION", "sowee-selfie-check"),
+		WorldEnvironment:  env("WORLD_ENVIRONMENT", "sandbox"),
+		WorldVerifyURL:    os.Getenv("WORLD_VERIFY_URL"),
+
+		USDCAddress:    env("USDC_ADDRESS", "0x0000000000000000000000000000000000068cDa"),
+		FaucetAmount:   uint64(envInt("FAUCET_USDC_AMOUNT", 1_000_000)),
+		FaucetCooldown: envDuration("FAUCET_COOLDOWN", 24*time.Hour),
+		RateBase:       int(envInt("RATE_BASE_PER_MIN", 30)),
+		RateVerified:   int(envInt("RATE_VERIFIED_PER_MIN", 300)),
 	}
 }
 
@@ -79,3 +106,13 @@ func envInt(key string, def int64) int64 {
 	}
 	return def
 }
+
+func envDuration(key string, def time.Duration) time.Duration {
+	if v, err := time.ParseDuration(os.Getenv(key)); err == nil {
+		return v
+	}
+	return def
+}
+
+// X402AssetEVM is the EVM address of the settlement asset (USDC).
+func (c Config) X402AssetEVM() string { return c.USDCAddress }
