@@ -10,7 +10,7 @@ September 2026. No code here predates the hacking window; see the commit history
 and pull requests, and [`AI-USAGE.md`](AI-USAGE.md). The web app's visual design and brand
 assets follow Sowee's existing brand; the implementation is new.
 
-Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments) · **World**
+Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments · Open Source) · **World**
 (Selfie Check) · **Arc** (DeFi on Circle's USDC-native L1). Partner notes:
 [`docs/partners/`](docs/partners/).
 

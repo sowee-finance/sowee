@@ -71,7 +71,27 @@ account id, so usage is publicly auditable.
 | Consensus Service audit trail | attestations + x402 receipts on topic `0.0.10388277`, replayed from the mirror node — live |
 | Agentic payments (x402) | 402 challenge, facilitator verify/settle, receipt, metering; real paid request — live |
 | Scheduled transactions (HSS) | not used: settlement is permissionless instead, so anyone can settle after maturity without relying on scheduled dispatch |
-| Upstream contribution (hedera-harness) | not attempted in the window |
+| Upstream contribution (hedera-harness) | open PR: [hedera-dev/hedera-harness#42](https://github.com/hedera-dev/hedera-harness/pull/42) — `doctor` now checks the chain operator can fund the run |
+
+## Contribution to the Hedera Harness
+
+[hedera-dev/hedera-harness#42](https://github.com/hedera-dev/hedera-harness/pull/42),
+opened during the window against `dev`.
+
+The harness draws `fundingHbar` from the operator to provision its ephemeral signer, and that
+transfer happens inside `run`, after the baseline has been installed and built. An operator that
+cannot cover it fails a run that has already spent minutes, with an error about a transfer rather
+than about setup — while `doctor`, which exists to catch exactly this, only checked that the
+operator env vars were set.
+
+The PR adds one balance query to `doctor`: below one run's worth it fails, below three it warns,
+otherwise it reports what the balance buys. When the recipe deploys contracts it also says that
+`fundingHbar` has to cover what the relay **reserves** (`gasLimit × gasPrice`), not the fee
+finally charged — the failure we hit twice in this build, where a wallet with a comfortable margin
+over the actual fee still gets `Insufficient funds for transfer`.
+
+Pure thresholds are split from the network call so they are testable without a node: five new
+tests, and their suite runs 200 green.
 
 ## Feedback on Asset Tokenization Studio
 
