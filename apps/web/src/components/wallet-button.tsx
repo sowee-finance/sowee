@@ -28,10 +28,11 @@ export function WalletButton() {
     )
   }
 
+  // The header pill already names the network, so a wallet on the right chain shows only its address.
   const wrongChain = chainId !== activeChain.id
   return (
     <div className="flex items-center gap-2 text-sm">
-      {wrongChain ? (
+      {wrongChain && (
         <button
           type="button"
           className={`${button} border-amber-500 text-amber-700 dark:text-amber-400`}
@@ -40,8 +41,6 @@ export function WalletButton() {
         >
           {switching ? "Switching…" : `Switch to ${activeChain.name}`}
         </button>
-      ) : (
-        <span className="text-zinc-500">{activeChain.name}</span>
       )}
       <button type="button" className={button} onClick={() => disconnect()} title="Disconnect">
         {shortAddress(address)}

@@ -6,11 +6,23 @@ import { useAccount, useReadContract } from "wagmi"
 import { bondTokenAbi } from "@/lib/abi/bondToken"
 import { activeChain, explorerUrl, shortAddress } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
-import { type Bond, bpsToPct, fundedPct, maturityDate, usdc } from "@/lib/market"
+import {
+  type Bond,
+  bpsToPct,
+  fundedPct,
+  impliedApr,
+  maturityDate,
+  pct,
+  relativeMaturity,
+  usdc,
+} from "@/lib/market"
 import { useBond } from "@/lib/use-bonds"
 import { KycNotice, SecondaryMarket } from "./asks"
+import { AuditTrail } from "./audit-trail"
 import { BuyForm } from "./buy-form"
 import { NotDeployed } from "./not-deployed"
+import { EmptyState, ErrorState, SkeletonGrid, SkeletonLine } from "./states"
+import { primary } from "./styles"
 
 export function BondDetail({ deployment, invoiceId }: { deployment?: Deployment; invoiceId: Hex }) {
   if (!deployment) return <NotDeployed />
@@ -18,17 +30,43 @@ export function BondDetail({ deployment, invoiceId }: { deployment?: Deployment;
 }
 
 function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: Hex }) {
-  const { data: bond, error, isPending } = useBond(deployment.invoiceMarket, invoiceId)
-  if (isPending) return <p className="text-sm text-zinc-500">Loading bond…</p>
-  if (error) {
-    const unknown = error.message.includes("UnknownInvoice")
+  const { data: bond, error, isPending, refetch } = useBond(deployment.invoiceMarket, invoiceId)
+  if (isPending) {
     return (
-      <p className="rounded-md border border-red-300 bg-red-50 p-3 text-red-800 text-sm dark:bg-red-950 dark:text-red-200">
-        {unknown ? "No listing with this invoice id." : `Could not read the bond: ${error.message}`}
-      </p>
+      <div className="grid gap-8 md:grid-cols-[1fr_20rem]">
+        <div>
+          <SkeletonLine className="w-24" />
+          <SkeletonLine className="mt-4 h-7 w-72" />
+          <SkeletonLine className="w-16" />
+          <div className="mt-6 flex flex-col gap-1">
+            {["a", "b", "c", "d", "e", "f"].map((k) => (
+              <SkeletonLine key={k} className="w-64" />
+            ))}
+          </div>
+        </div>
+        <SkeletonGrid count={1} />
+      </div>
     )
   }
+  if (error) {
+    if (error.message.includes("UnknownInvoice")) {
+      return (
+        <EmptyState
+          title="No bond with this invoice id"
+          action={
+            <Link href="/" className={primary}>
+              Back to the marketplace
+            </Link>
+          }
+        >
+          Nothing is listed under this id on {activeChain.name}. The link may be for another chain.
+        </EmptyState>
+      )
+    }
+    return <ErrorState what="this bond" onRetry={() => refetch()} />
+  }
   const explorer = explorerUrl(bond.bond)
+  const apr = impliedApr(bond)
   return (
     <>
       <div className="grid gap-8 md:grid-cols-[1fr_20rem]">
@@ -40,9 +78,18 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
           <p className="font-mono text-sm text-zinc-500">{bond.symbol}</p>
           <dl className="mt-6 grid grid-cols-[10rem_1fr] gap-y-2 text-sm">
             <Row k="Discount" v={bpsToPct(bond.discountRateBps)} />
+            <Row k="Implied APR" v={apr === undefined ? "—" : pct(apr)} />
             <Row k="Face value" v={usdc(bond.faceValue)} />
-            <Row k="Funded" v={`${usdc(bond.supply)} (${fundedPct(bond)}%)`} />
-            <Row k="Maturity" v={maturityDate(bond.maturity)} />
+            <Row k="Funded" v={`${usdc(bond.supply)} (${pct(fundedPct(bond))})`} />
+            <Row
+              k="Maturity"
+              v={
+                <>
+                  {maturityDate(bond.maturity)}{" "}
+                  <span className="text-xs text-zinc-500">{relativeMaturity(bond.maturity)}</span>
+                </>
+              }
+            />
             <Row k="Issuer" v={<Mono text={bond.issuer} />} />
             <Row k="Bond token" v={<Mono text={bond.bond} href={explorer} />} />
             <Row k="Invoice id" v={<Mono text={bond.invoiceId} />} />
@@ -54,6 +101,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
         </aside>
       </div>
       <SecondaryMarket bond={bond} deployment={deployment} />
+      <AuditTrail invoiceId={bond.invoiceId} />
     </>
   )
 }

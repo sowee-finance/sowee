@@ -1,8 +1,11 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { isHex } from "viem"
 import { BondDetail } from "@/components/bond-detail"
 import { activeChain } from "@/lib/chains"
 import { getDeployment } from "@/lib/deployments"
+
+export const metadata: Metadata = { title: "Bond" }
 
 export default async function Invoice({ params }: PageProps<"/invoices/[id]">) {
   const { id } = await params

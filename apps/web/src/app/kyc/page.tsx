@@ -1,4 +1,7 @@
+import type { Metadata } from "next"
 import { KycWizard } from "@/components/kyc-wizard"
+
+export const metadata: Metadata = { title: "Investor onboarding" }
 
 export default function Kyc() {
   return (

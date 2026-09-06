@@ -20,6 +20,7 @@ import { useAsks, useBonds, usePositions } from "@/lib/use-bonds"
 import { useTx } from "@/lib/use-tx"
 import { KycNotice } from "./asks"
 import { NotDeployed } from "./not-deployed"
+import { EmptyState, ErrorState, SkeletonLine } from "./states"
 import { box, errorText, primary, secondary } from "./styles"
 
 export function Portfolio({ deployment }: { deployment?: Deployment }) {
@@ -32,9 +33,11 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
   if (!deployment) return <NotDeployed />
   if (!wallet) {
     return (
-      <p className="text-sm text-zinc-500">
-        Connect a wallet on {activeChain.name} to see your holdings.
-      </p>
+      <div className="mt-6">
+        <EmptyState title="No wallet connected">
+          Connect a wallet on {activeChain.name} to see its bond units, open asks and claims.
+        </EmptyState>
+      </div>
     )
   }
   const mine = (asks.data ?? []).filter((a) => a.maker.toLowerCase() === wallet.toLowerCase())
@@ -45,17 +48,27 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
       <section className={box}>
         <h2 className="font-medium">Holdings</h2>
         {positions.isPending ? (
-          <p className="mt-1 text-zinc-500">Loading holdings…</p>
+          <>
+            <SkeletonLine className="w-full" />
+            <SkeletonLine className="w-2/3" />
+          </>
         ) : positions.error ? (
-          <p className={`mt-1 ${errorText}`}>Could not read holdings: {positions.error.message}</p>
+          <div className="mt-2">
+            <ErrorState what="your holdings" onRetry={() => positions.refetch()} />
+          </div>
         ) : positions.data.length === 0 ? (
-          <p className="mt-1 text-zinc-500">
-            No units held.{" "}
-            <Link href="/" className="underline">
-              Browse the marketplace
-            </Link>
-            .
-          </p>
+          <div className="mt-2">
+            <EmptyState
+              title="No positions yet"
+              action={
+                <Link href="/" className={primary}>
+                  Browse the marketplace
+                </Link>
+              }
+            >
+              Units you buy or receive show up here with their settlement status.
+            </EmptyState>
+          </div>
         ) : (
           <div className="mt-2 overflow-x-auto">
             <table className="w-full text-left">
@@ -82,8 +95,19 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
 
       <section className={box}>
         <h2 className="font-medium">Your open asks</h2>
-        {mine.length === 0 ? (
-          <p className="mt-1 text-zinc-500">None. Sell units from a bond's page.</p>
+        {asks.isPending ? (
+          <SkeletonLine className="w-full" />
+        ) : asks.error ? (
+          <div className="mt-2">
+            <ErrorState what="your asks" onRetry={() => asks.refetch()} />
+          </div>
+        ) : mine.length === 0 ? (
+          <div className="mt-2">
+            <EmptyState title="No open asks">
+              Sell units from a bond's page; asks you place stay listed here until filled or
+              cancelled.
+            </EmptyState>
+          </div>
         ) : (
           <div className="mt-2 overflow-x-auto">
             <table className="w-full text-left">

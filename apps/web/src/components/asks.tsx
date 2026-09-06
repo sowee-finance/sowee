@@ -11,6 +11,7 @@ import type { Deployment } from "@/lib/deployments"
 import { type Ask, askCost, type Bond, bpsToPct, feeOn, usdc } from "@/lib/market"
 import { useAsks } from "@/lib/use-bonds"
 import { useTx } from "@/lib/use-tx"
+import { EmptyState, ErrorState, SkeletonLine } from "./states"
 import { box, errorText, input, primary, secondary, warnText } from "./styles"
 
 const chain = { chainId: activeChain.id } as const
@@ -41,11 +42,20 @@ export function SecondaryMarket({ bond, deployment }: { bond: Bond; deployment: 
         <div className={box}>
           <h3 className="font-medium">Open asks</h3>
           {asks.isPending ? (
-            <p className="mt-1 text-zinc-500">Loading asks…</p>
+            <>
+              <SkeletonLine className="w-full" />
+              <SkeletonLine className="w-2/3" />
+            </>
           ) : asks.error ? (
-            <p className={`mt-1 ${errorText}`}>Could not read asks: {asks.error.message}</p>
+            <div className="mt-2">
+              <ErrorState what="the open asks" onRetry={() => asks.refetch()} />
+            </div>
           ) : open.length === 0 ? (
-            <p className="mt-1 text-zinc-500">No open asks on this bond.</p>
+            <div className="mt-2">
+              <EmptyState title="No open asks">
+                Holders who want out before maturity list units here; you would be the first.
+              </EmptyState>
+            </div>
           ) : (
             <div className="mt-2 overflow-x-auto">
               <table className="w-full text-left">

@@ -8,7 +8,10 @@ import {
   fetchBonds,
   fetchPositions,
   fundedPct,
+  impliedApr,
   maturityDate,
+  relativeMaturity,
+  tenorDays,
   usdc,
 } from "./market"
 
@@ -89,8 +92,26 @@ describe("market", () => {
 
   test("formatting helpers", () => {
     expect(bpsToPct(300)).toBe("3.00%")
-    expect(usdc(1_500_000n)).toBe("1.5 USDC")
+    expect(usdc(1_500_000n)).toBe("1.50 USDC")
+    expect(usdc(1_234_567_891n)).toBe("1,234.57 USDC")
     expect(fundedPct({ supply: 0n, faceValue: 0n })).toBe(0)
     expect(maturityDate(1_800_000_000)).toBe("15 Jan 2027")
+  })
+
+  test("tenor and implied APR follow the API's simple yield", () => {
+    const now = 1_700_000_000_000
+    const maturity = 1_700_000_000 + 30 * 86_400
+    expect(tenorDays(maturity, now)).toBe(30)
+    // 2.25% over 30 days -> 225 * 365 / 30 = 2737.5 bps
+    expect(impliedApr({ discountRateBps: 225, maturity }, now)).toBeCloseTo(27.375)
+    expect(impliedApr({ discountRateBps: 225, maturity: 1_700_000_000 }, now)).toBeUndefined()
+  })
+
+  test("relative maturity reads as a sentence", () => {
+    const now = 1_700_000_000_000
+    expect(relativeMaturity(1_700_000_000 + 29 * 86_400, now)).toBe("matures in 29 days")
+    expect(relativeMaturity(1_700_000_000 + 86_400, now)).toBe("matures in 1 day")
+    expect(relativeMaturity(1_700_000_000, now)).toBe("matures today")
+    expect(relativeMaturity(1_700_000_000 - 3 * 86_400, now)).toBe("matured 3 days ago")
   })
 })
