@@ -3,10 +3,13 @@
 Rules: 2–4 minutes, ≥720p screen capture, your own voice, no music, no speed-up, no phone.
 Intro under 20 seconds. Everything shown must be live. Target 3:30.
 
-Prepare (off camera): API running against Hedera testnet with Sumsub + HCS + market
-configured; web on `NEXT_PUBLIC_CHAIN_ID=296`; MetaMask with the investor wallet
-(`0x05F2…a6af`, USDC + a little HBAR) and the issuer wallet (`0x17Ca…c116`); a terminal
-in `apps/agent` with `.env` filled; HashScan tabs for the market contract and the HCS topic.
+Prepare (off camera): API running against Hedera testnet with Sumsub + HCS + market configured;
+web on `NEXT_PUBLIC_CHAIN_ID=296`; MetaMask holding the investor wallet (`0x05F2…a6af`, USDC and
+a few HBAR) and the issuer wallet (`0xbD6b…e910`); a terminal in `apps/agent` with `.env` filled;
+HashScan tabs for the market contract and the HCS topic.
+
+Hedera reserves `gasLimit × gasPrice` up front, so keep 2–3 HBAR on any wallet that will sign
+during the recording — a wallet with "enough for the fee" still gets rejected.
 
 | Time | Screen | Say |
 |---|---|---|
@@ -20,7 +23,7 @@ in `apps/agent` with `.env` filled; HashScan tabs for the market contract and th
 | 2:15 | Back to the bond → *Fund Invoice*, 10 units → approve + confirm → Funding Progress moves, position shows | "Funding in USDC at the discounted price. USDC goes straight to the issuer; units are minted to the investor." |
 | 2:30 | Secondary Market → sell 4 units at 98% → ask listed; second wallet fills it → ask gone | "A compliant secondary market: units stay with the maker until a fill, and a fill to a non-granted wallet reverts at the token layer." |
 | 2:50 | Portfolio → matured bond row → *Claim* → USDC arrives, units burned | "At maturity the payor repays into settlement and holders surrender units for their pro-rata share — claims burn, so double claims are impossible." |
-| 3:05 | Terminal: `bun run src/index.ts` in `apps/agent` — 402 → paid → settled → decision | "Agents pay for market data over x402: the API answers 402 with the price in USDC, the agent signs a Hedera transfer, the Blocky402 facilitator settles it, and the receipt lands on the same HCS topic." |
+| 3:05 | Terminal: `bun run src/index.ts --execute 1` in `apps/agent` — 402 → paid → settled → decision → approve → funded | "Agents pay for market data over x402: the API answers 402 with the price in USDC, the agent signs a Hedera transfer, the Blocky402 facilitator settles it, and the receipt lands on the same HCS topic. Then the agent acts on what it bought and funds the bond — and it only can because that wallet passed the same KYC a human does." |
 | 3:25 | Bond page *Audit trail* panel, then the HashScan topic with attestation + receipt messages | "Invoice, compliance decision, payment — one auditable trail on Hedera. Thanks." |
 
 Cuts are fine; waiting for a transaction can be cut. Keep the wallet confirmations visible once.
