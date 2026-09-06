@@ -16,6 +16,7 @@ type Tiered struct {
 	Base       int                      // requests per minute for anyone
 	Verified   int                      // requests per minute for verified wallets
 	IsVerified func(wallet string) bool // signal lookup; nil means nobody is verified
+	TrustProxy bool                     // honour X-Forwarded-For (only behind our own proxy)
 	now        func() time.Time
 	mu         sync.Mutex
 	buckets    map[string]*bucket
@@ -27,8 +28,8 @@ type bucket struct {
 }
 
 // New builds a limiter; rates are per minute.
-func New(base, verified int, isVerified func(string) bool) *Tiered {
-	return &Tiered{Base: base, Verified: verified, IsVerified: isVerified, now: time.Now, buckets: map[string]*bucket{}}
+func New(base, verified int, isVerified func(string) bool, trustProxy bool) *Tiered {
+	return &Tiered{Base: base, Verified: verified, IsVerified: isVerified, TrustProxy: trustProxy, now: time.Now, buckets: map[string]*bucket{}}
 }
 
 // Allow consumes one token for key at the given per-minute rate.
@@ -62,7 +63,7 @@ func (t *Tiered) Middleware(next http.Handler) http.Handler {
 		if wallet == "" {
 			wallet = strings.ToLower(r.URL.Query().Get("wallet"))
 		}
-		key, rate := "ip:"+clientIP(r), t.Base
+		key, rate := "ip:"+clientIP(r, t.TrustProxy), t.Base
 		if wallet != "" && t.IsVerified != nil && t.IsVerified(wallet) {
 			key, rate = "wallet:"+wallet, t.Verified
 		}
@@ -77,8 +78,8 @@ func (t *Tiered) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+func clientIP(r *http.Request, trustProxy bool) string {
+	if xff := r.Header.Get("X-Forwarded-For"); trustProxy && xff != "" {
 		return strings.TrimSpace(strings.Split(xff, ",")[0])
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)

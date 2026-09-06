@@ -130,6 +130,8 @@ func writeKYCError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusServiceUnavailable, err.Error())
 	case errors.Is(err, kyc.ErrNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
+	case errors.Is(err, kyc.ErrReviewed):
+		writeError(w, http.StatusConflict, err.Error())
 	default:
 		writeError(w, http.StatusBadGateway, err.Error())
 	}

@@ -42,7 +42,11 @@ type Deps struct {
 func New(cfg config.Config, d Deps) http.Handler {
 	signer, anchor := d.Signer, d.Anchor
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer, cors)
+	r.Use(middleware.RequestID)
+	if cfg.TrustedProxy {
+		r.Use(middleware.RealIP) // X-Forwarded-For is only meaningful behind our own proxy
+	}
+	r.Use(middleware.Logger, middleware.Recoverer, cors)
 
 	r.Get("/v1/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -53,11 +57,19 @@ func New(cfg config.Config, d Deps) http.Handler {
 			"hcsTopic": anchor.TopicID(),
 		})
 	})
-	r.Post("/v1/invoices/{id}/quote", quoteHandler(signer))
-	r.Post("/v1/invoices/{id}/attest", attestHandler(anchor))
+	// Everything that costs the operator money or a vendor call sits behind the tiered limiter;
+	// Selfie Check-verified wallets get the larger allowance.
+	var verified func(string) bool
 	if d.KYC != nil {
-		// Selfie Check is a signal: verified wallets get a larger allowance on the gated routes.
-		limiter := ratelimit.New(nz(cfg.RateBase, 30), nz(cfg.RateVerified, 300), d.KYC.SelfieCheck)
+		verified = d.KYC.SelfieCheck
+	}
+	limiter := ratelimit.New(nz(cfg.RateBase, 30), nz(cfg.RateVerified, 300), verified, cfg.TrustedProxy)
+	r.Group(func(r chi.Router) {
+		r.Use(limiter.Middleware)
+		r.Post("/v1/invoices/{id}/quote", quoteHandler(signer))
+		r.Post("/v1/invoices/{id}/attest", attestHandler(anchor))
+	})
+	if d.KYC != nil {
 		r.Group(func(r chi.Router) {
 			r.Use(limiter.Middleware)
 			r.Route("/v1/kyc", func(r chi.Router) {

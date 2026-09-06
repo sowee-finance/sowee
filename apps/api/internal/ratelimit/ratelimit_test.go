@@ -9,7 +9,7 @@ import (
 
 func TestTiers(t *testing.T) {
 	verified := map[string]bool{"0xaaa": true}
-	l := New(2, 5, func(w string) bool { return verified[w] })
+	l := New(2, 5, func(w string) bool { return verified[w] }, false)
 	now := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
 	l.now = func() time.Time { return now }
 	h := l.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) }))
@@ -38,5 +38,22 @@ func TestTiers(t *testing.T) {
 	now = now.Add(time.Minute)
 	if hit("0xbbb") != 200 {
 		t.Fatal("bucket should refill after a minute")
+	}
+}
+
+func TestForwardedForIsIgnoredUnlessTrusted(t *testing.T) {
+	l := New(1, 1, nil, false)
+	h := l.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) }))
+	codes := []int{}
+	for i := 0; i < 3; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/x", nil)
+		req.RemoteAddr = "10.0.0.9:1"
+		req.Header.Set("X-Forwarded-For", "1.2.3."+string(rune('0'+i)))
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		codes = append(codes, rec.Code)
+	}
+	if codes[1] != http.StatusTooManyRequests {
+		t.Fatalf("spoofed XFF must not reset the bucket: %v", codes)
 	}
 }

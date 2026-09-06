@@ -51,6 +51,8 @@ func (g *stubGrantor) Grant(context.Context, string) ([]string, error) {
 	return []string{"0xgrant"}, nil
 }
 
+func (g *stubGrantor) Revoke(context.Context, string) ([]string, error) { return nil, nil }
+
 const kycPk = "00000000000000000000000000000000000000000000000000000000000b0b0b"
 
 func kycServer(t *testing.T, sumsub kyc.SumsubAPI, g kyc.Grantor, secret string) (http.Handler, *kyc.Flow, string) {
