@@ -12,14 +12,16 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract DiscountOracle is EIP712, Ownable {
     struct Quote {
         bytes32 invoiceId;
+        address issuer;
         uint256 faceValue;
+        uint64 maturity;
         uint16 discountRateBps;
         uint64 validUntil;
         uint64 nonce;
     }
 
     bytes32 public constant QUOTE_TYPEHASH = keccak256(
-        "Quote(bytes32 invoiceId,uint256 faceValue,uint16 discountRateBps,uint64 validUntil,uint64 nonce)"
+        "Quote(bytes32 invoiceId,address issuer,uint256 faceValue,uint64 maturity,uint16 discountRateBps,uint64 validUntil,uint64 nonce)"
     );
     uint16 public constant MAX_RATE_BPS = 5000;
 
@@ -64,7 +66,9 @@ contract DiscountOracle is EIP712, Ownable {
                 abi.encode(
                     QUOTE_TYPEHASH,
                     q.invoiceId,
+                    q.issuer,
                     q.faceValue,
+                    q.maturity,
                     q.discountRateBps,
                     q.validUntil,
                     q.nonce
