@@ -13,6 +13,7 @@ import {MockHTS} from "../test/mocks/MockHTS.sol";
 /// The deployer becomes owner, compliance operator and treasury; rotate those afterwards.
 ///
 /// Local:    anvil & forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+/// Hedera:   run this with WITH_SETTLEMENT=false, then script/DeploySettlement.s.sol
 /// Dry run:  forge script script/Deploy.s.sol --rpc-url hedera_testnet
 /// Deploy:   WRITE_DEPLOYMENTS=true forge script script/Deploy.s.sol --rpc-url hedera_testnet --broadcast
 contract Deploy is Script {
@@ -28,20 +29,33 @@ contract Deploy is Script {
             vm.etch(address(0x167), type(MockHTS).runtimeCode);
         }
 
+        // Duties are separable: the wallet that signs quotes, the one that writes eligibility and
+        // the one that collects fees need not be the same key. They default to the deployer.
+        address compliance = vm.envOr("COMPLIANCE_OPERATOR", deployer);
+        address treasury = vm.envOr("TREASURY", deployer);
+
         vm.startBroadcast(pk);
         if (usdc == address(0)) usdc = address(new MockUSDC());
         DiscountOracle oracle = new DiscountOracle(signer, deployer);
-        InvoiceMarket market = new InvoiceMarket(IERC20(usdc), oracle, deployer, deployer, deployer);
-        MaturitySettlement settlement = new MaturitySettlement(IERC20(usdc), market);
+        InvoiceMarket market =
+            new InvoiceMarket(IERC20(usdc), oracle, compliance, treasury, deployer);
         oracle.setConsumer(address(market));
-        market.setSettlement(address(settlement));
-        market.setFee(50, deployer); // 0.5% platform fee, buyer -> treasury
+        market.setFee(50, treasury); // 0.5% platform fee, buyer -> treasury
+        MaturitySettlement settlement;
+        // On Hedera the settlement constructor touches the HTS precompile, which the local
+        // execution can only mock: deploy it in a second stage with more gas headroom.
+        if (vm.envOr("WITH_SETTLEMENT", true)) {
+            settlement = new MaturitySettlement(IERC20(usdc), market);
+            market.setSettlement(address(settlement));
+        }
         vm.stopBroadcast();
 
         console.log("chain id  :", block.chainid);
         console.log("deployer  :", deployer);
         console.log("usdc      :", usdc);
         console.log("signer    :", signer);
+        console.log("compliance:", compliance);
+        console.log("treasury  :", treasury);
         console.log("oracle    :", address(oracle));
         console.log("market    :", address(market));
         console.log("settlement:", address(settlement));

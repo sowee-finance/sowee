@@ -17,12 +17,13 @@ Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments) �
 
 | What | Where |
 |---|---|
-| DiscountOracle | [`0xc144F0…c32c`](https://hashscan.io/testnet/contract/0xc144F01296809442850E342464b3d01fd812c32c) |
-| InvoiceMarket | [`0x707c7C…B0ac`](https://hashscan.io/testnet/contract/0x707c7C611CfaBD75815785cbfc18D3d4F2BCB0ac) |
-| MaturitySettlement | [`0x80D0C4…e930`](https://hashscan.io/testnet/contract/0x80D0C4E0A991485A980614eB46b3224b2ACBe930) |
-| Bond `sINV001` (100 USDC, 2.25%, 30 days) | [`0xcfDeA7…6600`](https://hashscan.io/testnet/contract/0xcfDeA74C43784D10364Befa3a2a3aDD472306600) |
+| DiscountOracle | [`0xb6d7F1…9010`](https://hashscan.io/testnet/contract/0xb6d7F1e018195E0000eb0EE017E36c61113e9010) |
+| InvoiceMarket | [`0xe7f896…5962`](https://hashscan.io/testnet/contract/0xe7f89692940f5BCc30096cd48f360F2144155962) |
+| MaturitySettlement | [`0x68faa9…6219`](https://hashscan.io/testnet/contract/0x68faa98A8e42ef8ffC946e3d571C3940Dc0f6219) |
+| Bond `sINV010` (100 USDC, 2.25%, 30 days) | [`0xCb4056…9E8c`](https://hashscan.io/testnet/contract/0xCb4056Da92692877d5587eD51f63a5A410F39E8c) |
 | HCS audit topic | [`0.0.10388277`](https://hashscan.io/testnet/topic/0.0.10388277) |
-| x402 payment settled for an agent | [`0.0.7162784@1788673291.830215578`](https://hashscan.io/testnet/transaction/0.0.7162784-1788673291-830215578) |
+| x402 payment settled for an agent | [`0.0.7162784@1788720477.579246898`](https://hashscan.io/testnet/transaction/0.0.7162784-1788720477-579246898) |
+| The agent funding the bond it paid to find | [`0x89d2462b…`](https://hashscan.io/testnet/transaction/0x89d2462bb54ca04f90437e02de567e998f84abc2698571732db18f7148f0e8ec) |
 | Full lifecycle: list → KYC grant → fund → ask → fill → repay → settle → claim | [ten transactions](contracts/README.md#live-lifecycle-testnet-transactions) |
 
 All contract sources are exact-match verified on Sourcify. The same bytecode also runs on
@@ -90,8 +91,9 @@ a larger API allowance; it is a signal, not a substitute for KYC.
 
 **Agentic payments.** `GET /v1/market/insights` is x402-gated: 0.01 USDC per call on
 `hedera:testnet`, verified and settled by the Blocky402 facilitator. `apps/agent` discovers the
-price from the 402, pays with its own Hedera account (the facilitator sponsors the fee), consumes
-the ranked bond list, and the API anchors a receipt on HCS and meters the payer.
+price from the 402, pays with its own Hedera account (the facilitator sponsors that fee), consumes
+the ranked bond list — and with `--execute` funds the bond it chose, from the same wallet, subject
+to the same KYC allowlist a human faces. The API anchors a receipt on HCS and meters the payer.
 
 ## Repository
 
