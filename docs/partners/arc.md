@@ -1,6 +1,6 @@
 # Arc (Circle) — integration notes and feedback
 
-Track: **Best DeFi / Onchain Finance** (stretch; first to cut if time runs short).
+Tracks: **Best DeFi / Onchain Finance** and **Launch on Arc Testnet & Push to Mainnet**.
 
 ## Verified facts we build on
 
@@ -18,16 +18,44 @@ The finance core is plain EVM: `BondToken`, `DiscountOracle`, `InvoiceMarket`,
 `MaturitySettlement` deploy unchanged (`HederaAssociable` is a no-op off Hedera). The only Arc
 specifics are the USDC address and gas paid in USDC. Deploy script: `--rpc-url arc_testnet`.
 
+## Architecture on Arc
+
+```mermaid
+flowchart LR
+  W["apps/web<br/>NEXT_PUBLIC_CHAIN_ID=5042002"] -->|signed quote| API["apps/api<br/>EIP-712 signer · KYC · granter"]
+  W -->|listInvoice · buyPrimary · makeAsk · claim| M[InvoiceMarket]
+  API -->|setEligible| B["BondToken<br/>KYC allowlist"]
+  M -->|verify + burn nonce| O[DiscountOracle]
+  M -->|deploy · mint| B
+  T[MaturitySettlement] -->|burn on claim| B
+  M --> U[("native USDC<br/>0x3600…0000")]
+  T --> U
+  API -. Sumsub review, one decision .-> API
+```
+
+The same API process prices and grants on either chain: the EIP-712 domain binds `chainId` and
+the oracle address, so pointing `CHAIN_ID`, `RPC_URL`, `DISCOUNT_ORACLE` and `INVOICE_MARKET` at
+Arc is the whole configuration. A wallet that passed KYC once is granted on both chains from the
+same Sumsub decision.
+
 ## Status — live on Arc testnet
 
 | Contract | Address |
 |---|---|
-| DiscountOracle | https://testnet.arcscan.app/address/0x8811c54E2961612F94C11EbFc7F4873210CC3949 |
-| InvoiceMarket | https://testnet.arcscan.app/address/0x4ED35623ed0DbCf42d07438D1AA7a526E2D22Be7 |
-| MaturitySettlement | https://testnet.arcscan.app/address/0x15BBde11682eBD77f91d563A1999873F7727369e |
-| Bond `sARC001` | https://testnet.arcscan.app/address/0x179Bbd5c8c3F9Db0ff7b8c68c4A81C6cEbD71EcC |
+| DiscountOracle | https://testnet.arcscan.app/address/0x4bB1A6c2C352795A3Dff74D5D234711a40bA5a78 |
+| InvoiceMarket | https://testnet.arcscan.app/address/0x830bAB679B1AD09c5eD0Eb3a53614cbC1DC51937 |
+| MaturitySettlement | https://testnet.arcscan.app/address/0x68D7D788Ac36A3e019680B8D503e468FE7235F0b |
+| Bond `sARC001` (50 USDC, 2.25%, 45 days) | https://testnet.arcscan.app/address/0x86478cB59EDab4E899BeC5D0637fe0771D68574E |
 
-Transactions: list https://testnet.arcscan.app/tx/0xf51c18f8799141542130416c75957d4d9fb38198b40c79c08ed975cb2554d892 · grant https://testnet.arcscan.app/tx/0xfa96eaf94ffe7db9f59ab305682d116ae5e6391d56db5bfae9eef0e1667a96e8 · **funded position in native USDC** https://testnet.arcscan.app/tx/0x861cdc380b15f292e85b0d829e86555ffb2579e91b67164fbd88ef06588dbabc
+| Step | Transaction |
+|---|---|
+| `listInvoice` ARC-2026-001 with an API-signed quote | https://testnet.arcscan.app/tx/0x65e2d561668edbf805b4c2f007b9815da532bb4beeeabd27087759bb1e3b14ae |
+| KYC grant written by the compliance operator, from the same Sumsub review used on Hedera | https://testnet.arcscan.app/tx/0xd1775e78dffd0b56d576b8501ac19d8aa0bdf8112cdd9b792aac1c520c59a339 |
+| `buyPrimary` 5 units funded in **native USDC** | https://testnet.arcscan.app/tx/0x74fb1a57a1f65d82919de12d71dfaa6ccc9085060b8cee995defaac5117e59b7 |
+| `makeAsk` 2 units at 99% of face on the compliant secondary market | https://testnet.arcscan.app/tx/0x3a6c0bf346e6b52fa45e833a2d62ecff2307977e4573e64932e5f2b176444706 |
+
+An earlier Arc deployment carried the pre-review contracts; it was replaced rather than patched,
+so the addresses above are the only ones the repo and the app point at.
 
 The deploy and the whole lifecycle used exactly the Hedera bytecode: `HederaAssociable` is a
 no-op off Hedera, and the market/settlement only ever call the ERC-20 interface. The API signs
@@ -41,8 +69,17 @@ domain binds chain and contract), so one service can price both chains.
 - **Circle faucet** (`faucet.circle.com`) for testnet USDC.
 - Sources verified through Sourcify (Arc testnet is supported); Arcscan links above.
 
-Architecture: see the diagram in the root README — Arc replaces the Hedera box; HCS and x402
-stay on Hedera.
+The frontend is the same app: `apps/web` carries an Arc chain entry, reads
+`contracts/deployments/5042002.json`, and renders the Arc marketplace, bond page and portfolio
+with Arcscan links. HCS anchoring and the x402 endpoint stay on Hedera; nothing about the Arc
+finance core depends on them.
+
+### Mainnet
+
+The same bytecode is what would go to Arc mainnet: only `USDC` and the RPC change, and
+`HederaAssociable` is already a no-op off Hedera. `script/Deploy.s.sol` takes the mainnet USDC
+address through `USDC` and the roles through `COMPLIANCE_OPERATOR` and `TREASURY`, so the
+deployment is a configuration change, not a code change.
 
 ## Feedback
 
