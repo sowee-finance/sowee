@@ -37,3 +37,18 @@ jobs:
       - run: forge fmt --check
       - run: forge build --sizes
       - run: forge test -vvv
+
+  api:
+    name: go
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+      - run: go vet ./...
+      - run: go test ./...
