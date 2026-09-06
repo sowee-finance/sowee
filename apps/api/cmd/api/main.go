@@ -48,6 +48,7 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("world: selfie check enabled=%v", worldSvc.Enabled())
+	restoreSelfieChecks(anchor, worldSvc, flow)
 	drip, err := faucet.New(cfg.RPCURL, usdcOrEmpty(cfg), cfg.ComplianceOperatorPK, cfg.ChainID, cfg.FaucetAmount, cfg.FaucetCooldown)
 	if err != nil {
 		log.Fatal(err)
@@ -67,6 +68,23 @@ func usdcOrEmpty(cfg config.Config) string {
 		return ""
 	}
 	return cfg.X402AssetEVM()
+}
+
+// restoreSelfieChecks replays the Selfie Checks anchored on the topic: which wallets carry the
+// signal, and which World IDs have already spent it here. Without this the anti-sybil guarantee
+// would last only as long as the process.
+func restoreSelfieChecks(anchor *hcs.Anchor, w *world.Service, f *kyc.Flow) {
+	records := anchor.Selfies()
+	if len(records) == 0 {
+		return
+	}
+	nullifiers := make([]string, 0, len(records))
+	for _, r := range records {
+		f.SetSelfieCheck(r.Wallet, true)
+		nullifiers = append(nullifiers, r.Nullifier)
+	}
+	log.Printf("world: restored %d selfie check(s), %d nullifier(s) already spent",
+		len(records), w.Restore(nullifiers))
 }
 
 // newFlow wires Sumsub and the on-chain granter. Without Sumsub credentials KYC endpoints

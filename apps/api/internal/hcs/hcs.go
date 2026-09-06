@@ -40,6 +40,16 @@ type Receipt struct {
 	Timestamp    string `json:"timestamp"`
 }
 
+// SelfieCheck records that a wallet passed a World Selfie Check. The nullifier is the World ID's
+// pseudonym for this action, so replaying the topic restores both facts the signal depends on:
+// which wallets are verified, and which World IDs have already been used here.
+type SelfieCheck struct {
+	Type      string `json:"type"` // "selfie.v1"
+	Wallet    string `json:"wallet"`
+	Nullifier string `json:"nullifier"`
+	Timestamp string `json:"timestamp"`
+}
+
 // Result points at the anchored message.
 type Result struct {
 	TopicID        string `json:"topicId"`
@@ -61,6 +71,7 @@ type Anchor struct {
 
 	mu        sync.Mutex
 	docHashes map[string]string // docHash -> invoiceId
+	selfies   []SelfieCheck     // replayed Selfie Check records, oldest first
 }
 
 // New returns an Anchor for topicID. A nil Submitter yields a disabled anchor.
@@ -119,23 +130,64 @@ func (a *Anchor) Receipt(ctx context.Context, r Receipt) (Result, error) {
 	return a.write(ctx, r)
 }
 
-// Load replays raw topic messages (as returned by the mirror node) to rebuild the docHash
-// index. Unknown or malformed messages are skipped.
+// Selfie anchors a passed Selfie Check so the signal and the used nullifier survive a restart.
+func (a *Anchor) Selfie(ctx context.Context, wallet, nullifier string) (Result, error) {
+	if !a.Enabled() {
+		return Result{}, ErrDisabled
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.write(ctx, SelfieCheck{
+		Type:      "selfie.v1",
+		Wallet:    strings.ToLower(wallet),
+		Nullifier: nullifier,
+		Timestamp: a.now().UTC().Format(time.RFC3339),
+	})
+}
+
+// Load replays raw topic messages (as returned by the mirror node) to rebuild the docHash index
+// and collect the Selfie Check records. Unknown or malformed messages are skipped. Returns how
+// many attestations were indexed.
 func (a *Anchor) Load(messages [][]byte) int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	n := 0
 	for _, m := range messages {
-		var att Attestation
-		if err := json.Unmarshal(m, &att); err != nil || att.Type != "attestation.v1" || att.DocHash == "" {
+		var kind struct {
+			Type string `json:"type"`
+		}
+		if json.Unmarshal(m, &kind) != nil {
 			continue
 		}
-		if _, seen := a.docHashes[normalizeHash(att.DocHash)]; !seen {
-			a.docHashes[normalizeHash(att.DocHash)] = att.InvoiceID
-			n++
+		switch kind.Type {
+		case "attestation.v1":
+			var att Attestation
+			if json.Unmarshal(m, &att) != nil || att.DocHash == "" {
+				continue
+			}
+			if _, seen := a.docHashes[normalizeHash(att.DocHash)]; !seen {
+				a.docHashes[normalizeHash(att.DocHash)] = att.InvoiceID
+				n++
+			}
+		case "selfie.v1":
+			var sc SelfieCheck
+			if json.Unmarshal(m, &sc) != nil || sc.Wallet == "" || sc.Nullifier == "" {
+				continue
+			}
+			a.selfies = append(a.selfies, sc)
 		}
 	}
 	return n
+}
+
+// Selfies returns the Selfie Check records replayed from the topic, oldest first.
+func (a *Anchor) Selfies() []SelfieCheck {
+	if a == nil {
+		return nil
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]SelfieCheck(nil), a.selfies...)
 }
 
 // Known reports which invoice a docHash is bound to, if any.

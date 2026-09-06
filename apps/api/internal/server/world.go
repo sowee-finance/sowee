@@ -3,9 +3,11 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/sowee-finance/sowee/apps/api/internal/faucet"
+	"github.com/sowee-finance/sowee/apps/api/internal/hcs"
 	"github.com/sowee-finance/sowee/apps/api/internal/kyc"
 	"github.com/sowee-finance/sowee/apps/api/internal/world"
 )
@@ -32,7 +34,7 @@ type worldVerifyRequest struct {
 }
 
 // worldVerify records the Selfie Check signal for a wallet that proved key ownership.
-func worldVerify(s *world.Service, f *kyc.Flow) http.HandlerFunc {
+func worldVerify(s *world.Service, f *kyc.Flow, anchor *hcs.Anchor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req worldVerifyRequest
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
@@ -58,6 +60,11 @@ func worldVerify(s *world.Service, f *kyc.Flow) http.HandlerFunc {
 			return
 		}
 		f.SetSelfieCheck(req.Wallet, true)
+		// Anchoring makes the signal outlive this process: the topic is replayed on start, which
+		// restores both who is verified and which World IDs have already been used here.
+		if _, err := anchor.Selfie(r.Context(), req.Wallet, nullifier); err != nil && !errors.Is(err, hcs.ErrDisabled) {
+			log.Printf("world: selfie check for %s not anchored: %v", req.Wallet, err)
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"selfieCheck": true, "nullifier": nullifier})
 	}
 }

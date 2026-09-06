@@ -115,3 +115,29 @@ func TestReceiptAndDisabled(t *testing.T) {
 		t.Fatal("nil submitter must be disabled")
 	}
 }
+
+func TestSelfieChecksSurviveAReplay(t *testing.T) {
+	a, sub := newAnchor(t)
+	if _, err := a.Selfie(context.Background(), "0xAbC", "0xnullifier-1"); err != nil {
+		t.Fatal(err)
+	}
+	var written SelfieCheck
+	if err := json.Unmarshal(sub.msgs[0], &written); err != nil {
+		t.Fatal(err)
+	}
+	if written.Type != "selfie.v1" || written.Wallet != "0xabc" || written.Nullifier != "0xnullifier-1" {
+		t.Fatalf("unexpected record %+v", written)
+	}
+
+	// A fresh process reading the topic gets both facts back, and ignores the other message kinds.
+	fresh := New("0.0.4242", &fakeSub{})
+	fresh.Load([][]byte{
+		sub.msgs[0],
+		[]byte(`{"type":"attestation.v1","invoiceId":"INV-1","docHash":"aa","event":"issued"}`),
+		[]byte(`{"type":"selfie.v1","wallet":"0xdef","nullifier":""}`),
+	})
+	got := fresh.Selfies()
+	if len(got) != 1 || got[0].Wallet != "0xabc" || got[0].Nullifier != "0xnullifier-1" {
+		t.Fatalf("replay: %+v", got)
+	}
+}
