@@ -21,7 +21,7 @@ bun test                    # data-mapping unit test
 
 - **ABIs**: `bun run abi` copies the ABI of each core contract from `contracts/out` into
   `src/lib/abi/*.ts` as `as const` modules. Run `forge build` in `contracts/` first, then
-  commit the generated files. `MaturitySettlement` is skipped until it is built.
+  commit the generated files.
 - **Addresses**: `src/lib/deployments.ts` reads `contracts/deployments/<chainId>.json`, which
   `script/Deploy.s.sol` writes with `WRITE_DEPLOYMENTS=true`. No file for the active chain
   means every page shows "Not deployed on this chain yet" instead of crashing. Pages read the
@@ -39,13 +39,12 @@ bun test                    # data-mapping unit test
 
 ```sh
 anvil                                                          # terminal 1
-cd contracts
-forge create test/mocks/MockUSDC.sol:MockUSDC --broadcast \
-  --rpc-url http://127.0.0.1:8545 --private-key $ANVIL_PK        # note the address
-DEPLOYER_PK=$ANVIL_PK QUOTE_SIGNER=$ANVIL_ADDR USDC=$MOCK_USDC WRITE_DEPLOYMENTS=true \
+cd contracts && DEPLOYER_PK=$ANVIL_PK QUOTE_SIGNER=$ANVIL_ADDR WRITE_DEPLOYMENTS=true \
   forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
 cd ../apps/web && NEXT_PUBLIC_CHAIN_ID=31337 bun run dev        # terminal 2
 ```
+
+On chain 31337 the deploy script also deploys a `MockUSDC` and uses it as the settlement asset.
 
 `contracts/deployments/31337.json` is local state; do not commit it. Listing an invoice needs
 an EIP-712 quote signed by `QUOTE_SIGNER` (`cast wallet sign --data --from-file quote.json`)

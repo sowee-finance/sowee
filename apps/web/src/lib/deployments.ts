@@ -9,8 +9,7 @@ export type Deployment = {
   quoteSigner: Address
   discountOracle: Address
   invoiceMarket: Address
-  /** Absent until MaturitySettlement is deployed. */
-  maturitySettlement?: Address
+  maturitySettlement: Address
 }
 
 // Server-only: read from the repo at render time, so the UI picks up a new deployment
