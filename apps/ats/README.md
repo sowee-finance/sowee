@@ -15,7 +15,13 @@ bun run src/index.ts issue  --ref INV-2026-010 --name "Nusantara Textile Mills �
 bun run src/index.ts allow  --token 0x… --account 0x…   # SSI issuer, KYC grant, allowlist
 bun run src/index.ts mint   --token 0x… --to 0x… --units 25
 bun run src/index.ts status --token 0x… --account 0x…
+bun run src/index.ts record --token 0x… --ref INV-2026-010 --isin XS…   # issue does this already
 ```
+
+`issue` records the security in `contracts/deployments/<chainId>.json` under `atsBonds`, keyed by
+`keccak256(reference)` — the same invoice id the market and the API use. The web app reads that
+file, so the invoice's page shows a **Regulated issuance** panel with the ISIN, the regulation type
+and a link to the token, and invoices without a regulated twin are unaffected.
 
 ## Live on Hedera testnet
 
@@ -40,6 +46,7 @@ back as `kycStatus 0`, `isInControlList false`, while the investor reads `1` and
 | `src/constants.ts` | the ATS testnet factory and resolver, the bond configuration id and version, role hashes, regulation enums |
 | `src/isin.ts` | ISIN derivation and its check digit, tested against real published ISINs |
 | `src/ats.ts` | `deployBond` payload, the compliance steps, issuance |
+| `src/record.ts` | writing the issued security into the deployment file the web app reads |
 | `src/index.ts` | the CLI above |
 
 Three things are worth knowing if you build on ATS yourself.
