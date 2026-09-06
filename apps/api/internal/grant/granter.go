@@ -17,6 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
+	"github.com/sowee-finance/sowee/apps/api/internal/txlock"
 )
 
 const marketABI = `[
@@ -140,6 +142,7 @@ func (g *Granter) send(ctx context.Context, to common.Address, method string, ar
 		return "", err
 	}
 	from := g.Operator()
+	defer txlock.Lock(from.Hex())()
 	gas, err := g.client.EstimateGas(ctx, ethereum.CallMsg{From: from, To: &to, Data: data})
 	if err != nil {
 		return "", fmt.Errorf("estimate: %w", err)
