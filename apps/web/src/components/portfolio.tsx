@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeftRight, BadgeCheck, CircleCheckBig, ShieldCheck, Wallet } from "lucide-react"
+import { ArrowLeftRight, CircleCheckBig, ShieldCheck, Wallet } from "lucide-react"
 import Link from "next/link"
 import { formatUnits, type Hex } from "viem"
 import { useAccount, useSwitchChain } from "wagmi"
@@ -218,6 +218,9 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
 function KycPanel({ wallet }: { wallet: `0x${string}` }) {
   const status = useKycStatus(wallet)
   if (!status.data) return null
+  // A verified wallet has nothing to do here: the badge is already in the header, and the card
+  // would sit above the holdings repeating a state the person just finished reaching.
+  if (status.data.state === "granted") return null
   const { state, reason } = status.data
   const d = describeState(state)
   return (
@@ -227,11 +230,6 @@ function KycPanel({ wallet }: { wallet: `0x${string}` }) {
           <ShieldCheck className="size-4 text-soft" aria-hidden />
           Identity verification
         </h2>
-        {state === "granted" && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700 text-xs">
-            <BadgeCheck className="size-3.5" aria-hidden /> Verified
-          </span>
-        )}
       </div>
       <p className={`mt-3 text-sm ${state === "blocked" ? "text-neg" : "text-soft"}`}>
         {state === "none"
