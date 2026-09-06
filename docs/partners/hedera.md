@@ -57,6 +57,20 @@ recovers it during `/verify` and it is what `GET /v1/market/insights/usage` mete
 No API keys: the payment *is* the credential. The receipt anchored on HCS carries the same
 account id, so usage is publicly auditable.
 
+## Track checklist
+
+| Item | Status |
+|---|---|
+| Token issuance with compliance controls | `BondToken` allowlist on every transfer, freeze, face-value cap — live |
+| Full lifecycle on testnet | issue → fund → trade → settle, ten transactions — live |
+| Secondary market | allowance-based asks with partial fills — live fill |
+| Oracle | EIP-712 pull oracle, consume-once nonce — live |
+| Custom fees | 0.5% platform fee buyer → treasury on primary and secondary — live |
+| Consensus Service audit trail | attestations + x402 receipts on topic `0.0.10388277`, replayed from the mirror node — live |
+| Agentic payments (x402) | 402 challenge, facilitator verify/settle, receipt, metering; real paid request — live |
+| Scheduled transactions (HSS) | not used: settlement is permissionless instead, so anyone can settle after maturity without relying on scheduled dispatch |
+| Upstream contribution (hedera-harness) | not attempted in the window |
+
 ## Feedback (honest, specific)
 
 - **Gas billing.** The relay charges at least 80% of the gas *limit*, not the gas used, so the
