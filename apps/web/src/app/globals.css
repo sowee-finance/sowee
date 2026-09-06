@@ -1,1 +1,140 @@
 @import "tailwindcss";
+
+/* Tailwind v4 preflight leaves buttons with cursor:default; restore the
+   pointer affordance on everything clickable. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Design tokens (colours, fonts) live in theme.pcss. */
+@import "./theme.pcss";
+
+body {
+  background: #fff;
+  color: var(--color-ink);
+}
+
+/* The single page container: header, footer, and every main use this so
+   page edges always line up. Narrow layouts nest an inner max-w column. */
+.container-page {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 87.5rem; /* 1400px */
+  padding-inline: 1.25rem;
+}
+@media (min-width: 768px) {
+  .container-page {
+    padding-inline: 2rem;
+  }
+}
+
+/* Asset card: white fading into a wash of the trend color (--card-tint).
+   Gradients can't animate, so hover fades in a stronger overlay instead. */
+.asset-card {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(
+    180deg,
+    #fff 40%,
+    color-mix(in srgb, var(--card-tint) 10%, #fff) 100%
+  );
+}
+.asset-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    #fff 25%,
+    color-mix(in srgb, var(--card-tint) 26%, #fff) 100%
+  );
+  opacity: 0;
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+.asset-card:hover::before {
+  opacity: 1;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Chart entrance: the line draws left-to-right (normalized pathLength=1),
+   then the area gradient fades in underneath it. */
+@keyframes chart-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes chart-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes chart-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+.chart-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: chart-draw 900ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+.chart-area {
+  opacity: 0;
+  animation: chart-fade 600ms ease-out 350ms forwards;
+}
+/* Sparklines can't use the dash trick (non-scaling-stroke + preserveAspectRatio="none"
+   miscomputes dashes in Chrome); revealing the whole svg left-to-right sidesteps it. */
+.chart-reveal {
+  animation: chart-reveal 900ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* KYC onboarding: the identity mark floats gently. */
+@keyframes kyc-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+.animate-kyc-float {
+  animation: kyc-float 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asset-card::before,
+  .chart-line,
+  .chart-area,
+  .chart-reveal,
+  .animate-kyc-float {
+    transition: none;
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}

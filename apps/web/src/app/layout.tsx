@@ -1,70 +1,58 @@
 import type { Metadata } from "next"
-import Link from "next/link"
-import { KycBadge } from "@/components/kyc-badge"
-import { WalletButton } from "@/components/wallet-button"
-import { activeChain, explorerUrl } from "@/lib/chains"
-import { getDeployment } from "@/lib/deployments"
+import { Geist, Geist_Mono } from "next/font/google"
+import { networkBrand } from "@/lib/chains"
 import "./globals.css"
 import { Providers } from "./providers"
 
+const fontSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
+const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
+
+const description =
+  `Sowee turns unpaid invoices into compliant bonds on ${networkBrand}: issuers tokenize invoices, ` +
+  "investors fund them at a discount in USDC, and settlement happens automatically at maturity."
+
 export const metadata: Metadata = {
-  title: { default: "Sowee", template: "%s · Sowee" },
-  description: "Compliant invoice financing on-chain: KYC-gated, fractional invoice bonds.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  title: {
+    default: `Sowee | Compliant Invoice Financing on ${networkBrand}`,
+    template: "%s | Sowee",
+  },
+  description,
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [
+      {
+        url: "/favicons/black/favicon-32x32.png",
+        sizes: "32x32",
+        type: "image/png",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/favicons/white/favicon-32x32.png",
+        sizes: "32x32",
+        type: "image/png",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+    apple: "/favicons/black/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: `Sowee — Compliant Invoice Financing on ${networkBrand}`,
+    description,
+    siteName: "Sowee",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 }
 
-const nav = [
-  { href: "/", label: "Marketplace" },
-  { href: "/issuer", label: "Issuer" },
-  { href: "/portfolio", label: "Portfolio" },
-] as const
-
 export default function RootLayout({ children }: LayoutProps<"/">) {
-  const market = getDeployment(activeChain.id)?.invoiceMarket
-  const marketUrl = market && explorerUrl(market)
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="flex min-h-full flex-col bg-zinc-50 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-        <Providers>
-          <header className="border-zinc-200 border-b bg-white dark:border-zinc-800 dark:bg-zinc-900">
-            {/* Two rows under `sm`: brand + wallet, then a scrollable nav. One row above. */}
-            <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-              <Link href="/" className="font-semibold text-lg tracking-tight">
-                Sowee
-              </Link>
-              <nav className="order-last flex w-full items-center gap-4 overflow-x-auto whitespace-nowrap text-sm text-zinc-600 sm:order-none sm:w-auto dark:text-zinc-400">
-                {nav.map((n) => (
-                  <Link
-                    key={n.href}
-                    href={n.href}
-                    className="hover:text-zinc-900 dark:hover:text-zinc-100"
-                  >
-                    {n.label}
-                  </Link>
-                ))}
-                {marketUrl && (
-                  <a
-                    href={marketUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    title="InvoiceMarket contract on the explorer"
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-300 px-2.5 py-0.5 text-emerald-700 text-xs dark:border-emerald-800 dark:text-emerald-400"
-                  >
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                    Live on {activeChain.name}
-                  </a>
-                )}
-              </nav>
-              <div className="ml-auto flex items-center gap-3">
-                <KycBadge />
-                <WalletButton />
-              </div>
-            </div>
-          </header>
-          <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
-          <footer className="border-zinc-200 border-t py-4 text-center text-xs text-zinc-500 dark:border-zinc-800">
-            Sowee runs on {activeChain.name}. Nothing here is financial advice.
-          </footer>
-        </Providers>
+    <html
+      lang="en"
+      className={`${fontSans.variable} ${fontMono.variable} h-full font-sans antialiased`}
+    >
+      <body className="flex min-h-full flex-col">
+        <Providers>{children}</Providers>
       </body>
     </html>
   )
