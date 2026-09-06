@@ -5,9 +5,9 @@ Solidity core of Sowee, built with [Foundry](https://getfoundry.sh).
 | Contract | Role |
 |---|---|
 | `BondToken` | fractional bond units with a KYC allowlist enforced on every transfer |
-| `DiscountOracle` | verifies EIP-712 discount quotes (nonce + expiry) signed by the API |
+| `DiscountOracle` | verifies EIP-712 discount quotes (nonce + expiry) signed by the API; the quote binds issuer, face value and maturity |
 | `InvoiceMarket` | primary funding in USDC at the quoted discount; compliant secondary asks |
-| `MaturitySettlement` | payor repays in USDC; holders surrender units for a pro-rata claim |
+| `MaturitySettlement` | payor repays in USDC; holders surrender units for a pro-rata claim; permissionless settle once holders are covered or after a 7-day grace, issuer may settle a partial repayment; unfunded repayments can be withdrawn |
 
 Contracts are listed as they land; a row without a deployed address is not live yet.
 
@@ -55,6 +55,24 @@ Hedera specifics worth knowing:
   its local execution phase; the gas multiplier covers the real association cost.
 
 `deployments/<chainId>.json` is written on deploy and consumed by `apps/web` and `apps/api`.
+
+## Security review (6 Sep)
+
+An adversarial pass over the contracts produced these changes, all covered by tests:
+
+- `DiscountOracle.Quote` now carries `issuer` and `maturity`; `listInvoice` takes the maturity from
+  the quote and refuses a caller other than the quoted issuer. Before, a quote priced for a short
+  tenor could open a multi-year listing, and any holder of a quote could list it as the issuer.
+- `MaturitySettlement.settle` refuses a bond with no units outstanding (the repayment would have
+  been locked forever), is only permissionless once holders are fully covered or after
+  `GRACE` (7 days), and lets the issuer settle a partial repayment early; `withdrawRepayment`
+  returns a deposit nobody can claim.
+- `InvoiceMarket.revokeBondRole` (operator rotation), `setSettlement` grants the burn role on
+  bonds listed earlier, and `setFee` refuses a non-zero fee without a treasury.
+
+The Arc deployment below runs this build. The Hedera deployment predates it and is redeployed
+once the deployer holds enough HBAR; until then the Hedera addresses in this file are the
+pre-review build and the API/web on `main` target the new quote layout.
 
 ## Deployments
 

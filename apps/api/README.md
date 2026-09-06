@@ -93,6 +93,12 @@ Bad input returns `400 {"error":"…"}`.
   opens at most one listing.
 - **Nonce.** `unix_seconds << 16 | counter`, unique across restarts, below 2^53 for JSON clients.
 
+### Quote body
+
+`POST /v1/invoices/{id}/quote` takes `{"issuer":"0x…","faceValue":"<base units>","maturity":<unix>}`.
+`issuer` and `maturity` are part of the signed EIP-712 message, so the quote can only open that
+listing, for that tenor, from that wallet. Digest vector: see `contracts/test/QuoteVector.t.sol`.
+
 ## Audit trail (HCS)
 
 Lifecycle events and the invoice document's sha256 are anchored to a Hedera Consensus Service
