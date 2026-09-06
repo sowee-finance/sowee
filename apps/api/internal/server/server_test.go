@@ -32,7 +32,7 @@ func newTestServerWith(t *testing.T, anchor *hcs.Anchor) (http.Handler, *quote.S
 	if err != nil {
 		t.Fatal(err)
 	}
-	return New(config.Config{ChainID: 296, DiscountOracle: testOracle}, signer, anchor), signer
+	return New(config.Config{ChainID: 296, DiscountOracle: testOracle}, Deps{Signer: signer, Anchor: anchor}), signer
 }
 
 type memSubmitter struct{ n uint64 }

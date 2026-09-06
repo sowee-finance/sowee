@@ -121,3 +121,40 @@ node replay), so a restart cannot forget a pledge. Message shapes:
 | `HEDERA_OPERATOR_ID` / `HEDERA_OPERATOR_KEY` | account that pays for topic messages (ECDSA hex key) |
 | `HCS_TOPIC_ID` | topic to write to; created and logged when empty |
 | `MIRROR_URL` | mirror node used to replay the topic at startup |
+
+## Paid market insights (x402)
+
+`GET /v1/market/insights` is pay-per-call: **0.01 USDC on Hedera testnet**, settled through the
+[Blocky402](https://api.testnet.blocky402.com/supported) facilitator using the x402 v2 exact
+scheme. The response lists every bond with funded %, tenor and implied APR, best first.
+
+```sh
+curl -si localhost:8080/v1/market/insights | grep -iE 'HTTP|payment-required'
+# HTTP/1.1 402 Payment Required
+# Payment-Required: eyJ4NDAyVmVyc2lvbiI6Miw…   (base64 JSON, also mirrored in the body)
+```
+
+Decoded challenge:
+
+```json
+{"x402Version":2,
+ "resource":{"url":"http://localhost:8080/v1/market/insights","description":"Sowee market insights: …","mimeType":"application/json"},
+ "accepts":[{"scheme":"exact","network":"hedera:testnet","amount":"10000","asset":"0.0.429274",
+             "payTo":"0.0.7162116","maxTimeoutSeconds":180,"extra":{"feePayer":"0.0.7162784"}}]}
+```
+
+The client builds a `TransferTransaction` (client → `payTo`, `transactionId.accountId` = `feePayer`),
+signs it, and retries with `PAYMENT-SIGNATURE: base64(PaymentPayload)`. The API forwards the
+payload to the facilitator's `/verify` and `/settle`, answers `200` with the data and
+`PAYMENT-RESPONSE: base64(SettlementResponse)`, anchors an `x402.receipt.v1` on the HCS topic, and
+meters the payer. A replayed payload, a mismatched requirement or a failed verification is a `402`
+again with the reason in `error`; a malformed header is `400`; a facilitator outage is `502`.
+
+`GET /v1/market/insights/usage` → `{"payers":[{"payer":"0.0.x","calls":3,"spent":"30000","last":"…"}]}`
+(pay-per-call metering; identities are Hedera account ids only).
+
+| Env | Meaning |
+|---|---|
+| `X402_FACILITATOR_URL` | facilitator base URL (`/supported`, `/verify`, `/settle`) |
+| `X402_NETWORK` / `X402_ASSET` / `X402_PAY_TO` / `X402_AMOUNT` | the single accepted requirement; `extra.feePayer` is read from `/supported` |
+| `RPC_URL` / `INVOICE_MARKET` | where insights read live state from; empty market → empty list, payment still works |
