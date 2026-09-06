@@ -26,7 +26,9 @@ investors fund in USDC (paid straight to the issuer); asks are filled on a secon
 after maturity the payor repays into settlement and holders surrender units for their pro-rata
 share. Issuance, the invoice document's sha256 and x402 receipts are anchored on a Hedera
 Consensus Service topic, and the anti-double-pledge index is rebuilt from the mirror node —
-no database.
+no database. There is no file store either: an issuer who attaches a company logo has it
+downscaled in their own browser and carried onto the same topic with the attestation, so the
+mark lives with the record instead of behind a link that can rot.
 
 An invoice can be tokenized two ways. The marketplace runs on our own compliance token, whose
 allowlist is checked on every transfer. An invoice that needs the regulated wrapper is issued
@@ -66,6 +68,11 @@ secondary market.
   idkit module; faucet and tiered rate limits.
 - **Web** (Next.js 16, wagmi/viem, Tailwind 4): marketplace, bond page with secondary market,
   issuer flow with client-side sha256, portfolio with claims, KYC wizard with the Sumsub WebSDK.
+  A legal section — disclaimers, terms, privacy and cookies — states what this is and is not:
+  no entity, no registration, no licence, no offer, test-value assets, and a Regulation S posture
+  that is a demonstration of the mechanism. Every claim in it was checked against the code, which
+  is why the privacy policy names the two records nobody can delete and the cookies page says
+  there is no banner because nothing is set.
 - **Agent** (bun, `@x402/fetch` + `@x402/hedera`, viem): discover → pay → consume → fund, with the
   order sized against remaining capacity and balance.
 - Things that bit us and are documented as partner feedback: Hedera bills ≥80% of the gas *limit*
