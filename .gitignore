@@ -22,3 +22,7 @@ contracts/broadcast/**/dry-run/
 # misc
 .DS_Store
 *.log
+
+# local agent worktrees
+.claude/worktrees/
+**/.claude/worktrees/
