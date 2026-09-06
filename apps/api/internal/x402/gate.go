@@ -126,25 +126,31 @@ func (g *Gate) Middleware(description string) func(http.Handler) http.Handler {
 			}
 			sum := sha256.Sum256(body)
 			key := hex.EncodeToString(sum[:])
-			if g.replayed(key) {
+			// Reserve the payload before talking to the facilitator so two identical concurrent
+			// requests cannot both reach /settle; the reservation is released if payment fails.
+			if !g.reserve(key) {
 				g.challenge(w, http.StatusPaymentRequired, resource, reqs, "payment already used")
 				return
 			}
 			v, err := g.Fac.Verify(ctx, payload, reqs)
 			if err != nil {
+				g.release(key)
 				g.challenge(w, http.StatusBadGateway, resource, reqs, "facilitator verify failed: "+err.Error())
 				return
 			}
 			if !v.IsValid {
+				g.release(key)
 				g.challenge(w, http.StatusPaymentRequired, resource, reqs, "invalid payment: "+v.InvalidReason)
 				return
 			}
 			s, err := g.Fac.Settle(ctx, payload, reqs)
 			if err != nil {
+				g.release(key)
 				g.challenge(w, http.StatusBadGateway, resource, reqs, "facilitator settle failed: "+err.Error())
 				return
 			}
 			if !s.Success {
+				g.release(key)
 				g.challenge(w, http.StatusPaymentRequired, resource, reqs, "settlement failed: "+s.ErrorReason)
 				return
 			}
@@ -179,11 +185,21 @@ func matches(a, b PaymentRequirements) bool {
 	return a.Scheme == b.Scheme && a.Network == b.Network && a.Asset == b.Asset && a.PayTo == b.PayTo && a.Amount == b.Amount
 }
 
-func (g *Gate) replayed(key string) bool {
+// reserve marks a payload as in use; false when it was already seen.
+func (g *Gate) reserve(key string) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	_, seen := g.seen[key]
-	return seen
+	if _, seen := g.seen[key]; seen {
+		return false
+	}
+	g.seen[key] = g.now()
+	return true
+}
+
+func (g *Gate) release(key string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	delete(g.seen, key)
 }
 
 func (g *Gate) record(key, payer, amount string) {
