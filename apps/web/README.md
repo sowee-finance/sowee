@@ -137,3 +137,13 @@ cast send $USDC "mint(address,uint256)" $WALLET 100000000000 --private-key $ANVI
 
 Explorer links follow the active chain (HashScan or Arcscan). The API pricing quotes for Arc
 must run with `CHAIN_ID=5042002` and the Arc oracle address.
+
+## Selfie Check step (World ID)
+
+The wizard's Selfie Check step is real code behind a flag: set `NEXT_PUBLIC_WORLD_APP_ID`
+(and configure `WORLD_*` on the API) and the step appears after sign-in. It fetches a
+server-signed request from `GET /v1/world/request`, opens `IDKitInviteCodeRequestWidget` with
+the `selfieCheckLegacy` preset (signal = the wallet, invite-code mode so iOS installs and
+cross-device QR both resume), forwards the IDKit result to `POST /v1/world/verify` in
+`handleVerify`, and continues on success. The step can be skipped — it is a signal in front of
+KYC, not a gate. Selfie Check (Beta) access is granted per app by World.

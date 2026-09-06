@@ -26,7 +26,18 @@ Sumsub review plus the suitability policy. Issues: #21, #22, #23.
 - `GET /v1/world/request` — RP signature via `github.com/worldcoin/idkit/go/idkit` (`NewSigner(key).SignRequest(WithAction("sowee-selfie-check"))`), 5-minute validity, sandbox/production switch.
 - `POST /v1/world/verify` — forwards the IDKit result unchanged to `POST /api/v4/verify/{rp_id}`, enforces one nullifier per person, records `selfieCheck=true` for the wallet (visible in `GET /v1/kyc/status`).
 - The signal gates `POST /v1/faucet` (403 without it) and lifts the API allowance from 30 to 300 requests per minute for the wallet.
-- The web wizard has a Selfie Check step that switches on when `NEXT_PUBLIC_WORLD_APP_ID` is set.
+- The web wizard's Selfie Check step is implemented with `@worldcoin/idkit` 4.2 —
+  `IDKitInviteCodeRequestWidget` + `selfieCheckLegacy({ signal: wallet })`, RP context from the
+  API, `handleVerify` posting the result to `/v1/world/verify` — and switches on when
+  `NEXT_PUBLIC_WORLD_APP_ID` is set. The API accepts both World ID 3.0 (what Selfie Check
+  returns today) and 4.0 result shapes.
+
+## Test plan once access lands
+
+1. Developer Portal: app id, RP id, RP signing key, action `sowee-selfie-check`, Selfie Check flag on.
+2. API: `WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `WORLD_ENVIRONMENT=sandbox`; web: `NEXT_PUBLIC_WORLD_APP_ID`.
+3. Sandbox World App (TestFlight): run the hot, cold and semi-cold journeys from the wizard; confirm `GET /v1/kyc/status` shows `selfieCheck: true`, the faucet drips, and a second proof from the same World ID answers `409`.
+4. Record what the Developer Portal verify endpoint answers for a legacy (3.0) Selfie Check proof; if it rejects legacy proofs, switch the API to the v3 verify endpoint and note it here.
 
 ## Feedback document (required by the track)
 
