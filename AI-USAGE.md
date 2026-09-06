@@ -23,3 +23,4 @@ choices and the security-sensitive compliance logic are the team's.
 | `README.md`, `CLAUDE.md`, `AI-USAGE.md`, `LICENSE`, `.gitignore`, `.editorconfig`, `turbo.json`, `biome.json`, husky hook, workspace `package.json` | yes | drafted from the team's plan and the ETHGlobal rules pages | edited and approved by the team |
 | `contracts/` scaffold (`foundry.toml`, `.env.example`, `script/Deploy.s.sol`, `README.md`) | yes | drafted from the task list; network values from Hedera docs | reviewed and dry-run against Hedera testnet by the team |
 | `.github/workflows/ci.yml` | yes | Biome + Foundry jobs | reviewed by the team |
+| `contracts/src/BondToken.sol`, `contracts/test/BondToken.t.sol` | yes | drafted from the system design (allowlist on `_update`, freeze, mint cap, roles) | design decisions and review by the team; every test run locally |
