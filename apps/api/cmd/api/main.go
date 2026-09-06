@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/sowee-finance/sowee/apps/api/internal/config"
+	"github.com/sowee-finance/sowee/apps/api/internal/grant"
 	"github.com/sowee-finance/sowee/apps/api/internal/hcs"
+	"github.com/sowee-finance/sowee/apps/api/internal/kyc"
 	"github.com/sowee-finance/sowee/apps/api/internal/market"
 	"github.com/sowee-finance/sowee/apps/api/internal/quote"
 	"github.com/sowee-finance/sowee/apps/api/internal/server"
@@ -35,12 +37,35 @@ func main() {
 			log.Printf("x402: receipt not anchored: %v", err)
 		}
 	})
+	flow := newFlow(cfg)
 	log.Printf("api listening on :%s chainId=%d oracle=%s signer=%s hcsTopic=%q market=%q x402=%s/%s→%s",
 		cfg.Port, cfg.ChainID, cfg.DiscountOracle, signer.Address().Hex(), anchor.TopicID(),
 		reader.Address(), cfg.X402Network, cfg.X402Amount, cfg.X402PayTo)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, server.New(cfg, server.Deps{
-		Signer: signer, Anchor: anchor, Gate: gate, Market: reader,
+		Signer: signer, Anchor: anchor, Gate: gate, Market: reader, KYC: flow,
 	})))
+}
+
+// newFlow wires Sumsub and the on-chain granter. Without Sumsub credentials KYC endpoints
+// answer 503; without a market address eligible wallets stay in "granting".
+func newFlow(cfg config.Config) *kyc.Flow {
+	var sumsub kyc.SumsubAPI
+	if cfg.SumsubAppToken != "" && cfg.SumsubSecretKey != "" {
+		sumsub = kyc.NewSumsub(cfg.SumsubAppToken, cfg.SumsubSecretKey, cfg.SumsubLevel, cfg.SumsubQuestionnaireID)
+		log.Printf("kyc: sumsub level %q questionnaire %q", cfg.SumsubLevel, cfg.SumsubQuestionnaireID)
+	} else {
+		log.Print("kyc: disabled (set SUMSUB_APP_TOKEN and SUMSUB_SECRET_KEY)")
+	}
+	granter, err := grant.New(cfg.RPCURL, cfg.InvoiceMarket, cfg.ComplianceOperatorPK, cfg.ChainID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var grantor kyc.Grantor
+	if granter != nil {
+		grantor = granter
+		log.Printf("kyc: granter %s on market %s", granter.Operator().Hex(), cfg.InvoiceMarket)
+	}
+	return kyc.NewFlow(sumsub, grantor)
 }
 
 // newAnchor wires HCS when operator credentials are present; otherwise anchoring is disabled
