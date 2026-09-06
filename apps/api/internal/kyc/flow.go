@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // State is the wallet's eligibility state as the UI sees it.
@@ -33,9 +35,11 @@ type Status struct {
 	UpdatedAt   string   `json:"updatedAt"`
 }
 
-// Grantor writes eligibility on-chain. Grant is idempotent: bonds already granted are skipped.
+// Grantor writes eligibility on-chain. Both calls are idempotent: bonds already in the target
+// state are skipped.
 type Grantor interface {
 	Grant(ctx context.Context, wallet string) (txs []string, err error)
+	Revoke(ctx context.Context, wallet string) (txs []string, err error)
 }
 
 // Flow orchestrates wallet → Sumsub → policy → on-chain grant.
@@ -61,7 +65,17 @@ func NewFlow(s SumsubAPI, g Grantor) *Flow {
 // ErrDisabled is returned when Sumsub is not configured.
 var ErrDisabled = errors.New("kyc is disabled: no sumsub credentials")
 
-func norm(wallet string) string { return strings.ToLower(wallet) }
+// ErrReviewed means the applicant already has a completed review; declarations are immutable
+// from then on (a held PEP cannot simply resubmit "not a PEP").
+var ErrReviewed = errors.New("verification already reviewed; contact compliance to change declarations")
+
+// norm canonicalises a wallet so `0xAbC…`, `0xabc…` and `abc…` are one applicant.
+func norm(wallet string) string {
+	if common.IsHexAddress(wallet) {
+		return strings.ToLower(common.HexToAddress(wallet).Hex())
+	}
+	return strings.ToLower(wallet)
+}
 
 // Session mints a WebSDK access token for the wallet.
 func (f *Flow) Session(ctx context.Context, wallet string) (string, error) {
@@ -86,6 +100,8 @@ func (f *Flow) SubmitProfile(ctx context.Context, wallet string, info FixedInfo,
 		}
 	case err != nil:
 		return err
+	case app.Review.Answer != "" || strings.EqualFold(app.Review.Status, "completed"):
+		return ErrReviewed
 	}
 	if err := f.sumsub.SetFixedInfo(ctx, id, info); err != nil {
 		return err
@@ -131,6 +147,7 @@ func (f *Flow) Status(ctx context.Context, wallet string) (Status, error) {
 		st.State = StateHeld
 	case Blocked:
 		st.State = StateBlocked
+		f.ensureRevoked(w)
 	case Eligible:
 		st.State, st.GrantTxs = f.ensureGranted(w)
 	}
@@ -181,6 +198,33 @@ func (f *Flow) ensureGranted(w string) (State, []string) {
 		return StateGranted, txs
 	}
 	return StateGranting, nil
+}
+
+// ensureRevoked clears on-chain eligibility for a wallet this process granted earlier.
+func (f *Flow) ensureRevoked(w string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, granted := f.granted[w]; !granted || f.grant == nil || f.inflight[w] {
+		return
+	}
+	f.inflight[w] = true
+	f.wg.Add(1)
+	go func() {
+		defer f.wg.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		defer cancel()
+		txs, err := f.grant.Revoke(ctx, w)
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		delete(f.inflight, w)
+		if err != nil {
+			log.Printf("kyc: revoke %s failed: %v", w, err)
+			return
+		}
+		delete(f.granted, w)
+		delete(f.checkedAt, w)
+		log.Printf("kyc: revoked %s on %d bond(s)", w, len(txs))
+	}()
 }
 
 // Wait blocks until background grants finish (tests).
