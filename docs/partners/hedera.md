@@ -42,7 +42,16 @@ From the scheme spec in `x402-foundation/x402` (`specs/schemes/exact/scheme_exac
 |---|---|
 | HCS audit topic | https://hashscan.io/testnet/topic/0.0.10388277 (message 1 = first attestation, written by `POST /v1/invoices/{id}/attest`) |
 
-Contract links, lifecycle transactions and the x402 settlement are added as they land.
+| x402 challenge | `GET /v1/market/insights` answers `402` with `accepts[0] = {exact, hedera:testnet, 10000 (0.01 USDC), asset 0.0.429274, payTo 0.0.7162116, feePayer 0.0.7162784}` — fee payer resolved live from the facilitator's `/supported` |
+
+Contract links, lifecycle transactions and the x402 settlement transaction are added as they land.
+
+### Agent identity and metering
+
+Agents are identified by the Hedera account that signs the payment transfer — the facilitator
+recovers it during `/verify` and it is what `GET /v1/market/insights/usage` meters per call.
+No API keys: the payment *is* the credential. The receipt anchored on HCS carries the same
+account id, so usage is publicly auditable.
 
 ## Feedback (honest, specific)
 
