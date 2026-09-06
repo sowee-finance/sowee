@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { Marketplace } from "@/components/marketplace"
-import { activeChain, explorerUrl, networkBrand } from "@/lib/chains"
+import { activeChain, networkBrand } from "@/lib/chains"
 import { getDeployment } from "@/lib/deployments"
 
 // The root segment shares the layout's segment, so the `%s | Sowee` template does not apply here.
@@ -19,7 +19,6 @@ export default function Home() {
         contracts={
           d && { invoiceMarket: d.invoiceMarket, maturitySettlement: d.maturitySettlement }
         }
-        marketUrl={d && explorerUrl(d.invoiceMarket)}
       />
     </Suspense>
   )

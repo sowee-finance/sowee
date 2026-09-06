@@ -3,6 +3,7 @@
 import Link from "next/link"
 import {
   type Bond,
+  type BondStatus,
   bondStatus,
   dollars,
   fundedPct,
@@ -19,6 +20,19 @@ import { CompanyAvatar, STATUS_TREND, StatusBadge, TREND_FILL, TrendText } from 
 export const bondNames = (b: Pick<Bond, "name">) => splitName(b.name)
 
 /** Marketplace card for one invoice bond. */
+/**
+ * What the card says under the face value. A live bond quotes what an investor gets; once it is
+ * matured or settled there is no yield left to quote, so it states where it ended up instead —
+ * quoting "0% APY (0% funded)" for an invoice that was repaid in full reads as a broken card.
+ */
+function metric(bond: Bond, status: BondStatus, apr: number | undefined, days: number): string {
+  if (status === "settled") return "Settled · repaid and units burned"
+  if (status === "matured")
+    return `Matured · ${fundedPct(bond).toFixed(0)}% funded, awaiting settlement`
+  const yieldText = apr === undefined ? "Matured" : `${pct(apr)} APY`
+  return `${yieldText} (${fundedPct(bond).toFixed(0)}% funded) ${days}D`
+}
+
 export function BondCard({ bond }: { bond: Bond }) {
   const status = bondStatus(bond)
   const trend = STATUS_TREND[status]
@@ -47,8 +61,7 @@ export function BondCard({ bond }: { bond: Bond }) {
           {dollars(bond.faceValue)}
         </div>
         <TrendText trend={trend} className="mt-1 text-xs">
-          {apr === undefined ? "Matured" : `${pct(apr)} APY`} ({fundedPct(bond).toFixed(0)}% funded){" "}
-          {days}D
+          {metric(bond, status, apr, days)}
         </TrendText>
       </div>
 

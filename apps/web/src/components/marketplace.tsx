@@ -1,6 +1,6 @@
 "use client"
 
-import { FileCheck2, Search, Zap } from "lucide-react"
+import { FileCheck2, Search } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useRef, useState } from "react"
@@ -216,8 +216,13 @@ export function filterBonds(
 ): Bond[] {
   const indexed = source.map((b, i) => ({ b, i }))
   let rows = indexed.filter(({ b }) => matches(b, opts.q ?? ""))
-  if (opts.status && opts.status !== "all")
+  if (opts.status && opts.status !== "all") {
     rows = rows.filter(({ b }) => bondStatus(b) === opts.status)
+  } else {
+    // A settled invoice has been repaid and its units burned: there is nothing left to fund or
+    // trade, so it is history rather than an offer. It stays reachable under the Settled chip.
+    rows = rows.filter(({ b }) => bondStatus(b) !== "settled")
+  }
   switch (opts.sort) {
     case "maturity":
       rows.sort((x, y) => x.b.maturity - y.b.maturity)
@@ -305,14 +310,12 @@ function Explore({
   loading,
   error,
   onRetry,
-  marketUrl,
 }: {
   initialQuery?: string
   bonds: Bond[]
   loading: boolean
   error: boolean
   onRetry: () => void
-  marketUrl?: string
 }) {
   const [q, setQ] = useState(initialQuery)
   const [chip, setChip] = useState<BondStatus | "all">("all")
@@ -337,18 +340,6 @@ function Explore({
     <section ref={sectionRef} className="mt-14 scroll-mt-20">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-medium text-2xl tracking-tight">Explore Invoice Bonds</h2>
-        {!loading && !error && marketUrl && (
-          <a
-            href={marketUrl}
-            target="_blank"
-            rel="noreferrer"
-            title="InvoiceMarket contract on the explorer"
-            className="flex items-center gap-1.5 font-medium text-pos text-sm hover:underline"
-          >
-            <Zap size={15} fill="currentColor" strokeWidth={0} />
-            Live on {activeChain.name}
-          </a>
-        )}
       </div>
 
       <div className="relative mt-5">
@@ -435,18 +426,12 @@ function Explore({
 
 /* ----------------------------------- page ---------------------------------- */
 
-export function Marketplace({
-  contracts,
-  marketUrl,
-}: {
-  contracts?: Contracts
-  marketUrl?: string
-}) {
+export function Marketplace({ contracts }: { contracts?: Contracts }) {
   if (!contracts) return <NotDeployed />
-  return <Listings contracts={contracts} marketUrl={marketUrl} />
+  return <Listings contracts={contracts} />
 }
 
-function Listings({ contracts, marketUrl }: { contracts: Contracts; marketUrl?: string }) {
+function Listings({ contracts }: { contracts: Contracts }) {
   const q = useSearchParams().get("q") ?? ""
   const { data, error, isPending, refetch } = useBonds(contracts)
   const all = data ?? []
@@ -461,7 +446,6 @@ function Listings({ contracts, marketUrl }: { contracts: Contracts; marketUrl?: 
         loading={isPending}
         error={!!error}
         onRetry={() => refetch()}
-        marketUrl={marketUrl}
       />
     </>
   )
