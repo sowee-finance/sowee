@@ -196,6 +196,21 @@ func (g *Gate) reserve(key string) bool {
 	return true
 }
 
+// replayTTL bounds the replay set. A payload carries maxTimeoutSeconds (180 by default) and the
+// facilitator refuses one past it, so an entry this old can no longer be settled a second time
+// and only costs memory.
+const replayTTL = time.Hour
+
+// prune drops replay entries older than replayTTL. Called under the lock after a settlement,
+// which is rare enough that walking the map is cheap.
+func (g *Gate) prune(now time.Time) {
+	for key, at := range g.seen {
+		if now.Sub(at) > replayTTL {
+			delete(g.seen, key)
+		}
+	}
+}
+
 func (g *Gate) release(key string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -207,7 +222,7 @@ func (g *Gate) record(key, payer, amount string) {
 	defer g.mu.Unlock()
 	now := g.now()
 	g.seen[key] = now
-	// ponytail: unbounded in-memory replay set; prune by age if this runs for weeks.
+	g.prune(now)
 	u := g.usage[payer]
 	if u == nil {
 		u = &Usage{Payer: payer}

@@ -20,12 +20,17 @@ type Tiered struct {
 	now        func() time.Time
 	mu         sync.Mutex
 	buckets    map[string]*bucket
+	lastSweep  time.Time
 }
 
 type bucket struct {
 	tokens float64
 	last   time.Time
 }
+
+// A bucket refills completely after one minute, so anything untouched for longer carries no
+// information. Sweeping them keeps the map bounded by live traffic rather than by uptime.
+const idleTTL = 10 * time.Minute
 
 // New builds a limiter; rates are per minute.
 func New(base, verified int, isVerified func(string) bool, trustProxy bool) *Tiered {
@@ -47,11 +52,26 @@ func (t *Tiered) Allow(key string, perMinute int) bool {
 		b.tokens = float64(perMinute)
 	}
 	b.last = now
+	t.sweep(now)
 	if b.tokens < 1 {
 		return false
 	}
 	b.tokens--
 	return true
+}
+
+// sweep drops buckets nobody has touched for idleTTL. Called under the lock, at most once a
+// minute, so a busy limiter does not walk the map on every request.
+func (t *Tiered) sweep(now time.Time) {
+	if now.Sub(t.lastSweep) < time.Minute {
+		return
+	}
+	t.lastSweep = now
+	for key, b := range t.buckets {
+		if now.Sub(b.last) > idleTTL {
+			delete(t.buckets, key)
+		}
+	}
 }
 
 // Middleware keys unverified traffic by client IP at the base rate, and verified wallets
