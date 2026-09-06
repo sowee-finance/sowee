@@ -28,7 +28,8 @@ Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments ·
 | The agent funding the bond it paid to find | [`0x89d2462b…`](https://hashscan.io/testnet/transaction/0x89d2462bb54ca04f90437e02de567e998f84abc2698571732db18f7148f0e8ec) |
 | Full lifecycle: list → KYC grant → fund → ask → fill → repay → settle → claim | [ten transactions](contracts/README.md#live-lifecycle-testnet-transactions) |
 
-All contract sources are exact-match verified on Sourcify. The same bytecode also runs on
+All contract sources are exact-match verified on Sourcify.
+
 The same finance core also runs on **Arc testnet**, Circle's USDC-native L1: an invoice listed
 from an API-signed quote, the same KYC decision granted on-chain, a bond funded in **native
 USDC** and an open ask on the secondary market. Addresses, transactions and the Arc architecture
