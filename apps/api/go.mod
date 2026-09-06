@@ -6,6 +6,7 @@ require (
 	github.com/ethereum/go-ethereum v1.17.5
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/hiero-ledger/hiero-sdk-go/v2 v2.84.0
+	github.com/worldcoin/idkit/go/idkit v1.1.0
 )
 
 require (
