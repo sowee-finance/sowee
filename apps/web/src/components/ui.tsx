@@ -118,12 +118,26 @@ export function CompanyAvatar({
 }
 
 /** The connected-wallet identicon (blue radial orb); size via className. */
-export function WalletAvatar({ className = "" }: { className?: string }) {
-  return (
-    <span
-      className={`inline-block shrink-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,#7fb2ff_0%,#2f6fed_45%,#1b2f6e_100%)] ${className}`}
-    />
-  )
+/**
+ * The connected wallet's mark. Derived from the address so a person recognises their own account
+ * wherever it appears, and identical in the header and on the portfolio. Falls back to a plain
+ * disc before a wallet is connected, when there is no address to derive anything from.
+ */
+export function WalletAvatar({
+  address,
+  className = "",
+}: {
+  address?: string
+  className?: string
+}) {
+  if (!address) {
+    return (
+      <span
+        className={`inline-block shrink-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,#7fb2ff_0%,#2f6fed_45%,#1b2f6e_100%)] ${className}`}
+      />
+    )
+  }
+  return <CompanyAvatar name={address} className={`${className} text-[9px]`} />
 }
 
 export function UsdcIcon({ size = 20 }: { size?: number }) {

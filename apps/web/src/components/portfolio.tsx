@@ -88,7 +88,7 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
     <div className="mx-auto w-full max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-3 py-8">
         <div className="flex items-center gap-3">
-          <WalletAvatar className="size-9" />
+          <WalletAvatar address={wallet} className="size-9" />
           <h1 className="font-medium text-xl tracking-tight">Welcome, {shortAddress(wallet)}</h1>
         </div>
         <span className="text-sm text-soft">{activeChain.name}</span>
