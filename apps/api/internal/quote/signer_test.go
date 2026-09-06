@@ -12,14 +12,16 @@ import (
 // Pinned against contracts/test/QuoteVector.t.sol (DiscountOracle.hashQuote on chain 296).
 const (
 	vectorOracle = "0x1111111111111111111111111111111111111111"
-	vectorDigest = "0x7aedd5248f766c874b7287d842ae529c6b21bcad2b922996390ca72ff4486537"
+	vectorDigest = "0x5b0882ed8db5191c229239578fad37ba5792de7c0f5aed352a241a541b0536a3"
 	testKey      = "0x00000000000000000000000000000000000000000000000000000000000a11ce"
 )
 
 func vectorQuote() Quote {
 	return Quote{
 		InvoiceID:       crypto.Keccak256Hash([]byte("INV-1")),
+		Issuer:          common.HexToAddress("0x2222222222222222222222222222222222222222"),
 		FaceValue:       big.NewInt(10_000_000_000),
+		Maturity:        1_802_592_000,
 		DiscountRateBps: 300,
 		ValidUntil:      1_800_000_000,
 		Nonce:           42,

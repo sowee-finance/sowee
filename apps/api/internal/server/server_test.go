@@ -73,7 +73,7 @@ func TestHealthz(t *testing.T) {
 func TestQuoteSignsAndRecovers(t *testing.T) {
 	h, signer := newTestServer(t)
 	rec := do(h, http.MethodPost, "/v1/invoices/INV-1/quote",
-		`{"faceValue":"10000000000","maturity":4102444800}`)
+		`{"issuer":"0x2222222222222222222222222222222222222222","faceValue":"10000000000","maturity":4102444800}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body)
 	}
@@ -119,7 +119,7 @@ func TestQuoteUsesHexInvoiceIDAsIs(t *testing.T) {
 	h, _ := newTestServer(t)
 	id := "0x" + strings.Repeat("ab", 32)
 	rec := do(h, http.MethodPost, "/v1/invoices/"+id+"/quote",
-		`{"faceValue":"1","maturity":4102444800}`)
+		`{"issuer":"0x2222222222222222222222222222222222222222","faceValue":"1","maturity":4102444800}`)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"invoiceId":"`+id+`"`) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body)
 	}
@@ -129,9 +129,10 @@ func TestQuoteRejectsBadInput(t *testing.T) {
 	h, _ := newTestServer(t)
 	for name, body := range map[string]string{
 		"not json":        `{`,
-		"zero face value": `{"faceValue":"0","maturity":4102444800}`,
-		"float":           `{"faceValue":"1.5","maturity":4102444800}`,
-		"past maturity":   `{"faceValue":"1","maturity":1}`,
+		"zero face value": `{"issuer":"0x2222222222222222222222222222222222222222","faceValue":"0","maturity":4102444800}`,
+		"float":           `{"issuer":"0x2222222222222222222222222222222222222222","faceValue":"1.5","maturity":4102444800}`,
+		"past maturity":   `{"issuer":"0x2222222222222222222222222222222222222222","faceValue":"1","maturity":1}`,
+		"no issuer":       `{"faceValue":"1","maturity":4102444800}`,
 	} {
 		rec := do(h, http.MethodPost, "/v1/invoices/x/quote", body)
 		if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), `"error"`) {

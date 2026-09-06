@@ -161,16 +161,19 @@ func cors(next http.Handler) http.Handler {
 }
 
 type quoteRequest struct {
+	Issuer    string `json:"issuer"`    // wallet that will list; bound into the signature
 	FaceValue string `json:"faceValue"` // USDC base units (6 decimals), decimal string
-	Maturity  int64  `json:"maturity"`  // unix seconds
+	Maturity  int64  `json:"maturity"`  // unix seconds; bound into the signature
 }
 
 type quoteJSON struct {
-	InvoiceID       common.Hash `json:"invoiceId"`
-	FaceValue       string      `json:"faceValue"`
-	DiscountRateBps uint16      `json:"discountRateBps"`
-	ValidUntil      uint64      `json:"validUntil"`
-	Nonce           uint64      `json:"nonce"`
+	InvoiceID       common.Hash    `json:"invoiceId"`
+	Issuer          common.Address `json:"issuer"`
+	FaceValue       string         `json:"faceValue"`
+	Maturity        uint64         `json:"maturity"`
+	DiscountRateBps uint16         `json:"discountRateBps"`
+	ValidUntil      uint64         `json:"validUntil"`
+	Nonce           uint64         `json:"nonce"`
 }
 
 type quoteResponse struct {
@@ -187,6 +190,10 @@ func quoteHandler(signer *quote.Signer) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
+		if !common.IsHexAddress(req.Issuer) {
+			writeError(w, http.StatusBadRequest, "issuer must be the listing wallet's address")
+			return
+		}
 		faceValue, ok := new(big.Int).SetString(req.FaceValue, 10)
 		if !ok || faceValue.Sign() <= 0 || faceValue.BitLen() > 256 {
 			writeError(w, http.StatusBadRequest, "faceValue must be a positive decimal string")
@@ -200,7 +207,9 @@ func quoteHandler(signer *quote.Signer) http.HandlerFunc {
 		}
 		q := quote.Quote{
 			InvoiceID:       invoiceID(chi.URLParam(r, "id")),
+			Issuer:          common.HexToAddress(req.Issuer),
 			FaceValue:       faceValue,
+			Maturity:        uint64(req.Maturity),
 			DiscountRateBps: rate,
 			ValidUntil:      uint64(now.Add(quote.Validity).Unix()),
 			Nonce:           signer.NextNonce(now),
@@ -213,7 +222,9 @@ func quoteHandler(signer *quote.Signer) http.HandlerFunc {
 		writeJSON(w, http.StatusOK, quoteResponse{
 			Quote: quoteJSON{
 				InvoiceID:       q.InvoiceID,
+				Issuer:          q.Issuer,
 				FaceValue:       q.FaceValue.String(),
+				Maturity:        q.Maturity,
 				DiscountRateBps: q.DiscountRateBps,
 				ValidUntil:      q.ValidUntil,
 				Nonce:           q.Nonce,
