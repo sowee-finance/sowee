@@ -45,6 +45,7 @@ From the scheme spec in `x402-foundation/x402` (`specs/schemes/exact/scheme_exac
 | MaturitySettlement (USDC-associated via `0x167`) | https://hashscan.io/testnet/contract/0x80D0C4E0A991485A980614eB46b3224b2ACBe930 |
 | HCS audit topic | https://hashscan.io/testnet/topic/0.0.10388277 (message 1 = first attestation, written by `POST /v1/invoices/{id}/attest`) |
 
+| Agent pays, then acts | after the paid call the agent funded the bond itself: approve `0xd8311058…` and `buyPrimary` https://hashscan.io/testnet/transaction/0x026fd7d2337c7b3555374801909e8f117d185559191bba76d62350903f1b6856 — the same allowlist applies to the agent wallet |
 | x402 paid request | agent `0.0.10215221` paid 0.01 USDC for `GET /v1/market/insights`, settled by Blocky402: https://hashscan.io/testnet/transaction/0.0.7162784-1788673291-830215578 — receipt anchored on the HCS topic (message 2) |
 | x402 challenge | `GET /v1/market/insights` answers `402` with `accepts[0] = {exact, hedera:testnet, 10000 (0.01 USDC), asset 0.0.429274, payTo 0.0.7162116, feePayer 0.0.7162784}` — fee payer resolved live from the facilitator's `/supported` |
 
