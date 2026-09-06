@@ -115,12 +115,23 @@ curl -s -X POST localhost:8080/v1/invoices/INV-1/attest \
 
 Pledging the same document under a second invoice is refused with `409` naming the invoice that
 owns the hash. The index behind that check is rebuilt from the topic on every start (mirror
-node replay), so a restart cannot forget a pledge. Message shapes:
+node replay), so a restart cannot forget a pledge.
+
+An attestation may carry `logo`: a `data:` URI holding the issuer's mark, downscaled to 64px by
+the browser before it is sent. Only `webp`, `png` and `jpeg` are accepted, at most 12 KB — an SVG
+would carry script into every visitor's browser. The mark then lives with the record instead of
+behind a link that can rot, and the web app reads it back off the topic.
+
+Message shapes:
 
 ```json
-{"type":"attestation.v1","invoiceId":"INV-1","docHash":"9f86…0a08","event":"issued","timestamp":"2026-09-06T05:31:36Z"}
+{"type":"attestation.v1","invoiceId":"INV-1","docHash":"9f86…0a08","event":"issued","logo":"data:image/webp;base64,…","timestamp":"2026-09-06T05:31:36Z"}
 {"type":"x402.receipt.v1","endpoint":"/v1/market/insights","payer":"0.0.x","amount":"10000","asset":"0.0.429274","settlementTx":"0.0.y@…","timestamp":"…"}
+{"type":"selfie.v1","wallet":"0x…","nullifier":"0x…","timestamp":"…"}
 ```
+
+The `selfie.v1` records are replayed too: a passed Selfie Check and the World nullifier it spent
+both come back after a restart, so one World ID still cannot verify twice under two wallets.
 
 | Env | Meaning |
 |---|---|
