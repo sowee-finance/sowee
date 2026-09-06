@@ -32,7 +32,7 @@ Light theme on Geist (`next/font/google`): ink `#16181a`, hero green `#0c2d1d`, 
 (company marks, status badge, progress bar, dropdown, bottom sheet, amount panel) are in
 `src/components/ui.tsx`. Icons come from `lucide-react`. Every page except the onboarding
 wizard renders inside `src/app/(site)/layout.tsx` (sticky header with search and the wallet
-pill, legal footer with `/terms` and `/privacy`); `/kyc` has its own full-page chrome.
+pill, footer linking the `/legal` section); `/kyc` has its own full-page chrome.
 
 A bond's token name is `<issuer company> · <payor>` (set by the issuer form, `src/lib/issuer.ts`);
 the UI splits it back on ` · ` for the title, subtitle and search, and shows any other name
@@ -70,7 +70,7 @@ Hedera testnet, 1280×900 (`docs/screenshots/` also holds the 390×844 mobile sh
 | `/issuer/new` | the tokenize form (issuer company, payor, reference, face value, due date, PDF hashed in the browser with Web Crypto — never uploaded), then a checklist: `POST /v1/invoices/{ref}/quote` on the API, `listInvoice(name, symbol, maturity, quote, signature)` from the wallet, then `POST /v1/invoices/{ref}/attest` with the document's sha256 |
 | `/portfolio` | every bond with `balanceOf > 0` plus `isEligible` and `MaturitySettlement.claimable`; writes `claim`; the wallet's open asks with `cancelAsk`; the wallet's KYC state from the API |
 | `/kyc` | the investor onboarding wizard (below); every "not eligible" notice links here |
-| `/terms`, `/privacy` | static legal copy, linked from the footer |
+| `/legal` | index of the four legal documents: `/legal/disclaimers`, `/legal/terms-of-service`, `/legal/privacy-policy`, `/legal/cookies-policy`. Static copy written from what this project actually is — a hackathon demonstration on testnet with no legal entity, no registration and test-value assets — sharing one shell (`src/app/(site)/legal/doc.tsx`) with the site's container and type scale. `/terms` and `/privacy` still resolve; they `redirect` to the terms and the privacy policy |
 
 Every write is simulated with `eth_call` first, so a revert (`AlreadyListed`, `QuoteExpired`,
 `NonceUsed`, `NotEligible`, ...) shows as a readable message instead of an opaque wallet error
