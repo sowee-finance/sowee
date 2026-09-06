@@ -57,9 +57,19 @@ export const discountOracleAbi = [
             internalType: "bytes32",
           },
           {
+            name: "issuer",
+            type: "address",
+            internalType: "address",
+          },
+          {
             name: "faceValue",
             type: "uint256",
             internalType: "uint256",
+          },
+          {
+            name: "maturity",
+            type: "uint64",
+            internalType: "uint64",
           },
           {
             name: "discountRateBps",
@@ -158,9 +168,19 @@ export const discountOracleAbi = [
             internalType: "bytes32",
           },
           {
+            name: "issuer",
+            type: "address",
+            internalType: "address",
+          },
+          {
             name: "faceValue",
             type: "uint256",
             internalType: "uint256",
+          },
+          {
+            name: "maturity",
+            type: "uint64",
+            internalType: "uint64",
           },
           {
             name: "discountRateBps",
@@ -295,9 +315,19 @@ export const discountOracleAbi = [
             internalType: "bytes32",
           },
           {
+            name: "issuer",
+            type: "address",
+            internalType: "address",
+          },
+          {
             name: "faceValue",
             type: "uint256",
             internalType: "uint256",
+          },
+          {
+            name: "maturity",
+            type: "uint64",
+            internalType: "uint64",
           },
           {
             name: "discountRateBps",

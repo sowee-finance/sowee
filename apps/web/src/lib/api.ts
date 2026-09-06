@@ -6,7 +6,9 @@ export const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
 /** `DiscountOracle.Quote`, in the shape `InvoiceMarket.listInvoice` takes. */
 export type Quote = {
   invoiceId: Hex
+  issuer: Address
   faceValue: bigint
+  maturity: bigint
   discountRateBps: number
   validUntil: bigint
   nonce: bigint
@@ -44,7 +46,9 @@ export const post = <T>(path: string, body: unknown) =>
 type QuoteWire = {
   quote: {
     invoiceId: Hex
+    issuer: Address
     faceValue: string
+    maturity: number
     discountRateBps: number
     validUntil: number
     nonce: number
@@ -53,20 +57,27 @@ type QuoteWire = {
   signer: Address
 }
 
-/** Price an invoice: `faceValue` in USDC base units, `maturity` in unix seconds. */
+/**
+ * Price an invoice: `faceValue` in USDC base units, `maturity` in unix seconds. The quote is
+ * signed for `issuer` (the wallet that will list) and that maturity; the market checks both.
+ */
 export async function requestQuote(
   ref: string,
+  issuer: Address,
   faceValue: bigint,
   maturity: number,
 ): Promise<SignedQuote> {
   const r = await post<QuoteWire>(`/v1/invoices/${encodeURIComponent(ref)}/quote`, {
+    issuer,
     faceValue: faceValue.toString(),
     maturity,
   })
   return {
     quote: {
       invoiceId: r.quote.invoiceId,
+      issuer: r.quote.issuer,
       faceValue: BigInt(r.quote.faceValue),
+      maturity: BigInt(r.quote.maturity),
       discountRateBps: r.quote.discountRateBps,
       validUntil: BigInt(r.quote.validUntil),
       nonce: BigInt(r.quote.nonce),

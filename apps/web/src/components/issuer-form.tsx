@@ -71,6 +71,7 @@ export function IssuerForm({ deployment }: { deployment?: Deployment }) {
 /* ----------------------------------- form ---------------------------------- */
 
 function InvoiceForm({ onQuoted }: { onQuoted: (draft: Draft, quote: SignedQuote) => void }) {
+  const { address: issuer } = useAccount()
   const [amount, setAmount] = useState("")
   const [fileName, setFileName] = useState<string>()
   const [docHash, setDocHash] = useState<Hex>()
@@ -110,10 +111,19 @@ function InvoiceForm({ onQuoted }: { onQuoted: (draft: Draft, quote: SignedQuote
       )
       return
     }
+    if (!issuer) {
+      setError("Connect the wallet that will list the invoice.")
+      return
+    }
     setQuoting(true)
     setError(undefined)
     try {
-      const quote = await requestQuote(draft.ref, parseUnits(amount, 6), maturityFrom(draft.due))
+      const quote = await requestQuote(
+        draft.ref,
+        issuer,
+        parseUnits(amount, 6),
+        maturityFrom(draft.due),
+      )
       onQuoted({ ...draft, docHash }, quote)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -286,7 +296,7 @@ function Checklist({
       address: deployment.invoiceMarket,
       abi: invoiceMarketAbi,
       functionName: "listInvoice",
-      args: [name, symbol, BigInt(maturity), quote.quote, quote.signature],
+      args: [name, symbol, quote.quote, quote.signature],
     })
 
   const anchor = async () => {
