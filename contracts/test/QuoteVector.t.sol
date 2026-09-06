@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
+import {Test, console} from "forge-std/Test.sol";
+import {DiscountOracle} from "../src/DiscountOracle.sol";
+
+/// @dev Pins the EIP-712 digest for a fixed quote on chain 296 at a fixed oracle address, so the
+/// off-chain signer (Go API) can be checked byte-for-byte against the contract.
+contract QuoteVectorTest is Test {
+    address constant ORACLE = 0x1111111111111111111111111111111111111111;
+
+    function test_vector() public {
+        vm.chainId(296);
+        deployCodeTo(
+            "DiscountOracle.sol:DiscountOracle",
+            abi.encode(address(0xBEEF), address(0xCAFE)),
+            ORACLE
+        );
+        DiscountOracle oracle = DiscountOracle(ORACLE);
+        DiscountOracle.Quote memory q = DiscountOracle.Quote({
+            invoiceId: keccak256("INV-1"),
+            faceValue: 10_000e6,
+            discountRateBps: 300,
+            validUntil: 1_800_000_000,
+            nonce: 42
+        });
+        bytes32 digest = oracle.hashQuote(q);
+        console.logBytes32(digest);
+        console.logBytes32(q.invoiceId);
+        assertEq(digest, VECTOR);
+    }
+
+    bytes32 constant VECTOR = 0x7aedd5248f766c874b7287d842ae529c6b21bcad2b922996390ca72ff4486537;
+}
