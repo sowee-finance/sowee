@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { KycBadge } from "@/components/kyc-badge"
 import { WalletButton } from "@/components/wallet-button"
 import "./globals.css"
 import { Providers } from "./providers"
@@ -36,7 +37,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   </Link>
                 ))}
               </nav>
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-3">
+                <KycBadge />
                 <WalletButton />
               </div>
             </div>
