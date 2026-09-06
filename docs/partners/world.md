@@ -32,6 +32,35 @@ Sumsub review plus the suitability policy. Issues: #21, #22, #23.
   `NEXT_PUBLIC_WORLD_APP_ID` is set. The API accepts both World ID 3.0 (what Selfie Check
   returns today) and 4.0 result shapes.
 
+## Configuration (sandbox)
+
+| | |
+|---|---|
+| App ID | `app_96e61382eeeabdae6887e00434ab8edf` |
+| RP ID | `rp_4e66ef1ffe9c2f54` |
+| RP signer | `0xBbF111cE5E37134Fe7E907c2b8B1874B8Bb682AD` — the signing key stays on the API, never in the browser |
+| Action | `sowee-selfie-check` |
+| Environment | `sandbox` |
+| Verify endpoint | `https://developer.world.org/api/v4/verify/rp_4e66ef1ffe9c2f54` |
+
+Running it:
+
+```sh
+# API — the signing key is a backend secret
+WORLD_APP_ID=app_96e61382eeeabdae6887e00434ab8edf \
+WORLD_RP_ID=rp_4e66ef1ffe9c2f54 \
+WORLD_RP_SIGNING_KEY=0x… \
+WORLD_ENVIRONMENT=sandbox go run ./cmd/api
+
+# web — the app id is public and is what makes the wizard show the step
+NEXT_PUBLIC_WORLD_APP_ID=app_96e61382eeeabdae6887e00434ab8edf bun run build
+```
+
+`GET /v1/world/request` answers with the app id, the action and a fresh RP context whose
+signature recovers to the signer above; the wizard then shows **Selfie Check** between Welcome and
+Investor Profile. Both are confirmed working. What is still pending is the Selfie Check (Beta)
+feature flag on the app — until World enables it, World App will refuse the credential itself.
+
 ## Test plan once access lands
 
 1. Developer Portal: app id, RP id, RP signing key, action `sowee-selfie-check`, Selfie Check flag on.
