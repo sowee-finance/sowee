@@ -1,19 +1,21 @@
 "use client"
 
-import { useQueryClient } from "@tanstack/react-query"
-import { useEffect, useState } from "react"
+import { ArrowDown } from "lucide-react"
+import Link from "next/link"
+import { useState } from "react"
 import { type Address, erc20Abi, formatUnits, parseUnits } from "viem"
-import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi"
+import { useAccount, useReadContract, useSwitchChain } from "wagmi"
 import { bondTokenAbi } from "@/lib/abi/bondToken"
 import { invoiceMarketAbi } from "@/lib/abi/invoiceMarket"
 import { activeChain } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
-import { describeError } from "@/lib/errors"
-import { type Bond, isMatured, usdc } from "@/lib/market"
-import { KycNotice } from "./asks"
+import { type Bond, bondStatus, dollars, feeOn, maturityDate, usdc, usdcAmount } from "@/lib/market"
+import { useTx } from "@/lib/use-tx"
+import { bondNames } from "./bond-card"
+import { AmountPanel, blackButton, CompanyAvatar, TokenChip, TxStatus, UsdcChip } from "./ui"
+import { ConnectButton } from "./wallet-button"
 
-const BPS = 10_000n
-const ceilDiv = (a: bigint, b: bigint) => (a + b - 1n) / b
+const chain = { chainId: activeChain.id } as const
 
 function parseAmount(s: string): bigint | undefined {
   try {
@@ -24,58 +26,67 @@ function parseAmount(s: string): bigint | undefined {
   }
 }
 
+function closedMessage(bond: Bond): string {
+  switch (bondStatus(bond)) {
+    case "funded":
+      return "The primary sale is fully funded. Units trade on the secondary market below; holdings appear on the Portfolio page."
+    case "matured":
+      return `This bond matured on ${maturityDate(bond.maturity)}. Holders claim their payout from the Portfolio page once the payor's repayment is settled.`
+    default:
+      return `This bond was repaid in full and settled. Holders receive ${dollars(bond.faceValue)} pro-rata from the Portfolio page.`
+  }
+}
+
+/** Primary buy: units of face value in, USDC (price + fee) out, `approve` then `buyPrimary`. */
 export function BuyForm({ bond, deployment }: { bond: Bond; deployment: Deployment }) {
   const { address, chainId } = useAccount()
-  const box =
-    "rounded-lg border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900"
-  if (!address) {
-    return (
-      <div className={box}>
-        <h2 className="font-medium">Buy units</h2>
-        <p className="mt-1 text-zinc-500">Connect a wallet to fund this invoice.</p>
-      </div>
-    )
-  }
-  if (chainId !== activeChain.id) {
-    return (
-      <div className={box}>
-        <h2 className="font-medium">Buy units</h2>
-        <p className="mt-1 text-zinc-500">Switch your wallet to {activeChain.name} to buy.</p>
-      </div>
-    )
-  }
+  const open = bondStatus(bond) === "open"
   return (
-    <div className={box}>
-      <h2 className="font-medium">Buy units</h2>
-      <p className="mt-1 text-xs text-zinc-500">
-        1 unit = 1 USDC of face value, paid at the discounted price plus the platform fee.
-      </p>
-      <Connected bond={bond} deployment={deployment} address={address} />
+    <div className="rounded-3xl border border-line bg-white p-5">
+      <div className="border-line border-b pb-3 font-medium text-[15px]">
+        {open ? "Fund this Invoice" : "Primary sale closed"}
+      </div>
+      {open ? (
+        <Order
+          bond={bond}
+          deployment={deployment}
+          address={address}
+          onChain={chainId === activeChain.id}
+        />
+      ) : (
+        <div className="mt-4 rounded-2xl bg-shade/60 p-4 text-body text-sm">
+          {closedMessage(bond)}
+        </div>
+      )}
     </div>
   )
 }
 
-function Connected({
+function Order({
   bond,
   deployment,
   address,
+  onChain,
 }: {
   bond: Bond
   deployment: Deployment
-  address: Address
+  address?: Address
+  onChain: boolean
 }) {
   const market = deployment.invoiceMarket
-  const queryClient = useQueryClient()
   const [amount, setAmount] = useState("")
   const units = parseAmount(amount)
-  const chain = { chainId: activeChain.id } as const
+  const tx = useTx()
+  const { switchChain, isPending: switching } = useSwitchChain()
+  const wallet = address && onChain ? address : undefined
 
   const eligible = useReadContract({
     ...chain,
     address: bond.bond,
     abi: bondTokenAbi,
     functionName: "isEligible",
-    args: [address],
+    args: wallet ? [wallet] : undefined,
+    query: { enabled: !!wallet },
   })
   const feeBps = useReadContract({
     ...chain,
@@ -96,55 +107,45 @@ function Connected({
     address: deployment.usdc,
     abi: erc20Abi,
     functionName: "allowance",
-    args: [address, market],
+    args: wallet ? [wallet, market] : undefined,
+    query: { enabled: !!wallet },
   })
   const usdcBalance = useReadContract({
     ...chain,
     address: deployment.usdc,
     abi: erc20Abi,
     functionName: "balanceOf",
-    args: [address],
+    args: wallet ? [wallet] : undefined,
+    query: { enabled: !!wallet },
   })
 
-  const { writeContract, data: hash, isPending, error } = useWriteContract()
-  const receipt = useWaitForTransactionReceipt({ ...chain, hash })
-  useEffect(() => {
-    // A confirmed approve or buy changes allowance, balances and supply: refetch everything.
-    if (receipt.isSuccess) queryClient.invalidateQueries()
-  }, [receipt.isSuccess, queryClient])
-
-  const fee =
-    cost.data !== undefined && feeBps.data ? ceilDiv(cost.data * BigInt(feeBps.data), BPS) : 0n
+  const fee = cost.data !== undefined ? feeOn(cost.data, feeBps.data ?? 0) : 0n
   const total = (cost.data ?? 0n) + fee
   const available = bond.faceValue - bond.supply
+  const unitPrice = 1 - bond.discountRateBps / 10_000
+  const { issuer } = bondNames(bond)
 
-  const blocker = ((): React.ReactNode => {
-    if (eligible.data === false) return <KycNotice />
-    if (isMatured(bond.maturity)) return "Funding closed: the invoice has matured."
-    if (available === 0n) return "Fully funded."
-    if (units === undefined) return "Enter an amount in USDC of face value."
-    if (units > available) return `Only ${usdc(available)} of face value is left.`
+  const blocker = ((): string | undefined => {
+    if (!wallet) return undefined
+    if (units === undefined) return "Enter the face value to buy, in USDC."
+    if (units > available) return `Only ${dollars(available)} of face value is left.`
     if (usdcBalance.data !== undefined && usdcBalance.data < total)
       return `Insufficient USDC: you hold ${usdc(usdcBalance.data)}.`
     return undefined
   })()
-
   const needsApprove = allowance.data !== undefined && allowance.data < total
-  const busy = isPending || (!!hash && receipt.isPending)
 
   const submit = () => {
     if (!units) return
     if (needsApprove) {
-      writeContract({
-        ...chain,
+      tx.send({
         address: deployment.usdc,
         abi: erc20Abi,
         functionName: "approve",
         args: [market, total],
       })
     } else {
-      writeContract({
-        ...chain,
+      tx.send({
         address: market,
         abi: invoiceMarketAbi,
         functionName: "buyPrimary",
@@ -154,50 +155,75 @@ function Connected({
   }
 
   return (
-    <form
-      className="mt-3 flex flex-col gap-2"
-      onSubmit={(e) => {
-        e.preventDefault()
-        submit()
-      }}
-    >
-      <label className="flex flex-col gap-1">
-        <span className="text-xs text-zinc-500">Face value to buy (USDC)</span>
-        <input
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step="0.000001"
-          placeholder="100"
+    <>
+      <div className="relative mt-4 flex flex-col gap-1.5">
+        <AmountPanel
+          label="Face value at maturity"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="rounded-md border border-zinc-300 bg-transparent px-2 py-1.5 dark:border-zinc-700"
+          onChange={setAmount}
+          tokenChip={
+            <TokenChip icon={<CompanyAvatar name={issuer} className="size-5.5 text-[9px]" />}>
+              {bond.symbol}
+            </TokenChip>
+          }
         />
-      </label>
-      {units !== undefined && cost.data !== undefined && (
-        <dl className="grid grid-cols-2 gap-y-0.5 text-xs">
-          <dt className="text-zinc-500">Price</dt>
-          <dd className="text-right">{usdc(cost.data)}</dd>
-          <dt className="text-zinc-500">Fee ({feeBps.data ?? 0} bps)</dt>
-          <dd className="text-right">{usdc(fee)}</dd>
-          <dt className="text-zinc-500">Total</dt>
-          <dd className="text-right font-medium">{usdc(total)}</dd>
-        </dl>
+        <span className="-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 z-10 flex size-9 items-center justify-center rounded-full border border-line bg-white">
+          <ArrowDown size={16} className="text-soft" />
+        </span>
+        <AmountPanel
+          label="You pay now"
+          value={units && cost.data !== undefined ? usdcAmount(total) : ""}
+          tokenChip={<UsdcChip />}
+          readOnly
+        />
+      </div>
+
+      <div className="tabular mt-3 text-soft text-xs">
+        ${unitPrice.toFixed(4)} per unit · {formatUnits(available, 6)} units left · matures{" "}
+        {maturityDate(bond.maturity)}
+        {units && cost.data !== undefined
+          ? ` · ${usdc(cost.data)} + ${usdc(fee)} fee (${feeBps.data ?? 0} bps)`
+          : ""}
+      </div>
+      {usdcBalance.data !== undefined && (
+        <div className="tabular mt-1 text-soft text-xs">
+          Wallet USDC: {dollars(usdcBalance.data)}
+        </div>
       )}
-      <button
-        type="submit"
-        disabled={!!blocker || busy}
-        className="rounded-md bg-emerald-600 px-3 py-1.5 font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-      >
-        {busy
-          ? "Confirming…"
-          : needsApprove
-            ? `Approve ${usdc(total)}`
-            : `Buy ${units ? formatUnits(units, 6) : ""} units`}
-      </button>
-      {blocker && <p className="text-xs text-amber-700 dark:text-amber-400">{blocker}</p>}
-      {error && <p className="break-words text-red-600 text-xs">{describeError(error)}</p>}
-      {receipt.isSuccess && <p className="text-emerald-600 text-xs">Transaction confirmed.</p>}
-    </form>
+
+      {!address ? (
+        <ConnectButton className={`${blackButton} mt-4`} />
+      ) : !onChain ? (
+        <button
+          type="button"
+          disabled={switching}
+          onClick={() => switchChain({ chainId: activeChain.id })}
+          className={`${blackButton} mt-4`}
+        >
+          {switching ? "Switching…" : `Switch to ${activeChain.name}`}
+        </button>
+      ) : eligible.data === false ? (
+        <Link href="/kyc" className={`${blackButton} mt-4`}>
+          Verify Identity to Invest
+        </Link>
+      ) : (
+        <button
+          type="button"
+          disabled={!!blocker || tx.busy || eligible.data === undefined}
+          onClick={submit}
+          className={`${blackButton} mt-4`}
+        >
+          {tx.busy ? "Working…" : needsApprove ? `Approve ${dollars(total)}` : "Fund Invoice"}
+        </button>
+      )}
+      {blocker && units !== undefined && <p className="mt-2 text-amber-700 text-xs">{blocker}</p>}
+      <TxStatus tx={tx} done="Purchase confirmed." />
+
+      <p className="mt-4 text-[11px] text-faint leading-relaxed">
+        1 unit = 1 USDC of face value, paid at the discounted price plus the platform fee. Orders
+        execute on {activeChain.name} with testnet USDC. Invoice bonds are offered only to verified
+        investors in eligible jurisdictions.
+      </p>
+    </>
   )
 }
