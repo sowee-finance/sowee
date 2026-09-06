@@ -17,25 +17,31 @@ export type Bond = {
   discountRateBps: number
   /** Unix seconds. */
   maturity: number
+  /** `MaturitySettlement.repayments(invoiceId).settled`: the payor repaid and holders can claim. */
+  settled: boolean
 }
 
-export async function fetchBond(
-  client: PublicClient,
-  market: Address,
-  invoiceId: Hex,
-): Promise<Bond> {
+export type Contracts = Pick<Deployment, "invoiceMarket" | "maturitySettlement">
+
+export async function fetchBond(client: PublicClient, d: Contracts, invoiceId: Hex): Promise<Bond> {
   const l = await client.readContract({
-    address: market,
+    address: d.invoiceMarket,
     abi: invoiceMarketAbi,
     functionName: "listing",
     args: [invoiceId],
   })
   const bond = { address: l.bond, abi: bondTokenAbi } as const
-  const [name, symbol, supply, faceValue] = await Promise.all([
+  const [name, symbol, supply, faceValue, repayment] = await Promise.all([
     client.readContract({ ...bond, functionName: "name" }),
     client.readContract({ ...bond, functionName: "symbol" }),
     client.readContract({ ...bond, functionName: "totalSupply" }),
     client.readContract({ ...bond, functionName: "faceValue" }),
+    client.readContract({
+      address: d.maturitySettlement,
+      abi: maturitySettlementAbi,
+      functionName: "repayments",
+      args: [invoiceId],
+    }),
   ])
   return {
     invoiceId,
@@ -47,26 +53,28 @@ export async function fetchBond(
     supply,
     discountRateBps: l.discountRateBps,
     maturity: Number(l.maturity),
+    settled: repayment[2],
   }
 }
 
-export async function fetchBonds(client: PublicClient, market: Address): Promise<Bond[]> {
+/** Every listing, oldest first (`invoiceIds` is append-only). */
+export async function fetchBonds(client: PublicClient, d: Contracts): Promise<Bond[]> {
   const count = await client.readContract({
-    address: market,
+    address: d.invoiceMarket,
     abi: invoiceMarketAbi,
     functionName: "listingCount",
   })
   const ids = await Promise.all(
     Array.from({ length: Number(count) }, (_, i) =>
       client.readContract({
-        address: market,
+        address: d.invoiceMarket,
         abi: invoiceMarketAbi,
         functionName: "invoiceIds",
         args: [BigInt(i)],
       }),
     ),
   )
-  return Promise.all(ids.map((id) => fetchBond(client, market, id)))
+  return Promise.all(ids.map((id) => fetchBond(client, d, id)))
 }
 
 export type Ask = {
@@ -111,10 +119,10 @@ export type Position = {
 /** The wallet's holdings across every listing, non-zero balances only. */
 export async function fetchPositions(
   client: PublicClient,
-  d: Pick<Deployment, "invoiceMarket" | "maturitySettlement">,
+  d: Contracts,
   wallet: Address,
 ): Promise<Position[]> {
-  const bonds = await fetchBonds(client, d.invoiceMarket)
+  const bonds = await fetchBonds(client, d)
   const positions = await Promise.all(
     bonds.map(async (bond) => {
       const token = { address: bond.bond, abi: bondTokenAbi } as const
@@ -143,6 +151,50 @@ export const askCost = (units: bigint, priceBps: bigint) => ceilDiv(units * pric
 /** Platform fee on a cost (mirrors `_takeFee`). */
 export const feeOn = (cost: bigint, feeBps: number) => ceilDiv(cost * BigInt(feeBps), BPS)
 
+// ---- lifecycle ----------------------------------------------------------------------------
+
+export type BondStatus = "open" | "funded" | "matured" | "settled"
+
+export const statusLabel: Record<BondStatus, string> = {
+  open: "Funding",
+  funded: "Funded",
+  matured: "Matured",
+  settled: "Settled",
+}
+
+/** Funding until every unit is sold, funded until maturity, matured until the payor settles. */
+export function bondStatus(
+  b: Pick<Bond, "supply" | "faceValue" | "maturity" | "settled">,
+  now = Date.now(),
+): BondStatus {
+  if (b.settled) return "settled"
+  if (isMatured(b.maturity, now)) return "matured"
+  return b.supply >= b.faceValue ? "funded" : "open"
+}
+
+/**
+ * The issuer form names a bond `<issuer company> · <payor>` (`issuer.ts`); split it back for
+ * display. A name without the separator is shown whole, with no payor.
+ */
+export function splitName(name: string): { issuer: string; payor?: string } {
+  const i = name.indexOf(" · ")
+  return i < 0 ? { issuer: name } : { issuer: name.slice(0, i), payor: name.slice(i + 3) }
+}
+
+/**
+ * Synthetic price path per 1 USDC of face, `n` points: the discount price accreting linearly to
+ * par at maturity. There is no on-chain price history; this is the payoff line of a zero-coupon
+ * note, flat at par once matured.
+ */
+export function pricePath(
+  b: Pick<Bond, "discountRateBps" | "maturity">,
+  n = 32,
+  now = Date.now(),
+): number[] {
+  const p0 = isMatured(b.maturity, now) ? 1 : 1 - b.discountRateBps / 10_000
+  return Array.from({ length: n }, (_, i) => p0 + ((1 - p0) * i) / (n - 1))
+}
+
 // ---- formatting ---------------------------------------------------------------------------
 
 export const fundedPct = (b: Pick<Bond, "supply" | "faceValue">) =>
@@ -156,16 +208,24 @@ const twoDecimals = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })
+const noDecimals = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 })
 
 /** USDC base units as `1,234.50`; always two decimals so amounts line up. */
 export const usdcAmount = (v: bigint) => twoDecimals.format(Number(formatUnits(v, 6)))
 
 export const usdc = (v: bigint) => `${usdcAmount(v)} USDC`
 
+/** USDC base units as `$9,800`, or `$9,650.50` when there are cents. */
+export function dollars(v: bigint): string {
+  const n = Number(formatUnits(v, 6))
+  return `$${Number.isInteger(n) ? noDecimals.format(n) : twoDecimals.format(n)}`
+}
+
+/** `Sep 19, 2026` (UTC, like the maturity itself). */
 export const maturityDate = (maturity: number) =>
-  new Date(maturity * 1000).toLocaleDateString("en-GB", {
-    day: "numeric",
+  new Date(maturity * 1000).toLocaleDateString("en-US", {
     month: "short",
+    day: "numeric",
     year: "numeric",
     timeZone: "UTC",
   })

@@ -82,13 +82,15 @@ export const attestationsFor = (messages: TopicMessage[], invoiceId: Hex) =>
     .filter(isAttestation)
     .filter((m) => invoiceIdOf(m.body.invoiceId).toLowerCase() === invoiceId.toLowerCase())
 
+/** `Sep 6, 2026, 06:05 UTC` */
 export const consensusTime = (ms: number) =>
-  new Date(ms).toLocaleString("en-GB", {
-    day: "numeric",
+  new Date(ms).toLocaleString("en-US", {
     month: "short",
+    day: "numeric",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
     timeZone: "UTC",
     timeZoneName: "short",
   })

@@ -11,7 +11,9 @@ describe("issuer", () => {
   test("symbol is s + uppercase alphanumerics, 8 chars max", () => {
     expect(symbolFor("INV-2026-001")).toBe("sINV2026")
     expect(symbolFor("ab 1")).toBe("sAB1")
-    expect(nameFor("INV-1")).toBe("Sowee Bond INV-1")
+    expect(nameFor(" Acme GmbH ", "Globex Corp")).toBe("Acme GmbH · Globex Corp")
+    // The separator is reserved for splitting the name back into issuer and payor.
+    expect(nameFor("A · B", "C")).toBe("A - B · C")
   })
 
   test("maturity is UTC midnight of the due date", () => {

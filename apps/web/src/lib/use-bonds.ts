@@ -3,22 +3,22 @@ import type { Address, Hex } from "viem"
 import { usePublicClient } from "wagmi"
 import { activeChain } from "./chains"
 import type { Deployment } from "./deployments"
-import { fetchAsks, fetchBond, fetchBonds, fetchPositions } from "./market"
+import { type Contracts, fetchAsks, fetchBond, fetchBonds, fetchPositions } from "./market"
 
 // Reads always go to the active chain, whatever chain the wallet is on.
-export function useBonds(market: Address | undefined) {
+export function useBonds(d: Contracts | undefined) {
   const client = usePublicClient({ chainId: activeChain.id })
   return useQuery({
-    queryKey: ["bonds", activeChain.id, market],
-    queryFn: client && market ? () => fetchBonds(client, market) : skipToken,
+    queryKey: ["bonds", activeChain.id, d?.invoiceMarket],
+    queryFn: client && d ? () => fetchBonds(client, d) : skipToken,
   })
 }
 
-export function useBond(market: Address | undefined, invoiceId: Hex) {
+export function useBond(d: Contracts | undefined, invoiceId: Hex) {
   const client = usePublicClient({ chainId: activeChain.id })
   return useQuery({
-    queryKey: ["bond", activeChain.id, market, invoiceId],
-    queryFn: client && market ? () => fetchBond(client, market, invoiceId) : skipToken,
+    queryKey: ["bond", activeChain.id, d?.invoiceMarket, invoiceId],
+    queryFn: client && d ? () => fetchBond(client, d, invoiceId) : skipToken,
   })
 }
 

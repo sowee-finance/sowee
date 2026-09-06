@@ -17,6 +17,9 @@ export const chains = [hederaTestnet, arcTestnet, anvil] as const
 export const activeChain =
   chains.find((c) => c.id === Number(process.env.NEXT_PUBLIC_CHAIN_ID)) ?? hederaTestnet
 
+/** How copy names the network: "Hedera" for its testnet, the chain name elsewhere. */
+export const networkBrand = activeChain.id === hederaTestnet.id ? "Hedera" : activeChain.name
+
 const explorers: Record<number, { contract: string; tx: string }> = {
   [hederaTestnet.id]: {
     contract: "https://hashscan.io/testnet/contract/",
