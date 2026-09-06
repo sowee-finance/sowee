@@ -246,7 +246,8 @@ contract InvoiceMarket is Ownable, ReentrancyGuard {
     }
 
     function _takeFee(address payer, uint256 cost) internal returns (uint256 fee) {
-        if (feeBps == 0) return 0;
+        // HTS rejects a transfer from an account to itself, so the treasury trades fee-free.
+        if (feeBps == 0 || payer == treasury) return 0;
         fee = Math.mulDiv(cost, feeBps, BPS, Math.Rounding.Ceil);
         usdc.safeTransferFrom(payer, treasury, fee);
     }
