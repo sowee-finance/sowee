@@ -24,6 +24,7 @@ forge fmt --check
 | Network | Chain id | RPC | Explorer |
 |---|---|---|---|
 | Hedera testnet | 296 | `https://testnet.hashio.io/api` | https://hashscan.io/testnet |
+| Arc testnet | 5042002 | `https://rpc.testnet.arc.network` | https://testnet.arcscan.app |
 
 Copy `.env.example` to `.env` and fill it, then:
 
@@ -90,7 +91,27 @@ Issuer = `0x17Ca…c116`; investor = `0x05F2…a6af` (`0.0.10215221`), granted t
 Checked with `eth_call` on the same state: a bond transfer to a wallet that was never granted
 reverts `NotEligible(0x…dEaD)` at the token layer, and a second `claim` reverts `NothingToClaim`.
 
-**Known limitation of this deployment.** HTS refuses a transfer whose sender and receiver are
+### Arc testnet (chain 5042002)
+
+Same bytecode, one stage (`forge script script/Deploy.s.sol --rpc-url arc_testnet --broadcast`,
+no precompile involved); gas is paid in USDC, the native token of Arc.
+
+| Contract | Address |
+|---|---|
+| DiscountOracle | [`0x8811c54E2961612F94C11EbFc7F4873210CC3949`](https://testnet.arcscan.app/address/0x8811c54E2961612F94C11EbFc7F4873210CC3949) |
+| InvoiceMarket | [`0x4ED35623ed0DbCf42d07438D1AA7a526E2D22Be7`](https://testnet.arcscan.app/address/0x4ED35623ed0DbCf42d07438D1AA7a526E2D22Be7) |
+| MaturitySettlement | [`0x15BBde11682eBD77f91d563A1999873F7727369e`](https://testnet.arcscan.app/address/0x15BBde11682eBD77f91d563A1999873F7727369e) |
+| USDC (native, ERC-20 interface) | `0x3600000000000000000000000000000000000000` |
+
+Sources exact-match verified on Sourcify. Live on Arc:
+
+| Step | Transaction |
+|---|---|
+| `listInvoice` ARC-INV-001 (50 USDC, 2.25%, 45 days) → bond `sARC001` [`0x179Bbd5c…`](https://testnet.arcscan.app/address/0x179Bbd5c8c3F9Db0ff7b8c68c4A81C6cEbD71EcC) | [`0xf51c18f8…`](https://testnet.arcscan.app/tx/0xf51c18f8799141542130416c75957d4d9fb38198b40c79c08ed975cb2554d892) |
+| `setEligible` investor | [`0xfa96eaf9…`](https://testnet.arcscan.app/tx/0xfa96eaf94ffe7db9f59ab305682d116ae5e6391d56db5bfae9eef0e1667a96e8) |
+| `buyPrimary` 2 units in native USDC (1.955 USDC to the issuer, fee to the treasury) | [`0x861cdc38…`](https://testnet.arcscan.app/tx/0x861cdc380b15f292e85b0d829e86555ffb2579e91b67164fbd88ef06588dbabc) |
+
+**Known limitation of the Hedera deployment.** HTS refuses a transfer whose sender and receiver are
 the same account (`ACCOUNT_REPEATED_IN_ACCOUNT_AMOUNTS`), so a buyer that is also the treasury
 cannot pay the fee to itself. The secondary fill above was run with the fee set to 0 and
 restored to 0.5% afterwards. `InvoiceMarket._takeFee` now skips the fee when the payer is the
