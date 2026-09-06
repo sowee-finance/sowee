@@ -21,3 +21,5 @@ choices and the security-sensitive compliance logic are the team's.
 | Path | AI-assisted | What the AI produced | Human review |
 |---|---|---|---|
 | `README.md`, `CLAUDE.md`, `AI-USAGE.md`, `LICENSE`, `.gitignore`, `.editorconfig`, `turbo.json`, `biome.json`, husky hook, workspace `package.json` | yes | drafted from the team's plan and the ETHGlobal rules pages | edited and approved by the team |
+| `contracts/` scaffold (`foundry.toml`, `.env.example`, `script/Deploy.s.sol`, `README.md`) | yes | drafted from the task list; network values from Hedera docs | reviewed and dry-run against Hedera testnet by the team |
+| `.github/workflows/ci.yml` | yes | Biome + Foundry jobs | reviewed by the team |
