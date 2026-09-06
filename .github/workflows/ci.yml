@@ -52,3 +52,27 @@ jobs:
           cache-dependency-path: apps/api/go.sum
       - run: go vet ./...
       - run: go test ./...
+
+  web:
+    name: web + agent
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun test
+        working-directory: apps/agent
+      - run: bun run lint
+        working-directory: apps/agent
+      - run: bun test
+        working-directory: apps/web
+      - run: bun run lint
+        working-directory: apps/web
+      - run: bun run build
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_CHAIN_ID: "296"
