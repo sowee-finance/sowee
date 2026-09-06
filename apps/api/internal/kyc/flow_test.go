@@ -49,12 +49,18 @@ func (f *fakeSumsub) SubmitQuestionnaire(_ context.Context, id string, a Answers
 type fakeGrantor struct {
 	calls []string
 	err   error
+	next  []string // txs returned by the next call; defaults to two
 }
 
 func (g *fakeGrantor) Grant(_ context.Context, w string) ([]string, error) {
 	g.calls = append(g.calls, w)
 	if g.err != nil {
 		return nil, g.err
+	}
+	if g.next != nil {
+		out := g.next
+		g.next = nil
+		return out, nil
 	}
 	return []string{"0xtx1", "0xtx2"}, nil
 }
@@ -109,11 +115,40 @@ func TestStatusLifecycle(t *testing.T) {
 	if st.State != StateGranted || len(st.GrantTxs) != 2 || len(g.calls) != 1 {
 		t.Fatalf("after grant: %+v calls=%v", st, g.calls)
 	}
-	// repeated status does not re-grant
+	// repeated status within the re-check window does not touch the chain
 	_, _ = f.Status(ctx, wallet)
 	f.Wait()
 	if len(g.calls) != 1 {
 		t.Fatalf("granted twice: %v", g.calls)
+	}
+}
+
+func TestGrantedWalletIsRecheckedForBondsListedLater(t *testing.T) {
+	s := newFakeSumsub()
+	g := &fakeGrantor{}
+	f := NewFlow(s, g)
+	now := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
+	f.now = func() time.Time { return now }
+	ctx := context.Background()
+	_ = f.SubmitProfile(ctx, wallet, FixedInfo{}, good())
+	s.apps["0xabcdef0000000000000000000000000000000001"].Review = Review{Answer: "GREEN"}
+	_, _ = f.Status(ctx, wallet)
+	f.Wait()
+
+	// a new bond gets listed; within the window nothing happens
+	g.next = []string{"0xtx-newbond"}
+	st, _ := f.Status(ctx, wallet)
+	f.Wait()
+	if st.State != StateGranted || len(g.calls) != 1 {
+		t.Fatalf("early recheck: %s calls=%v", st.State, g.calls)
+	}
+	// after the window the granter runs again and only the new bond's tx is appended
+	now = now.Add(RecheckEvery + time.Second)
+	st, _ = f.Status(ctx, wallet)
+	f.Wait()
+	st, _ = f.Status(ctx, wallet)
+	if st.State != StateGranted || len(g.calls) != 2 || len(st.GrantTxs) != 3 || st.GrantTxs[2] != "0xtx-newbond" {
+		t.Fatalf("late recheck: %+v calls=%v", st, g.calls)
 	}
 }
 
