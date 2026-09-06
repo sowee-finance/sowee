@@ -18,6 +18,7 @@ import {
 } from "@/lib/market"
 import { useBond } from "@/lib/use-bonds"
 import { KycNotice, SecondaryMarket } from "./asks"
+import { AuditTrail } from "./audit-trail"
 import { BuyForm } from "./buy-form"
 import { NotDeployed } from "./not-deployed"
 import { EmptyState, ErrorState, SkeletonGrid, SkeletonLine } from "./states"
@@ -100,6 +101,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
         </aside>
       </div>
       <SecondaryMarket bond={bond} deployment={deployment} />
+      <AuditTrail invoiceId={bond.invoiceId} />
     </>
   )
 }
