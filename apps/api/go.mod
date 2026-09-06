@@ -2,7 +2,10 @@ module github.com/sowee-finance/sowee/apps/api
 
 go 1.25.1
 
-require github.com/ethereum/go-ethereum v1.17.5
+require (
+	github.com/ethereum/go-ethereum v1.17.5
+	github.com/go-chi/chi/v5 v5.3.2
+)
 
 require (
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect

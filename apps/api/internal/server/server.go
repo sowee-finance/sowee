@@ -1,0 +1,132 @@
+// Package server wires the HTTP routes.
+package server
+
+import (
+	"encoding/json"
+	"math/big"
+	"net/http"
+	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/sowee-finance/sowee/apps/api/internal/config"
+	"github.com/sowee-finance/sowee/apps/api/internal/quote"
+)
+
+// New builds the router. Routes are versioned under /v1.
+func New(cfg config.Config, signer *quote.Signer) http.Handler {
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer, cors)
+
+	r.Get("/v1/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"status":  "ok",
+			"chainId": cfg.ChainID,
+			"signer":  signer.Address().Hex(),
+		})
+	})
+	r.Post("/v1/invoices/{id}/quote", quoteHandler(signer))
+	return r
+}
+
+// cors allows any origin. ponytail: tighten to the web app's origin before mainnet.
+func cors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Access-Control-Allow-Origin", "*")
+		h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+type quoteRequest struct {
+	FaceValue string `json:"faceValue"` // USDC base units (6 decimals), decimal string
+	Maturity  int64  `json:"maturity"`  // unix seconds
+}
+
+type quoteJSON struct {
+	InvoiceID       common.Hash `json:"invoiceId"`
+	FaceValue       string      `json:"faceValue"`
+	DiscountRateBps uint16      `json:"discountRateBps"`
+	ValidUntil      uint64      `json:"validUntil"`
+	Nonce           uint64      `json:"nonce"`
+}
+
+type quoteResponse struct {
+	Quote     quoteJSON     `json:"quote"`
+	Signature hexutil.Bytes `json:"signature"`
+	Digest    common.Hash   `json:"digest"`
+	Signer    string        `json:"signer"`
+}
+
+func quoteHandler(signer *quote.Signer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req quoteRequest
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
+		}
+		faceValue, ok := new(big.Int).SetString(req.FaceValue, 10)
+		if !ok || faceValue.Sign() <= 0 || faceValue.BitLen() > 256 {
+			writeError(w, http.StatusBadRequest, "faceValue must be a positive decimal string")
+			return
+		}
+		now := time.Now()
+		rate, err := quote.RateBps(now.Unix(), req.Maturity)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		q := quote.Quote{
+			InvoiceID:       invoiceID(chi.URLParam(r, "id")),
+			FaceValue:       faceValue,
+			DiscountRateBps: rate,
+			ValidUntil:      uint64(now.Add(quote.Validity).Unix()),
+			Nonce:           signer.NextNonce(now),
+		}
+		sig, digest, err := signer.Sign(q)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, quoteResponse{
+			Quote: quoteJSON{
+				InvoiceID:       q.InvoiceID,
+				FaceValue:       q.FaceValue.String(),
+				DiscountRateBps: q.DiscountRateBps,
+				ValidUntil:      q.ValidUntil,
+				Nonce:           q.Nonce,
+			},
+			Signature: sig,
+			Digest:    digest,
+			Signer:    signer.Address().Hex(),
+		})
+	}
+}
+
+// invoiceID accepts a 0x-prefixed 32-byte hex as-is; any other id is keccak256(id).
+func invoiceID(id string) common.Hash {
+	if b, err := hexutil.Decode(id); err == nil && len(b) == 32 {
+		return common.BytesToHash(b)
+	}
+	return crypto.Keccak256Hash([]byte(id))
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func writeError(w http.ResponseWriter, status int, msg string) {
+	writeJSON(w, status, map[string]string{"error": msg})
+}
