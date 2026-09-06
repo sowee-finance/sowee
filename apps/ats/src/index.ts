@@ -2,6 +2,7 @@
  * Issue an invoice as a regulated security through Asset Tokenization Studio.
  *
  *   bun run src/index.ts issue   --ref INV-2026-010 --name "…" --symbol sATS010 --face 100 --days 30
+ *   bun run src/index.ts record  --token 0x… --ref INV-2026-010 --isin XS…   (issue does this too)
  *   bun run src/index.ts allow   --token 0x… --account 0x…
  *   bun run src/index.ts mint    --token 0x… --to 0x… --units 10
  *   bun run src/index.ts status  --token 0x… --account 0x…
@@ -10,6 +11,7 @@
  */
 import type { Address, Hex } from "viem"
 import { allow, clients, issueBond, issueUnits, status } from "./ats"
+import { recordAtsBond } from "./record"
 
 const argv = process.argv.slice(2)
 const [command] = argv
@@ -27,15 +29,19 @@ const need = (name: string) => {
 }
 const link = (hash: string) => `https://hashscan.io/testnet/transaction/${hash}`
 
-const pk = process.env.ATS_OPERATOR_PK
-if (!pk) {
-  console.error("set ATS_OPERATOR_PK to the wallet that administers the security")
-  process.exit(1)
+/** Only the commands that sign need the operator key; `record` just edits a file. */
+const signing = () => {
+  const pk = process.env.ATS_OPERATOR_PK
+  if (!pk) {
+    console.error("set ATS_OPERATOR_PK to the wallet that administers the security")
+    process.exit(1)
+  }
+  return clients(pk as Hex, process.env.RPC_URL)
 }
-const c = clients(pk as Hex, process.env.RPC_URL)
 
 switch (command) {
   case "issue": {
+    const c = signing()
     const reference = need("ref")
     const days = BigInt(flag("days") ?? 30)
     const bond = await issueBond(c, {
@@ -45,13 +51,22 @@ switch (command) {
       faceValue: BigInt(need("face")),
       maturity: BigInt(Math.floor(Date.now() / 1000)) + days * 86_400n,
     })
+    const chainId = await c.pub.getChainId()
+    const file = recordAtsBond(chainId, {
+      address: bond.address,
+      isin: bond.isin,
+      reference,
+      regulation: "Reg S",
+    })
     console.log(`bond     : ${bond.address}`)
     console.log(`isin     : ${bond.isin}`)
+    console.log(`recorded : ${file}`)
     console.log(`deployed : ${link(bond.hash)}`)
     console.log(`contract : https://hashscan.io/testnet/contract/${bond.address}`)
     break
   }
   case "allow": {
+    const c = signing()
     const token = need("token") as Address
     const account = need("account") as Address
     const txs = await allow(c, token, account)
@@ -61,7 +76,7 @@ switch (command) {
   }
   case "mint": {
     const hash = await issueUnits(
-      c,
+      signing(),
       need("token") as Address,
       need("to") as Address,
       BigInt(need("units")),
@@ -69,11 +84,23 @@ switch (command) {
     console.log(`issued   : ${link(hash)}`)
     break
   }
+  case "record": {
+    const file = recordAtsBond(Number(flag("chain") ?? 296), {
+      address: need("token") as Address,
+      isin: need("isin"),
+      reference: need("ref"),
+      regulation: flag("regulation") ?? "Reg S",
+    })
+    console.log(`recorded : ${file}`)
+    break
+  }
   case "status": {
-    console.log(await status(c, need("token") as Address, flag("account") as Address | undefined))
+    console.log(
+      await status(signing(), need("token") as Address, flag("account") as Address | undefined),
+    )
     break
   }
   default:
-    console.error("commands: issue | allow | mint | status")
+    console.error("commands: issue | allow | mint | record | status")
     process.exit(1)
 }
