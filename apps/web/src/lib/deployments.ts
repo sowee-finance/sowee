@@ -2,7 +2,18 @@ import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import type { Address } from "viem"
 
-/** Shape of `contracts/deployments/<chainId>.json`, written by `script/Deploy.s.sol`. */
+/** An invoice also issued as a regulated security through Asset Tokenization Studio. */
+export type AtsBond = {
+  address: Address
+  isin: string
+  reference: string
+  regulation: string
+}
+
+/**
+ * Shape of `contracts/deployments/<chainId>.json`, written by `script/Deploy.s.sol` and, for
+ * `atsBonds`, by `apps/ats` when it issues a security. Keyed by invoice id.
+ */
 export type Deployment = {
   chainId: number
   usdc: Address
@@ -10,6 +21,7 @@ export type Deployment = {
   discountOracle: Address
   invoiceMarket: Address
   maturitySettlement: Address
+  atsBonds?: Record<string, AtsBond>
 }
 
 // Server-only: read from the repo at render time, so the UI picks up a new deployment
