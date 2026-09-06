@@ -7,7 +7,8 @@ import { activeChain } from "./chains"
 
 export const topicId = process.env.NEXT_PUBLIC_HCS_TOPIC_ID ?? "0.0.10388277"
 export const topicUrl = `https://hashscan.io/testnet/topic/${topicId}`
-const messagesUrl = `https://testnet.mirrornode.hedera.com/api/v1/topics/${topicId}/messages?order=desc&limit=100`
+const mirrorOrigin = "https://testnet.mirrornode.hedera.com"
+const messagesUrl = `${mirrorOrigin}/api/v1/topics/${topicId}/messages?order=desc&limit=100`
 
 /** The topic lives on Hedera testnet; on any other active chain there is nothing to read. */
 export const hcsAvailable = activeChain.id === hederaTestnet.id
@@ -19,6 +20,8 @@ export type Attestation = {
   docHash: string
   event: string
   timestamp: string
+  /** The issuer's own mark, a small square data URI, if they attached one when issuing. */
+  logo?: string
 }
 
 export type Receipt = {
@@ -40,6 +43,7 @@ export type TopicMessage = {
 
 type Wire = {
   messages: { sequence_number: number; consensus_timestamp: string; message: string }[]
+  links?: { next?: string | null }
 }
 
 /** base64 JSON → message; undefined for anything the topic holds that is not ours. */
@@ -58,12 +62,29 @@ export function decodeMessage(m: Wire["messages"][number]): TopicMessage | undef
   }
 }
 
-// ponytail: latest 100 messages only; follow `links.next` once the topic outgrows one page.
+/** Pages to follow at most. The trail is read on every bond page, so it is bounded on purpose. */
+const MAX_PAGES = 10
+
+/**
+ * Reads the topic newest-first, following the mirror node's `links.next` so an invoice does not
+ * lose its attestations once the topic grows past one page of 100.
+ */
 export async function fetchTopic(fetchFn: typeof fetch = fetch): Promise<TopicMessage[]> {
-  const res = await fetchFn(messagesUrl)
-  if (!res.ok) throw new Error(`mirror node answered ${res.status}`)
-  const wire = (await res.json()) as Wire
-  return wire.messages.flatMap((m) => decodeMessage(m) ?? [])
+  const out: TopicMessage[] = []
+  let url: string | undefined = messagesUrl
+  for (let page = 0; url && page < MAX_PAGES; page++) {
+    const res = await fetchFn(url)
+    if (!res.ok) throw new Error(`mirror node answered ${res.status}`)
+    const wire = (await res.json()) as Wire
+    for (const m of wire.messages) {
+      const decoded = decodeMessage(m)
+      if (decoded) out.push(decoded)
+    }
+    // `next` comes back as a path on the same host.
+    const next = wire.links?.next
+    url = next ? new URL(next, mirrorOrigin).toString() : undefined
+  }
+  return out
 }
 
 export const isAttestation = (m: TopicMessage): m is TopicMessage & { body: Attestation } =>
@@ -81,6 +102,10 @@ export const attestationsFor = (messages: TopicMessage[], invoiceId: Hex) =>
   messages
     .filter(isAttestation)
     .filter((m) => invoiceIdOf(m.body.invoiceId).toLowerCase() === invoiceId.toLowerCase())
+
+/** The mark this issuer anchored, most recent first; undefined when they never attached one. */
+export const logoFor = (messages: TopicMessage[], invoiceId: Hex) =>
+  attestationsFor(messages, invoiceId).find((m) => m.body.logo)?.body.logo
 
 /** `Sep 6, 2026, 06:05 UTC` */
 export const consensusTime = (ms: number) =>
