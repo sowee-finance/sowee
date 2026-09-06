@@ -9,8 +9,10 @@ import (
 
 	"github.com/sowee-finance/sowee/apps/api/internal/config"
 	"github.com/sowee-finance/sowee/apps/api/internal/hcs"
+	"github.com/sowee-finance/sowee/apps/api/internal/market"
 	"github.com/sowee-finance/sowee/apps/api/internal/quote"
 	"github.com/sowee-finance/sowee/apps/api/internal/server"
+	"github.com/sowee-finance/sowee/apps/api/internal/x402"
 )
 
 func main() {
@@ -20,9 +22,25 @@ func main() {
 		log.Fatal(err)
 	}
 	anchor := newAnchor(cfg)
-	log.Printf("api listening on :%s chainId=%d oracle=%s signer=%s hcsTopic=%q",
-		cfg.Port, cfg.ChainID, cfg.DiscountOracle, signer.Address().Hex(), anchor.TopicID())
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, server.New(cfg, signer, anchor)))
+	reader, err := market.New(cfg.RPCURL, cfg.InvoiceMarket)
+	if err != nil {
+		log.Fatal(err)
+	}
+	gate := x402.New(x402.NewFacilitator(cfg.X402FacilitatorURL), x402.PaymentRequirements{
+		Network: cfg.X402Network, Asset: cfg.X402Asset, PayTo: cfg.X402PayTo, Amount: cfg.X402Amount,
+	}, func(ctx context.Context, s x402.SettleResponse, r x402.PaymentRequirements, endpoint string) {
+		if _, err := anchor.Receipt(ctx, hcs.Receipt{
+			Endpoint: endpoint, Payer: s.Payer, Amount: r.Amount, Asset: r.Asset, SettlementTx: s.Transaction,
+		}); err != nil {
+			log.Printf("x402: receipt not anchored: %v", err)
+		}
+	})
+	log.Printf("api listening on :%s chainId=%d oracle=%s signer=%s hcsTopic=%q market=%q x402=%s/%s→%s",
+		cfg.Port, cfg.ChainID, cfg.DiscountOracle, signer.Address().Hex(), anchor.TopicID(),
+		reader.Address(), cfg.X402Network, cfg.X402Amount, cfg.X402PayTo)
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, server.New(cfg, server.Deps{
+		Signer: signer, Anchor: anchor, Gate: gate, Market: reader,
+	})))
 }
 
 // newAnchor wires HCS when operator credentials are present; otherwise anchoring is disabled

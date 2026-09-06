@@ -18,11 +18,22 @@ import (
 
 	"github.com/sowee-finance/sowee/apps/api/internal/config"
 	"github.com/sowee-finance/sowee/apps/api/internal/hcs"
+	"github.com/sowee-finance/sowee/apps/api/internal/market"
 	"github.com/sowee-finance/sowee/apps/api/internal/quote"
+	"github.com/sowee-finance/sowee/apps/api/internal/x402"
 )
 
+// Deps is everything the routes need.
+type Deps struct {
+	Signer *quote.Signer
+	Anchor *hcs.Anchor
+	Gate   *x402.Gate
+	Market *market.Reader // nil until the market is deployed
+}
+
 // New builds the router. Routes are versioned under /v1.
-func New(cfg config.Config, signer *quote.Signer, anchor *hcs.Anchor) http.Handler {
+func New(cfg config.Config, d Deps) http.Handler {
+	signer, anchor := d.Signer, d.Anchor
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer, cors)
 
@@ -37,7 +48,39 @@ func New(cfg config.Config, signer *quote.Signer, anchor *hcs.Anchor) http.Handl
 	})
 	r.Post("/v1/invoices/{id}/quote", quoteHandler(signer))
 	r.Post("/v1/invoices/{id}/attest", attestHandler(anchor))
+	if d.Gate != nil {
+		r.With(d.Gate.Middleware("Sowee market insights: every listed invoice bond with funded %, tenor and implied APR")).
+			Get("/v1/market/insights", insightsHandler(cfg, d.Market))
+		r.Get("/v1/market/insights/usage", func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(w, http.StatusOK, map[string]any{"payers": d.Gate.UsageReport()})
+		})
+	}
 	return r
+}
+
+// insightsHandler is the paid resource. It reads live market state; before the market is
+// deployed it returns an empty list so the payment flow can still be exercised end-to-end.
+func insightsHandler(cfg config.Config, reader *market.Reader) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		bonds, err := reader.Snapshot(r.Context())
+		if err != nil {
+			writeError(w, http.StatusBadGateway, "market read failed: "+err.Error())
+			return
+		}
+		out := map[string]any{
+			"asOf":    time.Now().UTC().Format(time.RFC3339),
+			"chainId": cfg.ChainID,
+			"market":  reader.Address(),
+			"bonds":   bonds,
+			"paidBy":  x402.PayerFrom(r.Context()),
+		}
+		if len(bonds) > 0 {
+			out["best"] = bonds[0]
+		} else {
+			out["note"] = "no bonds listed yet"
+		}
+		writeJSON(w, http.StatusOK, out)
+	}
 }
 
 type attestRequest struct {
@@ -83,7 +126,8 @@ func cors(next http.Handler) http.Handler {
 		h := w.Header()
 		h.Set("Access-Control-Allow-Origin", "*")
 		h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, "+x402.HeaderSignature)
+		h.Set("Access-Control-Expose-Headers", x402.HeaderRequired+", "+x402.HeaderResponse)
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

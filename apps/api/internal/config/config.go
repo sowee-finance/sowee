@@ -17,6 +17,15 @@ type Config struct {
 	HederaOperatorID  string // HEDERA_OPERATOR_ID, e.g. 0.0.7162116 — pays for HCS messages
 	HederaOperatorKey string // HEDERA_OPERATOR_KEY, hex ECDSA private key of the operator
 	MirrorURL         string // MIRROR_URL, default https://testnet.mirrornode.hedera.com
+
+	RPCURL        string // RPC_URL, default https://testnet.hashio.io/api
+	InvoiceMarket string // INVOICE_MARKET, deployed market address; insights are empty when unset
+
+	X402FacilitatorURL string // X402_FACILITATOR_URL, default https://api.testnet.blocky402.com
+	X402Network        string // X402_NETWORK, default hedera:testnet
+	X402Asset          string // X402_ASSET, default 0.0.429274 (USDC on Hedera testnet)
+	X402PayTo          string // X402_PAY_TO, default HEDERA_OPERATOR_ID
+	X402Amount         string // X402_AMOUNT in asset base units, default 10000 (0.01 USDC)
 }
 
 // FromEnv builds a Config from the process environment.
@@ -31,6 +40,15 @@ func FromEnv() Config {
 		HederaOperatorID:  os.Getenv("HEDERA_OPERATOR_ID"),
 		HederaOperatorKey: os.Getenv("HEDERA_OPERATOR_KEY"),
 		MirrorURL:         env("MIRROR_URL", "https://testnet.mirrornode.hedera.com"),
+
+		RPCURL:        env("RPC_URL", "https://testnet.hashio.io/api"),
+		InvoiceMarket: os.Getenv("INVOICE_MARKET"),
+
+		X402FacilitatorURL: env("X402_FACILITATOR_URL", "https://api.testnet.blocky402.com"),
+		X402Network:        env("X402_NETWORK", "hedera:testnet"),
+		X402Asset:          env("X402_ASSET", "0.0.429274"),
+		X402PayTo:          env("X402_PAY_TO", os.Getenv("HEDERA_OPERATOR_ID")),
+		X402Amount:         env("X402_AMOUNT", "10000"),
 	}
 }
 
