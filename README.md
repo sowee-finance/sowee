@@ -142,10 +142,19 @@ cd apps/web && NEXT_PUBLIC_CHAIN_ID=31337 bun run dev
 `bun run build && bun run start` works against the local chain too — the CSP follows
 `NEXT_PUBLIC_CHAIN_ID`, so a local build is allowed to reach anvil while a testnet build is not.
 
-Against Hedera testnet, set `NEXT_PUBLIC_CHAIN_ID=296` (addresses come from
-`contracts/deployments/296.json`) and give the API the environment in
-[`apps/api/.env.example`](apps/api/.env.example): Hedera operator (HCS), Sumsub sandbox pair
-(KYC), `INVOICE_MARKET` (insights + granter), optional `WORLD_*` (Selfie Check).
+Against Hedera testnet there is one command. Copy
+[`.env.demo.example`](.env.demo.example) to `.env.demo`, fill in the keys it documents, then:
+
+```sh
+scripts/demo.sh up       # builds and starts the API and the web app, prints the links
+scripts/demo.sh status   # what is listening, and the live contract and topic
+scripts/demo.sh down
+```
+
+The addresses come from `contracts/deployments/296.json`; the keys are the Hedera operator (HCS),
+the Sumsub sandbox pair (KYC), the quote signer and compliance operator, and optionally `WORLD_*`
+for Selfie Check. Each vendor is optional on its own: without Sumsub the KYC routes answer 503 and
+everything else still runs.
 
 Tests: `forge test` in `contracts/`, `go test ./...` in `apps/api`, `bun test` in
 `apps/web` and `apps/agent`. CI runs Biome, Foundry and Go on every pull request.

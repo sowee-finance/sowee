@@ -3,8 +3,8 @@
 Rules: 2–4 minutes, ≥720p screen capture, your own voice, no music, no speed-up, no phone.
 Intro under 20 seconds. Everything shown must be live. Target 3:30.
 
-Prepare (off camera): API running against Hedera testnet with Sumsub + HCS + market configured;
-web on `NEXT_PUBLIC_CHAIN_ID=296`; MetaMask holding the investor wallet (`0x05F2…a6af`, USDC and
+Prepare (off camera): `scripts/demo.sh up` with a filled `.env.demo` brings up the API and the web
+app against Hedera testnet and prints the links; MetaMask holding the investor wallet (`0x05F2…a6af`, USDC and
 a few HBAR) and the issuer wallet (`0xbD6b…e910`); a terminal in `apps/agent` with `.env` filled;
 HashScan tabs for the market contract and the HCS topic.
 
