@@ -11,7 +11,8 @@ and pull requests, and [`AI-USAGE.md`](AI-USAGE.md). The web app's visual design
 assets follow Sowee's existing brand; the implementation is new.
 
 Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments) · **World**
-(Selfie Check) · **Arc** (stretch). Partner notes: [`docs/partners/`](docs/partners/).
+(Selfie Check) · **Arc** (DeFi on Circle's USDC-native L1). Partner notes:
+[`docs/partners/`](docs/partners/).
 
 ## Live on Hedera testnet
 
@@ -27,7 +28,11 @@ Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments) �
 | Full lifecycle: list → KYC grant → fund → ask → fill → repay → settle → claim | [ten transactions](contracts/README.md#live-lifecycle-testnet-transactions) |
 
 All contract sources are exact-match verified on Sourcify. The same bytecode also runs on
-**Arc testnet** with a bond funded in native USDC — see [`contracts/README.md`](contracts/README.md#arc-testnet-chain-5042002).
+The same finance core also runs on **Arc testnet**, Circle's USDC-native L1: an invoice listed
+from an API-signed quote, the same KYC decision granted on-chain, a bond funded in **native
+USDC** and an open ask on the secondary market. Addresses, transactions and the Arc architecture
+diagram are in [`docs/partners/arc.md`](docs/partners/arc.md); `NEXT_PUBLIC_CHAIN_ID=5042002`
+points the same app at it.
 
 ![Marketplace](docs/screenshots/marketplace.png)
 
