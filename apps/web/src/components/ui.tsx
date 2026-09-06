@@ -3,7 +3,7 @@
 import { ChevronDown } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { txUrl } from "@/lib/chains"
+import { accountUrl, explorerUrl, shortAddress, txUrl } from "@/lib/chains"
 import { type BondStatus, statusLabel } from "@/lib/market"
 
 // Shared design-system primitives: identity marks, badges, popovers, sheets and the
@@ -429,6 +429,34 @@ export function Card({
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 className="font-medium text-xl tracking-tight">{children}</h2>
+}
+
+/**
+ * A short address that goes to the explorer. Every address on a page is a thing a reader may want
+ * to check, so they all behave the same way rather than some being links and some being text.
+ */
+export function AddressLink({
+  address,
+  kind = "contract",
+  className = "font-mono text-[13px]",
+}: {
+  address: string
+  kind?: "contract" | "account"
+  className?: string
+}) {
+  const href = kind === "account" ? accountUrl(address) : explorerUrl(address)
+  if (!href) return <span className={className}>{shortAddress(address)}</span>
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      title={address}
+      className={`${className} hover:underline`}
+    >
+      {shortAddress(address)} ↗
+    </a>
+  )
 }
 
 export function KVRow({

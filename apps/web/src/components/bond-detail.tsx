@@ -4,7 +4,7 @@ import { X } from "lucide-react"
 import Link from "next/link"
 import { useCallback, useMemo, useState } from "react"
 import type { Hex } from "viem"
-import { activeChain, explorerUrl, shortAddress } from "@/lib/chains"
+import { activeChain, shortAddress, topicUrl } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
 import { hcsAvailable, topicId } from "@/lib/hcs"
 import {
@@ -29,6 +29,7 @@ import { NotDeployed } from "./not-deployed"
 import { RegulatedIssuance } from "./regulated-issuance"
 import { EmptyState, ErrorState, SkeletonLine } from "./states"
 import {
+  AddressLink,
   blackPill,
   CompanyAvatar,
   KVRow,
@@ -108,7 +109,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
   const { issuer, payor } = bondNames(bond)
   const apr = impliedApr(bond)
   const days = tenorDays(bond.maturity)
-  const explorer = explorerUrl(bond.bond)
+  const topicHref = topicUrl(topicId)
   const target = (bond.faceValue * BigInt(10_000 - bond.discountRateBps)) / 10_000n
   const raised = (bond.supply * BigInt(10_000 - bond.discountRateBps)) / 10_000n
   const widget = <BuyForm bond={bond} deployment={deployment} />
@@ -189,9 +190,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
                 </KVRow>
               )}
               <KVRow label="Issuer wallet">
-                <span className="font-mono text-[13px]" title={bond.issuer}>
-                  {shortAddress(bond.issuer)}
-                </span>
+                <AddressLink address={bond.issuer} kind="account" />
               </KVRow>
               <KVRow label="Maturity">{maturityDate(bond.maturity)}</KVRow>
               <KVRow label="Time to Maturity">{days > 0 ? `${days} days` : "Matured"}</KVRow>
@@ -203,19 +202,7 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
                 {dollars(bond.supply)} of {dollars(bond.faceValue)}
               </KVRow>
               <KVRow label="Bond token">
-                {explorer ? (
-                  <a
-                    href={explorer}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-mono text-[13px] hover:underline"
-                    title={bond.bond}
-                  >
-                    {shortAddress(bond.bond)} ↗
-                  </a>
-                ) : (
-                  <span className="font-mono text-[13px]">{shortAddress(bond.bond)}</span>
-                )}
+                <AddressLink address={bond.bond} />
               </KVRow>
               <KVRow
                 label="Invoice id"
@@ -227,7 +214,18 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
               </KVRow>
               {hcsAvailable && (
                 <KVRow label="HCS Topic">
-                  <span className="font-mono text-[13px]">{topicId}</span>
+                  {topicHref ? (
+                    <a
+                      href={topicHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono text-[13px] hover:underline"
+                    >
+                      {topicId} ↗
+                    </a>
+                  ) : (
+                    <span className="font-mono text-[13px]">{topicId}</span>
+                  )}
                 </KVRow>
               )}
             </div>
