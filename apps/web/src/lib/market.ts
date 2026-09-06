@@ -157,8 +157,10 @@ const twoDecimals = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 })
 
-/** USDC base units as `1,234.50 USDC`; always two decimals so amounts line up. */
-export const usdc = (v: bigint) => `${twoDecimals.format(Number(formatUnits(v, 6)))} USDC`
+/** USDC base units as `1,234.50`; always two decimals so amounts line up. */
+export const usdcAmount = (v: bigint) => twoDecimals.format(Number(formatUnits(v, 6)))
+
+export const usdc = (v: bigint) => `${usdcAmount(v)} USDC`
 
 export const maturityDate = (maturity: number) =>
   new Date(maturity * 1000).toLocaleDateString("en-GB", {
