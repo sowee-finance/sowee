@@ -62,6 +62,7 @@ account id, so usage is publicly auditable.
 
 | Item | Status |
 |---|---|
+| **Asset Tokenization Studio** | invoice `INV-2026-010` issued as a `Reg S` bond security token through the ATS v8 factory: https://hashscan.io/testnet/contract/0xb438390fE710b12d1951E3b250889A673356e078 — ISIN `XSHUZWMQSU19`, compliance configured (credential issuer, `grantKyc`, allowlist) and 25 units issued; issuing to a wallet that was never KYC'd reverts. Code and every transaction: [`apps/ats/`](../../apps/ats/) |
 | Token issuance with compliance controls | `BondToken` allowlist on every transfer, freeze, face-value cap — live |
 | Full lifecycle on testnet | issue → fund → trade → settle, ten transactions — live |
 | Secondary market | allowance-based asks with partial fills — live fill |
@@ -71,6 +72,22 @@ account id, so usage is publicly auditable.
 | Agentic payments (x402) | 402 challenge, facilitator verify/settle, receipt, metering; real paid request — live |
 | Scheduled transactions (HSS) | not used: settlement is permissionless instead, so anyone can settle after maturity without relying on scheduled dispatch |
 | Upstream contribution (hedera-harness) | not attempted in the window |
+
+## Feedback on Asset Tokenization Studio
+
+- `deployBond` is one call carrying the whole compliance posture, which is the right shape:
+  `isWhiteList` and `internalKycActivated` are decided at issuance instead of being a step someone
+  can forget. It took reading `IFactory.json` to see that, though — the nested `SecurityData`
+  tuple has seventeen fields and the docs example does not show them all.
+- `grantKyc` names a credential issuer that must first be registered with `addIssuer` **on the
+  same token**. The revert when it is not is not obviously about that, and it is the one ordering
+  constraint a first integration will hit.
+- A malformed ISIN fails the deployment, so an integration needs check-digit generation before it
+  can issue anything. A helper in the SDK would save everyone writing the same Luhn variant.
+- The published `@hashgraph/asset-tokenization-contracts` package exposing `./artifacts/*` is what
+  made a viem-only integration possible without pulling in the whole SDK. Worth keeping.
+- Config ids are small integers (`bond = 2`) while the resolver takes them as `bytes32`; padding
+  them by hand is easy to get wrong. Naming them in the package export helped.
 
 ## Feedback (honest, specific)
 

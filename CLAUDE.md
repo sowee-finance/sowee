@@ -12,7 +12,8 @@ An **ETHOnline 2026** submission, built from scratch inside the hacking window
 | `contracts/` | Solidity (Foundry) — bond token, market, oracle, settlement; deployed to Hedera testnet |
 | `apps/web/` | Next.js dapp — onboarding wizard, marketplace, portfolio, issuer console |
 | `apps/api/` | Go service — discount-quote signer, KYC orchestration, x402 gate, HCS anchor |
-| `apps/agent/` | x402 consumer agent that discovers, pays for and uses the market-insights API |
+| `apps/agent/` | x402 consumer agent that discovers, pays for, uses and acts on the market-insights API |
+| `apps/ats/` | issuing an invoice as a regulated security through Hedera's Asset Tokenization Studio |
 
 Sowee turns an unpaid invoice into a KYC-gated, fractional, tradable bond token:
 issue → price (signed discount quote) → fund in USDC → trade → settle pro-rata at maturity.

@@ -22,6 +22,7 @@ Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments) �
 | InvoiceMarket | [`0xe7f896…5962`](https://hashscan.io/testnet/contract/0xe7f89692940f5BCc30096cd48f360F2144155962) |
 | MaturitySettlement | [`0x68faa9…6219`](https://hashscan.io/testnet/contract/0x68faa98A8e42ef8ffC946e3d571C3940Dc0f6219) |
 | Bond `sINV010` (100 USDC, 2.25%, 30 days) | [`0xCb4056…9E8c`](https://hashscan.io/testnet/contract/0xCb4056Da92692877d5587eD51f63a5A410F39E8c) |
+| Bond issued through **Asset Tokenization Studio** (`Reg S`, ISIN `XSHUZWMQSU19`) | [`0xb438390f…e078`](https://hashscan.io/testnet/contract/0xb438390fE710b12d1951E3b250889A673356e078) |
 | HCS audit topic | [`0.0.10388277`](https://hashscan.io/testnet/topic/0.0.10388277) |
 | x402 payment settled for an agent | [`0.0.7162784@1788720477.579246898`](https://hashscan.io/testnet/transaction/0.0.7162784-1788720477-579246898) |
 | The agent funding the bond it paid to find | [`0x89d2462b…`](https://hashscan.io/testnet/transaction/0x89d2462bb54ca04f90437e02de567e998f84abc2698571732db18f7148f0e8ec) |
@@ -85,6 +86,12 @@ maturity surrender units for a pro-rata share of what the payor repaid. Every tr
 primary, secondary — is checked against the bond's KYC allowlist inside `_update`, so a fill to
 a wallet that was never granted reverts at the token layer.
 
+**Two ways to tokenize.** The marketplace runs on `BondToken`, a light compliance token whose
+allowlist is checked on every transfer. An invoice that needs the regulated wrapper instead is
+issued through Hedera's **Asset Tokenization Studio**: an ERC-1400 security with partitions, a
+controller, an ISIN and a `Reg S` regulation type recorded on chain, whose units nobody can hold
+without the same KYC. Both are live on testnet; see [`apps/ats/`](apps/ats/).
+
 **Compliance.** A wallet signs a challenge, completes Sumsub (document + liveness) and a
 suitability questionnaire; the API runs a fail-closed policy (US person → blocked under
 Regulation S; sanctioned jurisdictions → blocked; PEP → held) and, on *eligible*, writes
@@ -107,7 +114,8 @@ to the same KYC allowlist a human faces. The API anchors a receipt on HCS and me
 | [`contracts/`](contracts/) | Foundry: `BondToken`, `DiscountOracle`, `InvoiceMarket`, `MaturitySettlement`, `HederaAssociable`; 42 tests; two-stage Hedera deploy |
 | [`apps/api/`](apps/api/) | Go: quotes, HCS, x402 + metering, KYC (Sumsub, policy, granter), World Selfie Check, faucet, rate limits |
 | [`apps/web/`](apps/web/) | Next.js: marketplace, bond detail with secondary market, issuer flow, portfolio + claims, KYC wizard |
-| [`apps/agent/`](apps/agent/) | bun script: x402 discover → pay → consume |
+| [`apps/agent/`](apps/agent/) | bun script: x402 discover → pay → consume → fund |
+| [`apps/ats/`](apps/ats/) | issuing an invoice as a regulated security through Asset Tokenization Studio |
 | [`docs/`](docs/) | build plan, partner notes |
 
 ## Run it
