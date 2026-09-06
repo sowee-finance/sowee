@@ -18,9 +18,18 @@ bun test                    # unit tests (data mapping, hashing, error decoding)
 |---|---|---|
 | `NEXT_PUBLIC_CHAIN_ID` | `296` | chain the UI reads from and asks the wallet to join: `296` (Hedera testnet) or `31337` (anvil) |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8080` | origin of `apps/api` (quotes, attestations, KYC); read at build time and added to the CSP `connect-src` |
+| `NEXT_PUBLIC_HCS_TOPIC_ID` | `0.0.10388277` | HCS topic behind the audit-trail panel and the "x402 calls paid" tile, read from the public mirror node; only on Hedera (chain 296) |
 | `NEXT_PUBLIC_WORLD_APP_ID` | unset | World app id; unset hides the Selfie Check step of the KYC wizard |
 
 Only injected wallets are supported.
+
+## Screenshots
+
+Hedera testnet, dark theme, 1280×900 (`docs/screenshots/` also holds the 390×844 mobile shots).
+
+![Marketplace: hero, live stat tiles and the bond grid](../../docs/screenshots/marketplace.png)
+
+![Bond page: position, primary buy, secondary asks and the HCS audit trail](../../docs/screenshots/bond.png)
 
 ## How contracts flow in
 
@@ -36,8 +45,8 @@ Only injected wallets are supported.
 
 | Route | What it reads |
 |---|---|
-| `/` | `listingCount`, `invoiceIds(i)`, `listing(id)` on `InvoiceMarket`; `name`, `symbol`, `totalSupply`, `faceValue` on each `BondToken` |
-| `/invoices/[id]` | the above plus `balanceOf` and `isEligible` for the wallet, `primaryCost`, `feeBps`, USDC `allowance` and `balanceOf`; writes `approve` then `buyPrimary`. Secondary market: `nextAskId` and `asks(i)`; writes USDC `approve` + `fillAsk`, bond `approve` + `makeAsk`, `cancelAsk` |
+| `/` | `listingCount`, `invoiceIds(i)`, `listing(id)` on `InvoiceMarket`; `name`, `symbol`, `totalSupply`, `faceValue` on each `BondToken`. The stat tiles are computed from those same reads (bonds listed, sum of supplies, best implied APR = discount × 365 / days to maturity) plus the count of `x402.receipt.v1` messages on the HCS topic |
+| `/invoices/[id]` | the above plus `balanceOf` and `isEligible` for the wallet, `primaryCost`, `feeBps`, USDC `allowance` and `balanceOf`; writes `approve` then `buyPrimary`. Secondary market: `nextAskId` and `asks(i)`; writes USDC `approve` + `fillAsk`, bond `approve` + `makeAsk`, `cancelAsk`. Audit trail: the topic's `attestation.v1` messages whose `invoiceId` is this bond's reference or its `keccak256` (`src/lib/hcs.ts`), with consensus time, sequence number and a HashScan link; hidden off Hedera |
 | `/issuer` | the wallet's own listings (`listing(id).issuer`) with a link to `/issuer/new` |
 | `/issuer/new` | three steps: `POST /v1/invoices/{ref}/quote` on the API, `listInvoice(name, symbol, maturity, quote, signature)`, then `POST /v1/invoices/{ref}/attest` with the document's sha256 (hashed in the browser with Web Crypto; the file is never uploaded) |
 | `/portfolio` | every bond with `balanceOf > 0` plus `isEligible` and `MaturitySettlement.claimable`; writes `claim`; the wallet's open asks with `cancelAsk` |
