@@ -35,11 +35,13 @@ An unpaid invoice becomes a compliance-gated, fractional bond token. The lifecyc
 |---|---|---|---|
 | M1 | Foundations: scaffold, contracts, app shells | #1 #2 #3 #4 #5 | done — contracts live on Hedera testnet |
 | M2 | Core lifecycle end-to-end on testnet | #10 #11 #12 #13 #14 | done — ten live transactions |
-| M3 | Compliance: Sumsub KYC, policy engine, on-chain grant, World Selfie Check | #17 #18 #19 #20 #21 #22 #23 | KYC live end-to-end; World API done, live test pending access; wizard in progress |
-| M4 | x402-gated API + agent consumer | #24 #25 #26 | done — real paid request on testnet |
+| M3 | Compliance: Sumsub KYC, policy engine, on-chain grant, World Selfie Check | #17 #18 #19 #20 #21 #22 #23 | KYC live end-to-end and the wizard shipped; World client done, live test pending access |
+| M4 | x402-gated API + agent consumer | #24 #25 #26 #62 | done — the agent pays for the data and funds the bond it chose |
+| — | Asset Tokenization Studio issuance | #70 | done — Reg S security live on testnet |
+| — | Security review and its fixes | #58 #59 #68 | done — contracts redeployed, API hardened |
 | M5 | Arc testnet port (stretch, cut first) | #43 | done — deployed, verified, funded in native USDC |
-| M6 | Hedera Harness PR (stretch) | to be filed | |
-| M7 | Polish, README, video, submission | to be filed | |
+| M6 | Hedera Harness contribution (stretch) | to be filed | under review |
+| M7 | Polish, README, video, submission | #48 #52 #72 | docs and polish done; video and submission with the team |
 
 ## Design decisions
 
