@@ -93,7 +93,13 @@
   },
   "overrides": [
     {
-      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/scripts/**", "apps/agent/**"],
+      "includes": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/scripts/**",
+        "apps/agent/**",
+        "apps/ats/**"
+      ],
       "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
     },
     {
