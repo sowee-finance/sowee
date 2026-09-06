@@ -86,6 +86,8 @@ contract InvoiceMarket is Ownable, ReentrancyGuard {
     error UnknownAsk(uint256 askId);
     error NotMaker(uint256 askId);
     error InsufficientUnits(uint256 requested, uint256 available);
+    error NotQuotedIssuer(address quoted, address caller);
+    error TreasuryRequired();
 
     constructor(
         IERC20 usdc_,
@@ -104,6 +106,7 @@ contract InvoiceMarket is Ownable, ReentrancyGuard {
 
     function setFee(uint16 feeBps_, address treasury_) external onlyOwner {
         if (feeBps_ > MAX_FEE_BPS) revert FeeTooHigh(feeBps_);
+        if (feeBps_ > 0 && treasury_ == address(0)) revert TreasuryRequired();
         feeBps = feeBps_;
         treasury = treasury_;
         emit FeeChanged(feeBps_, treasury_);
@@ -114,8 +117,14 @@ contract InvoiceMarket is Ownable, ReentrancyGuard {
         emit ComplianceOperatorChanged(operator);
     }
 
+    /// @notice Sets the settlement contract and gives it the burn role on every bond listed so far,
+    /// so a settlement deployed after the first listings can still process claims.
     function setSettlement(address settlement_) external onlyOwner {
         settlement = settlement_;
+        for (uint256 i; i < invoiceIds.length; i++) {
+            BondToken bond = _listings[invoiceIds[i]].bond;
+            if (settlement_ != address(0)) bond.grantRole(bond.ISSUER_ROLE(), settlement_);
+        }
         emit SettlementChanged(settlement_);
     }
 
@@ -124,20 +133,28 @@ contract InvoiceMarket is Ownable, ReentrancyGuard {
         _listing(invoiceId).bond.grantRole(role, account);
     }
 
+    /// @notice Removes a role from a bond, e.g. a rotated or compromised compliance operator.
+    function revokeBondRole(bytes32 invoiceId, bytes32 role, address account) external onlyOwner {
+        _listing(invoiceId).bond.revokeRole(role, account);
+    }
+
     // ---- primary ----------------------------------------------------------------------------
 
     /// @notice Open funding for an invoice. Deploys the bond and consumes the signed quote.
+    /// The quote binds issuer, face value and maturity: a quote priced for one tenor cannot open
+    /// a longer listing, and only the quoted wallet can list (and receive the USDC).
     function listInvoice(
         string calldata name,
         string calldata symbol,
-        uint64 maturity,
         DiscountOracle.Quote calldata q,
         bytes calldata signature
     ) external returns (BondToken bond) {
         if (address(_listings[q.invoiceId].bond) != address(0)) {
             revert AlreadyListed(q.invoiceId);
         }
+        if (q.issuer != msg.sender) revert NotQuotedIssuer(q.issuer, msg.sender);
         if (q.faceValue == 0) revert ZeroAmount();
+        uint64 maturity = q.maturity;
         if (maturity <= block.timestamp) revert FundingClosed(q.invoiceId);
 
         oracle.consume(q, signature);

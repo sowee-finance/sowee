@@ -18,6 +18,19 @@ export const maturitySettlementAbi = [
   },
   {
     type: "function",
+    name: "GRACE",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "uint64",
+        internalType: "uint64",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "claim",
     inputs: [
       {
@@ -40,6 +53,30 @@ export const maturitySettlementAbi = [
       },
       {
         name: "holder",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "deposits",
+    inputs: [
+      {
+        name: "invoiceId",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      {
+        name: "payer",
         type: "address",
         internalType: "address",
       },
@@ -140,6 +177,19 @@ export const maturitySettlementAbi = [
     stateMutability: "view",
   },
   {
+    type: "function",
+    name: "withdrawRepayment",
+    inputs: [
+      {
+        name: "invoiceId",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
     type: "event",
     name: "Claimed",
     inputs: [
@@ -194,6 +244,31 @@ export const maturitySettlementAbi = [
       },
       {
         name: "total",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "RepaymentWithdrawn",
+    inputs: [
+      {
+        name: "invoiceId",
+        type: "bytes32",
+        indexed: true,
+        internalType: "bytes32",
+      },
+      {
+        name: "payer",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "amount",
         type: "uint256",
         indexed: false,
         internalType: "uint256",
@@ -307,6 +382,28 @@ export const maturitySettlementAbi = [
   },
   {
     type: "error",
+    name: "NothingToSettle",
+    inputs: [
+      {
+        name: "invoiceId",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
+  },
+  {
+    type: "error",
+    name: "NothingToWithdraw",
+    inputs: [
+      {
+        name: "payer",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+  },
+  {
+    type: "error",
     name: "ReentrancyGuardReentrantCall",
     inputs: [],
   },
@@ -318,6 +415,28 @@ export const maturitySettlementAbi = [
         name: "token",
         type: "address",
         internalType: "address",
+      },
+    ],
+  },
+  {
+    type: "error",
+    name: "SettleNotOpen",
+    inputs: [
+      {
+        name: "invoiceId",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
+  },
+  {
+    type: "error",
+    name: "UnitsOutstanding",
+    inputs: [
+      {
+        name: "invoiceId",
+        type: "bytes32",
+        internalType: "bytes32",
       },
     ],
   },

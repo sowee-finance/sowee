@@ -48,9 +48,19 @@ contract InvoiceMarketTest is Test {
         view
         returns (DiscountOracle.Quote memory q, bytes memory sig)
     {
+        return signedQuoteFor(invoiceId, nonce, issuer, uint64(block.timestamp + 30 days));
+    }
+
+    function signedQuoteFor(bytes32 invoiceId, uint64 nonce, address issuer_, uint64 maturity)
+        internal
+        view
+        returns (DiscountOracle.Quote memory q, bytes memory sig)
+    {
         q = DiscountOracle.Quote({
             invoiceId: invoiceId,
+            issuer: issuer_,
             faceValue: FACE,
+            maturity: maturity,
             discountRateBps: RATE,
             validUntil: uint64(block.timestamp + 15 minutes),
             nonce: nonce
@@ -62,9 +72,7 @@ contract InvoiceMarketTest is Test {
     function list() internal returns (BondToken bond) {
         (DiscountOracle.Quote memory q, bytes memory sig) = signedQuote(INV, 1);
         vm.prank(issuer);
-        bond = market.listInvoice(
-            "Sowee Bond INV-1", "sINV1", uint64(block.timestamp + 30 days), q, sig
-        );
+        bond = market.listInvoice("Sowee Bond INV-1", "sINV1", q, sig);
     }
 
     function grant(address who) internal {
@@ -93,7 +101,7 @@ contract InvoiceMarketTest is Test {
         (DiscountOracle.Quote memory q, bytes memory sig) = signedQuote(keccak256("INV-2"), 1);
         vm.prank(issuer);
         vm.expectRevert(abi.encodeWithSelector(DiscountOracle.NonceUsed.selector, 1));
-        market.listInvoice("x", "x", uint64(block.timestamp + 30 days), q, sig);
+        market.listInvoice("x", "x", q, sig);
     }
 
     function test_listInvoice_expiredQuoteReverts() public {
@@ -101,7 +109,7 @@ contract InvoiceMarketTest is Test {
         vm.warp(q.validUntil + 1);
         vm.prank(issuer);
         vm.expectRevert(abi.encodeWithSelector(DiscountOracle.QuoteExpired.selector, q.validUntil));
-        market.listInvoice("x", "x", uint64(block.timestamp + 30 days), q, sig);
+        market.listInvoice("x", "x", q, sig);
     }
 
     function test_listInvoice_duplicateInvoiceReverts() public {
@@ -109,7 +117,34 @@ contract InvoiceMarketTest is Test {
         (DiscountOracle.Quote memory q, bytes memory sig) = signedQuote(INV, 2);
         vm.prank(issuer);
         vm.expectRevert(abi.encodeWithSelector(InvoiceMarket.AlreadyListed.selector, INV));
-        market.listInvoice("x", "x", uint64(block.timestamp + 30 days), q, sig);
+        market.listInvoice("x", "x", q, sig);
+    }
+
+    function test_listInvoice_onlyQuotedIssuer() public {
+        (DiscountOracle.Quote memory q, bytes memory sig) = signedQuote(INV, 1);
+        vm.prank(alice); // holds a quote made out to `issuer`
+        vm.expectRevert(
+            abi.encodeWithSelector(InvoiceMarket.NotQuotedIssuer.selector, issuer, alice)
+        );
+        market.listInvoice("x", "x", q, sig);
+    }
+
+    function test_listInvoice_maturityComesFromTheQuote() public {
+        uint64 quoted = uint64(block.timestamp + 45 days);
+        (DiscountOracle.Quote memory q, bytes memory sig) = signedQuoteFor(INV, 1, issuer, quoted);
+        vm.prank(issuer);
+        BondToken bond = market.listInvoice("x", "x", q, sig);
+        assertEq(bond.maturity(), quoted);
+        assertEq(market.listing(INV).maturity, quoted);
+    }
+
+    function test_listInvoice_tamperedMaturityReverts() public {
+        (DiscountOracle.Quote memory q, bytes memory sig) =
+            signedQuoteFor(INV, 1, issuer, uint64(block.timestamp + 1 days));
+        q.maturity = uint64(block.timestamp + 5 * 365 days); // 1-day price on a 5-year note
+        vm.prank(issuer);
+        vm.expectRevert(); // BadSigner: the signature no longer matches
+        market.listInvoice("x", "x", q, sig);
     }
 
     // ---- primary ----------------------------------------------------------------------------
@@ -250,6 +285,33 @@ contract InvoiceMarketTest is Test {
         market.buyPrimary(INV, 100e6);
         vm.stopPrank();
         assertEq(usdc.balanceOf(treasury), 1000e6 - 97e6); // cost only, no fee to itself
+    }
+
+    function test_revokeBondRole_passthrough() public {
+        BondToken bond = list();
+        bytes32 role = bond.COMPLIANCE_ROLE();
+        vm.prank(owner);
+        market.revokeBondRole(INV, role, compliance);
+        assertFalse(bond.hasRole(role, compliance));
+        vm.prank(compliance);
+        vm.expectRevert();
+        bond.setEligible(alice, true);
+    }
+
+    function test_setSettlement_grantsExistingBonds() public {
+        BondToken bond = list();
+        address settlement = makeAddr("settlement");
+        vm.prank(owner);
+        market.setSettlement(settlement);
+        assertTrue(bond.hasRole(bond.ISSUER_ROLE(), settlement));
+    }
+
+    function test_setFee_requiresTreasuryWhenNonZero() public {
+        vm.prank(owner);
+        vm.expectRevert(InvoiceMarket.TreasuryRequired.selector);
+        market.setFee(50, address(0));
+        vm.prank(owner);
+        market.setFee(0, address(0)); // fee off needs no treasury
     }
 
     function test_setFee_capped() public {

@@ -242,11 +242,6 @@ export const invoiceMarketAbi = [
         internalType: "string",
       },
       {
-        name: "maturity",
-        type: "uint64",
-        internalType: "uint64",
-      },
-      {
         name: "q",
         type: "tuple",
         internalType: "struct DiscountOracle.Quote",
@@ -257,9 +252,19 @@ export const invoiceMarketAbi = [
             internalType: "bytes32",
           },
           {
+            name: "issuer",
+            type: "address",
+            internalType: "address",
+          },
+          {
             name: "faceValue",
             type: "uint256",
             internalType: "uint256",
+          },
+          {
+            name: "maturity",
+            type: "uint64",
+            internalType: "uint64",
           },
           {
             name: "discountRateBps",
@@ -448,6 +453,29 @@ export const invoiceMarketAbi = [
     type: "function",
     name: "renounceOwnership",
     inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "revokeBondRole",
+    inputs: [
+      {
+        name: "invoiceId",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      {
+        name: "role",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      {
+        name: "account",
+        type: "address",
+        internalType: "address",
+      },
+    ],
     outputs: [],
     stateMutability: "nonpayable",
   },
@@ -840,6 +868,22 @@ export const invoiceMarketAbi = [
   },
   {
     type: "error",
+    name: "NotQuotedIssuer",
+    inputs: [
+      {
+        name: "quoted",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "caller",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+  },
+  {
+    type: "error",
     name: "OwnableInvalidOwner",
     inputs: [
       {
@@ -875,6 +919,11 @@ export const invoiceMarketAbi = [
         internalType: "address",
       },
     ],
+  },
+  {
+    type: "error",
+    name: "TreasuryRequired",
+    inputs: [],
   },
   {
     type: "error",

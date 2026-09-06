@@ -16,10 +16,14 @@ import (
 // Validity is how long a signed quote stays acceptable to the oracle.
 const Validity = 15 * time.Minute
 
-// Quote mirrors DiscountOracle.Quote field for field.
+// Quote mirrors DiscountOracle.Quote field for field. Issuer and maturity are part of the
+// signed message so a quote can only open the listing it was priced for, by the wallet it was
+// issued to.
 type Quote struct {
 	InvoiceID       common.Hash
+	Issuer          common.Address
 	FaceValue       *big.Int
+	Maturity        uint64
 	DiscountRateBps uint16
 	ValidUntil      uint64
 	Nonce           uint64
@@ -35,7 +39,9 @@ var eip712Types = apitypes.Types{
 	},
 	"Quote": {
 		{Name: "invoiceId", Type: "bytes32"},
+		{Name: "issuer", Type: "address"},
 		{Name: "faceValue", Type: "uint256"},
+		{Name: "maturity", Type: "uint64"},
 		{Name: "discountRateBps", Type: "uint16"},
 		{Name: "validUntil", Type: "uint64"},
 		{Name: "nonce", Type: "uint64"},
@@ -55,7 +61,9 @@ func Digest(chainID int64, oracle common.Address, q Quote) (common.Hash, error) 
 		},
 		Message: apitypes.TypedDataMessage{
 			"invoiceId":       q.InvoiceID[:],
+			"issuer":          q.Issuer.Hex(),
 			"faceValue":       q.FaceValue,
+			"maturity":        new(big.Int).SetUint64(q.Maturity),
 			"discountRateBps": new(big.Int).SetUint64(uint64(q.DiscountRateBps)),
 			"validUntil":      new(big.Int).SetUint64(q.ValidUntil),
 			"nonce":           new(big.Int).SetUint64(q.Nonce),
