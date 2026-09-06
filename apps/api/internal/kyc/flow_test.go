@@ -52,6 +52,11 @@ type fakeGrantor struct {
 	next  []string // txs returned by the next call; defaults to two
 }
 
+func (g *fakeGrantor) Revoke(_ context.Context, w string) ([]string, error) {
+	g.calls = append(g.calls, "revoke:"+w)
+	return []string{"0xrevoke"}, nil
+}
+
 func (g *fakeGrantor) Grant(_ context.Context, w string) ([]string, error) {
 	g.calls = append(g.calls, w)
 	if g.err != nil {
@@ -225,5 +230,36 @@ func TestDisabled(t *testing.T) {
 	st, err := f.Status(context.Background(), wallet)
 	if !errors.Is(err, ErrDisabled) || st.State != StateNone {
 		t.Fatal("status should report disabled")
+	}
+}
+
+func TestBlockedAfterGrantIsRevokedAndDeclarationsAreImmutableAfterReview(t *testing.T) {
+	s := newFakeSumsub()
+	g := &fakeGrantor{}
+	f := NewFlow(s, g)
+	ctx := context.Background()
+	_ = f.SubmitProfile(ctx, wallet, FixedInfo{}, good())
+	app := s.apps["0xabcdef0000000000000000000000000000000001"]
+	app.Review = Review{Status: "completed", Answer: "GREEN"}
+	_, _ = f.Status(ctx, wallet)
+	f.Wait()
+
+	if err := f.SubmitProfile(ctx, wallet, FixedInfo{}, good()); !errors.Is(err, ErrReviewed) {
+		t.Fatalf("want ErrReviewed, got %v", err)
+	}
+	app.Answers["jurisdiction.sanctioned"] = "true"
+	st, _ := f.Status(ctx, wallet)
+	f.Wait()
+	if st.State != StateBlocked || len(g.calls) != 2 || g.calls[1] != "revoke:0xabcdef0000000000000000000000000000000001" {
+		t.Fatalf("revoke: %+v calls=%v", st, g.calls)
+	}
+}
+
+func TestWalletNormalisation(t *testing.T) {
+	a := norm("0xABCDEF0000000000000000000000000000000001")
+	b := norm("abcdef0000000000000000000000000000000001")
+	c := norm("0xabcdef0000000000000000000000000000000001")
+	if a != b || b != c || a != "0xabcdef0000000000000000000000000000000001" {
+		t.Fatalf("normalisation differs: %s %s %s", a, b, c)
 	}
 }

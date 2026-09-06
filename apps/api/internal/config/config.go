@@ -45,6 +45,7 @@ type Config struct {
 	USDCAddress    string        // USDC_ADDRESS (EVM), default Hedera testnet USDC 0x…68cDa; used by the faucet
 	FaucetAmount   uint64        // FAUCET_USDC_AMOUNT in base units, default 1000000 (1 USDC); 0 disables
 	FaucetCooldown time.Duration // FAUCET_COOLDOWN, default 24h
+	TrustedProxy   bool          // TRUSTED_PROXY=true when a proxy in front sets X-Forwarded-For
 	RateBase       int           // RATE_BASE_PER_MIN, default 30 (per client IP)
 	RateVerified   int           // RATE_VERIFIED_PER_MIN, default 300 (per Selfie-verified wallet)
 }
@@ -88,6 +89,7 @@ func FromEnv() Config {
 		USDCAddress:    env("USDC_ADDRESS", "0x0000000000000000000000000000000000068cDa"),
 		FaucetAmount:   uint64(envInt("FAUCET_USDC_AMOUNT", 1_000_000)),
 		FaucetCooldown: envDuration("FAUCET_COOLDOWN", 24*time.Hour),
+		TrustedProxy:   os.Getenv("TRUSTED_PROXY") == "true",
 		RateBase:       int(envInt("RATE_BASE_PER_MIN", 30)),
 		RateVerified:   int(envInt("RATE_VERIFIED_PER_MIN", 300)),
 	}

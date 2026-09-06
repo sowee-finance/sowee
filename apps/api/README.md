@@ -126,7 +126,7 @@ node replay), so a restart cannot forget a pledge. Message shapes:
 |---|---|
 | `HEDERA_OPERATOR_ID` / `HEDERA_OPERATOR_KEY` | account that pays for topic messages (ECDSA hex key) |
 | `HCS_TOPIC_ID` | topic to write to; created and logged when empty |
-| `MIRROR_URL` | mirror node used to replay the topic at startup |
+| `MIRROR_URL` | mirror node used to replay the topic at startup; only messages paid for by the operator are replayed, so a stranger posting to the public topic cannot poison the double-pledge index |
 
 ## Paid market insights (x402)
 
@@ -194,7 +194,9 @@ On a `GREEN` review with the `sowee-investor-suitability` questionnaire complete
 | review not `GREEN` | **pending** (`RED` + `FINAL` → blocked) |
 | otherwise | **eligible** → granted on-chain |
 
-Blocked and held wallets are never granted. The grant runs in the background once per wallet
+Blocked and held wallets are never granted. Declarations are immutable once a review has
+completed (`409` on resubmission), and a granted wallet that later evaluates to *blocked* is
+revoked on-chain in the background. The grant runs in the background once per wallet
 (`granting` → `granted`), skips bonds that already have it, and retries on the next status read
 if a transaction failed (a wallet that becomes eligible before a bond exists is granted on the
 next check after listing).
@@ -233,7 +235,8 @@ policy pass above.
 | `POST /v1/world/verify` | signed | `{…, result: <IDKit success payload>}` → forwarded as-is to `POST https://developer.world.org/api/v4/verify/{rp_id}`; on success the nullifier is stored (one proof per person) and `selfieCheck=true` for the wallet; `409` on a reused proof, `400` when the portal rejects it |
 | `POST /v1/faucet` | signed | drips `FAUCET_USDC_AMOUNT` from the treasury to the wallet; `403` without the Selfie Check signal, `429` inside the cooldown, `502` if the wallet is not associated with USDC |
 
-Rate limits on `/v1/kyc/*`, `/v1/world/*` and `/v1/faucet`: `RATE_BASE_PER_MIN` per client IP, or
+Rate limits on `/v1/invoices/*/quote`, `/v1/invoices/*/attest`, `/v1/kyc/*`, `/v1/world/*` and `/v1/faucet`: `RATE_BASE_PER_MIN` per client IP, or
 `RATE_VERIFIED_PER_MIN` per wallet once it carries the signal (send `X-Wallet` or `?wallet=`).
 The Selfie Check step in the web wizard is skipped until `WORLD_*` is configured; the routes
-answer `503` meanwhile.
+answer `503` meanwhile. `X-Forwarded-For` is ignored unless `TRUSTED_PROXY=true`; the granter
+and the faucet serialise transactions per key so they never race on the account nonce.

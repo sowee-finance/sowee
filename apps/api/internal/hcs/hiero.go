@@ -28,9 +28,13 @@ func NewClient(operatorID, operatorKeyHex string) (*hiero.Client, error) {
 	return client, nil
 }
 
-// CreateTopic makes a new public topic and returns its id.
+// CreateTopic makes a new topic that only the operator may write to (submit key) and returns
+// its id. Reads stay public.
 func CreateTopic(client *hiero.Client, memo string) (string, error) {
-	resp, err := hiero.NewTopicCreateTransaction().SetTopicMemo(memo).Execute(client)
+	resp, err := hiero.NewTopicCreateTransaction().
+		SetTopicMemo(memo).
+		SetSubmitKey(client.GetOperatorPublicKey()).
+		Execute(client)
 	if err != nil {
 		return "", fmt.Errorf("topic create: %w", err)
 	}

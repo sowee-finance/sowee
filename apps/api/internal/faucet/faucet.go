@@ -18,6 +18,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
+	"github.com/sowee-finance/sowee/apps/api/internal/txlock"
 )
 
 const erc20ABI = `[{"type":"function","name":"transfer","stateMutability":"nonpayable","inputs":[{"type":"address"},{"type":"uint256"}],"outputs":[{"type":"bool"}]}]`
@@ -87,6 +89,7 @@ func (f *Faucet) send(ctx context.Context, to common.Address) (string, error) {
 		return "", err
 	}
 	from := crypto.PubkeyToAddress(f.key.PublicKey)
+	defer txlock.Lock(from.Hex())()
 	gas, err := f.client.EstimateGas(ctx, ethereum.CallMsg{From: from, To: &f.usdc, Data: data})
 	if err != nil {
 		return "", fmt.Errorf("faucet: %w (is the wallet associated with USDC?)", err)

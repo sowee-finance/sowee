@@ -118,7 +118,7 @@ func newAnchor(cfg config.Config) *hcs.Anchor {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	msgs, err := hcs.FetchTopicMessages(ctx, cfg.MirrorURL, topic)
+	msgs, err := hcs.FetchTopicMessages(ctx, cfg.MirrorURL, topic, cfg.HederaOperatorID)
 	if err != nil {
 		log.Printf("hcs: could not replay topic %s from the mirror node: %v", topic, err)
 	}
