@@ -17,11 +17,20 @@ export function Footer() {
             />
             <span className="font-medium text-sm">Sowee © 2026</span>
           </div>
-          <Link href="/terms" className="text-sm text-soft hover:text-ink">
+          <Link href="/legal" className="text-sm text-soft hover:text-ink">
+            Legal
+          </Link>
+          <Link href="/legal/disclaimers" className="text-sm text-soft hover:text-ink">
+            Disclaimers
+          </Link>
+          <Link href="/legal/terms-of-service" className="text-sm text-soft hover:text-ink">
             Terms of Service
           </Link>
-          <Link href="/privacy" className="text-sm text-soft hover:text-ink">
+          <Link href="/legal/privacy-policy" className="text-sm text-soft hover:text-ink">
             Privacy Policy
+          </Link>
+          <Link href="/legal/cookies-policy" className="text-sm text-soft hover:text-ink">
+            Cookies
           </Link>
           <a
             href="https://github.com/sowee-finance/sowee"
