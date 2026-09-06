@@ -8,7 +8,9 @@ import { bondTokenAbi } from "@/lib/abi/bondToken"
 import { invoiceMarketAbi } from "@/lib/abi/invoiceMarket"
 import { activeChain } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
+import { describeError } from "@/lib/errors"
 import { type Bond, isMatured, usdc } from "@/lib/market"
+import { KycNotice } from "./asks"
 
 const BPS = 10_000n
 const ceilDiv = (a: bigint, b: bigint) => (a + b - 1n) / b
@@ -116,9 +118,8 @@ function Connected({
   const total = (cost.data ?? 0n) + fee
   const available = bond.faceValue - bond.supply
 
-  const blocker = (() => {
-    if (eligible.data === false)
-      return "This wallet is not on the bond's allowlist. KYC onboarding arrives in #14."
+  const blocker = ((): React.ReactNode => {
+    if (eligible.data === false) return <KycNotice />
     if (isMatured(bond.maturity)) return "Funding closed: the invoice has matured."
     if (available === 0n) return "Fully funded."
     if (units === undefined) return "Enter an amount in USDC of face value."
@@ -195,7 +196,7 @@ function Connected({
             : `Buy ${units ? formatUnits(units, 6) : ""} units`}
       </button>
       {blocker && <p className="text-xs text-amber-700 dark:text-amber-400">{blocker}</p>}
-      {error && <p className="break-words text-red-600 text-xs">{error.message.split("\n")[0]}</p>}
+      {error && <p className="break-words text-red-600 text-xs">{describeError(error)}</p>}
       {receipt.isSuccess && <p className="text-emerald-600 text-xs">Transaction confirmed.</p>}
     </form>
   )

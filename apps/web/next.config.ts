@@ -1,6 +1,8 @@
 import type { NextConfig } from "next"
 
 const dev = process.env.NODE_ENV === "development"
+// The Go API (quotes, attestations). Read at build time; the client bundle inlines the same value.
+const api = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").origin
 
 // Reads go from the browser straight to the RPC, so the relay and mirror node must be
 // reachable; anvil only in dev. Next's own inline bootstrap scripts need 'unsafe-inline'
@@ -11,7 +13,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  `connect-src 'self' https://testnet.hashio.io https://testnet.mirrornode.hedera.com${
+  `connect-src 'self' ${api} https://testnet.hashio.io https://testnet.mirrornode.hedera.com${
     dev ? " http://127.0.0.1:8545 http://localhost:8545 ws://localhost:* ws://127.0.0.1:*" : ""
   }`,
   "frame-ancestors 'none'",

@@ -8,6 +8,7 @@ import { activeChain, explorerUrl, shortAddress } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
 import { type Bond, bpsToPct, fundedPct, maturityDate, usdc } from "@/lib/market"
 import { useBond } from "@/lib/use-bonds"
+import { KycNotice, SecondaryMarket } from "./asks"
 import { BuyForm } from "./buy-form"
 import { NotDeployed } from "./not-deployed"
 
@@ -29,28 +30,31 @@ function Loaded({ deployment, invoiceId }: { deployment: Deployment; invoiceId: 
   }
   const explorer = explorerUrl(bond.bond)
   return (
-    <div className="grid gap-8 md:grid-cols-[1fr_20rem]">
-      <section>
-        <Link href="/" className="text-xs text-zinc-500 hover:underline">
-          ← Marketplace
-        </Link>
-        <h1 className="mt-2 font-semibold text-2xl">{bond.name}</h1>
-        <p className="font-mono text-sm text-zinc-500">{bond.symbol}</p>
-        <dl className="mt-6 grid grid-cols-[10rem_1fr] gap-y-2 text-sm">
-          <Row k="Discount" v={bpsToPct(bond.discountRateBps)} />
-          <Row k="Face value" v={usdc(bond.faceValue)} />
-          <Row k="Funded" v={`${usdc(bond.supply)} (${fundedPct(bond)}%)`} />
-          <Row k="Maturity" v={maturityDate(bond.maturity)} />
-          <Row k="Issuer" v={<Mono text={bond.issuer} />} />
-          <Row k="Bond token" v={<Mono text={bond.bond} href={explorer} />} />
-          <Row k="Invoice id" v={<Mono text={bond.invoiceId} />} />
-        </dl>
-      </section>
-      <aside className="flex flex-col gap-4">
-        <Holdings bond={bond} />
-        <BuyForm bond={bond} deployment={deployment} />
-      </aside>
-    </div>
+    <>
+      <div className="grid gap-8 md:grid-cols-[1fr_20rem]">
+        <section>
+          <Link href="/" className="text-xs text-zinc-500 hover:underline">
+            ← Marketplace
+          </Link>
+          <h1 className="mt-2 font-semibold text-2xl">{bond.name}</h1>
+          <p className="font-mono text-sm text-zinc-500">{bond.symbol}</p>
+          <dl className="mt-6 grid grid-cols-[10rem_1fr] gap-y-2 text-sm">
+            <Row k="Discount" v={bpsToPct(bond.discountRateBps)} />
+            <Row k="Face value" v={usdc(bond.faceValue)} />
+            <Row k="Funded" v={`${usdc(bond.supply)} (${fundedPct(bond)}%)`} />
+            <Row k="Maturity" v={maturityDate(bond.maturity)} />
+            <Row k="Issuer" v={<Mono text={bond.issuer} />} />
+            <Row k="Bond token" v={<Mono text={bond.bond} href={explorer} />} />
+            <Row k="Invoice id" v={<Mono text={bond.invoiceId} />} />
+          </dl>
+        </section>
+        <aside className="flex flex-col gap-4">
+          <Holdings bond={bond} />
+          <BuyForm bond={bond} deployment={deployment} />
+        </aside>
+      </div>
+      <SecondaryMarket bond={bond} deployment={deployment} />
+    </>
   )
 }
 
@@ -85,7 +89,7 @@ function Holdings({ bond }: { bond: Bond }) {
           <Row k="Balance" v={balance.data === undefined ? "…" : usdc(balance.data)} />
           <Row
             k="Eligible"
-            v={eligible.data === undefined ? "…" : eligible.data ? "yes" : "no (KYC required)"}
+            v={eligible.data === undefined ? "…" : eligible.data ? "yes" : <KycNotice />}
           />
         </dl>
       )}
