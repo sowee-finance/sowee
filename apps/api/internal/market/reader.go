@@ -93,14 +93,8 @@ func (r *Reader) Snapshot(ctx context.Context) ([]Bond, error) {
 		if err := r.call(ctx, r.market, r.marketABI, "invoiceIds", &id, big.NewInt(i)); err != nil {
 			return nil, err
 		}
-		var l struct {
-			Bond            common.Address
-			Issuer          common.Address
-			FaceValue       *big.Int
-			DiscountRateBps uint16
-			Maturity        uint64
-		}
-		if err := r.call(ctx, r.market, r.marketABI, "listing", &l, id); err != nil {
+		l, err := r.listing(ctx, id)
+		if err != nil {
 			return nil, err
 		}
 		var supply *big.Int
@@ -124,6 +118,35 @@ func (r *Reader) Snapshot(ctx context.Context) ([]Bond, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ImpliedAprBps > out[j].ImpliedAprBps })
 	return out, nil
+}
+
+// Listing mirrors InvoiceMarket.Listing.
+type Listing struct {
+	Bond            common.Address
+	Issuer          common.Address
+	FaceValue       *big.Int
+	DiscountRateBps uint16
+	Maturity        uint64
+}
+
+// listing reads one listing. The tuple is unpacked through a one-field wrapper because
+// go-ethereum copies a single return value into the *first field* of a struct destination:
+// unpacking straight into a Listing would try to write the whole tuple into `Bond` and panic.
+func (r *Reader) listing(ctx context.Context, id [32]byte) (Listing, error) {
+	var out struct{ Listing Listing }
+	if err := r.call(ctx, r.market, r.marketABI, "listing", &out, id); err != nil {
+		return Listing{}, err
+	}
+	return out.Listing, nil
+}
+
+// unpackListing is the decoding half of listing, isolated so it can be tested without a node.
+func unpackListing(a abi.ABI, res []byte) (Listing, error) {
+	var out struct{ Listing Listing }
+	if err := a.UnpackIntoInterface(&out, "listing", res); err != nil {
+		return Listing{}, err
+	}
+	return out.Listing, nil
 }
 
 // Yield annualises a discount over the remaining tenor: apr = rate × 365 / days (simple).

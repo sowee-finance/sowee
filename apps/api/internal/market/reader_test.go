@@ -2,7 +2,12 @@ package market
 
 import (
 	"context"
+	"math/big"
+	"strings"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestYield(t *testing.T) {
@@ -33,5 +38,34 @@ func TestNilReaderIsUndeployed(t *testing.T) {
 	}
 	if _, err := New("http://127.0.0.1:1", "not-an-address"); err == nil {
 		t.Fatal("bad address must error")
+	}
+}
+
+func TestUnpackListingDecodesTheWholeTuple(t *testing.T) {
+	// Regression: unpacking straight into a struct made go-ethereum write the tuple into the
+	// first field and panic ("reflect.Value.Len on struct Value"), which took down /market/insights
+	// the moment a bond was listed.
+	a, err := abi.JSON(strings.NewReader(marketABI))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Listing{
+		Bond:            common.HexToAddress("0xcfDeA74C43784D10364Befa3a2a3aDD472306600"),
+		Issuer:          common.HexToAddress("0x17CaD6366c73955bBb05194882D5B906B5D1c116"),
+		FaceValue:       big.NewInt(100_000_000),
+		DiscountRateBps: 225,
+		Maturity:        1_791_000_000,
+	}
+	enc, err := a.Methods["listing"].Outputs.Pack(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := unpackListing(a, enc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Bond != want.Bond || got.Issuer != want.Issuer || got.DiscountRateBps != want.DiscountRateBps ||
+		got.Maturity != want.Maturity || got.FaceValue.Cmp(want.FaceValue) != 0 {
+		t.Fatalf("listing round-trip: got %+v, want %+v", got, want)
 	}
 }
