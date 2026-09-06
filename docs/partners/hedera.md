@@ -48,7 +48,7 @@ From the scheme spec in `x402-foundation/x402` (`specs/schemes/exact/scheme_exac
 | x402 paid request | agent `0.0.10215221` paid 0.01 USDC for `GET /v1/market/insights`, settled by Blocky402: https://hashscan.io/testnet/transaction/0.0.7162784-1788673291-830215578 — receipt anchored on the HCS topic (message 2) |
 | x402 challenge | `GET /v1/market/insights` answers `402` with `accepts[0] = {exact, hedera:testnet, 10000 (0.01 USDC), asset 0.0.429274, payTo 0.0.7162116, feePayer 0.0.7162784}` — fee payer resolved live from the facilitator's `/supported` |
 
-Lifecycle transactions (list, fund, secondary fill, settle) are added as they land.
+| Lifecycle (list → KYC grant → fund → ask → fill → repay → settle → claim) | ten transactions listed in [`contracts/README.md`](../../contracts/README.md#live-lifecycle-testnet-transactions) |
 
 ### Agent identity and metering
 
@@ -64,4 +64,12 @@ account id, so usage is publicly auditable.
 - **Precompiles in local simulation.** Foundry's on-chain simulation cannot execute `0x167`
   (the relay reports `0xfe` bytecode there). A deploy that associates a token in a constructor
   needs `--skip-simulation`. A documented mock or a relay hint would save an afternoon.
-- More as we go.
+- **Self-transfers.** HTS rejects a token transfer whose sender equals the receiver
+  (`ACCOUNT_REPEATED_IN_ACCOUNT_AMOUNTS`), which plain ERC-20s allow. A contract that routes a
+  fee to a treasury breaks the moment the treasury itself trades. Worth a line in the "EVM
+  differences" docs.
+- **Read-after-write.** An `eth_call` issued right after a mined transaction can still see the
+  previous state for a second or two on the relay; polling is needed before trusting a read.
+- **Balance check on send.** The relay rejects a transaction unless `gasLimit × gasPrice` is on
+  the account up front, even though only ~80% of the limit is billed — a wallet with 2 ℏ cannot
+  send a 1.2M-gas transaction that actually uses 130k. `eth_estimateGas` first, then a modest pad.

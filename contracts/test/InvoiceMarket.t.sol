@@ -241,6 +241,17 @@ contract InvoiceMarketTest is Test {
         assertTrue(bond.hasRole(role, settlement));
     }
 
+    function test_treasuryPaysNoFee() public {
+        list();
+        grant(treasury);
+        usdc.mint(treasury, 1000e6);
+        vm.startPrank(treasury);
+        usdc.approve(address(market), type(uint256).max);
+        market.buyPrimary(INV, 100e6);
+        vm.stopPrank();
+        assertEq(usdc.balanceOf(treasury), 1000e6 - 97e6); // cost only, no fee to itself
+    }
+
     function test_setFee_capped() public {
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSelector(InvoiceMarket.FeeTooHigh.selector, 501));
