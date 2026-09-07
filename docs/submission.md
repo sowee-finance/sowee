@@ -102,6 +102,8 @@ Three partners, several tracks inside them (multiple tracks from one partner cou
 
 ## Links
 
+- Live app: https://app.sowee.site
+- Live API: https://api.sowee.site/v1/healthz
 - Repo: https://github.com/sowee-finance/sowee
 - Video: (add)
-- Live links: README table.
+- Contracts, transactions and the HCS topic: README table.
