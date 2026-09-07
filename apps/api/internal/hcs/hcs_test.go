@@ -141,3 +141,18 @@ func TestSelfieChecksSurviveAReplay(t *testing.T) {
 		t.Fatalf("replay: %+v", got)
 	}
 }
+
+// An attestation with no document pledges nothing, so two of them under different invoices must
+// not collide on the empty hash.
+func TestAttestWithoutADocumentBindsNothing(t *testing.T) {
+	a, _ := newAnchor(t)
+	if _, err := a.Attest(context.Background(), "INV-1", "", "logo", "data:image/webp;base64,x"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.Attest(context.Background(), "INV-2", "", "logo", "data:image/webp;base64,y"); err != nil {
+		t.Fatalf("a second logo-only attestation should not collide: %v", err)
+	}
+	if owner, ok := a.Known(""); ok {
+		t.Fatalf("the empty hash was bound to %q", owner)
+	}
+}

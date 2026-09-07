@@ -118,7 +118,9 @@ owns the hash. The index behind that check is rebuilt from the topic on every st
 node replay), so a restart cannot forget a pledge.
 
 An attestation may carry `logo`: a `data:` URI holding the issuer's mark, downscaled to a small square by
-the browser before it is sent. Only `webp`, `png` and `jpeg` are accepted, at most 12 KB — an SVG
+the browser before it is sent. `docHash` is optional when a logo is present — a mark is not a
+document, so attaching or replacing one pledges nothing and binds nothing. An attestation with
+neither is refused. Only `webp`, `png` and `jpeg` are accepted, at most 12 KB — an SVG
 would carry script into every visitor's browser. The mark then lives with the record instead of
 behind a link that can rot, and the web app reads it back off the topic.
 

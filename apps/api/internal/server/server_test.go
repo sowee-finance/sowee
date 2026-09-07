@@ -193,6 +193,27 @@ func TestAttestAcceptsALogoOfTheSizeABrowserSends(t *testing.T) {
 	}
 }
 
+// A mark is not a document: a bond listed before the logo existed has no document attestation to
+// re-anchor, and inventing a hash for it would put a claim on the trail that no file backs.
+func TestAttestTakesALogoWithoutADocument(t *testing.T) {
+	h, _ := newTestServerWith(t, hcs.New("0.0.1", nil))
+
+	// 503 is the disabled anchor: the request was accepted and reached it.
+	rec := do(h, http.MethodPost, "/v1/invoices/INV-1/attest",
+		`{"logo":"data:image/webp;base64,UklGRg=="}`)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("logo without a docHash: want 503, got %d %s", rec.Code, rec.Body)
+	}
+	// Neither is nothing to anchor.
+	if rec := do(h, http.MethodPost, "/v1/invoices/INV-1/attest", `{}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("empty attestation: want 400, got %d %s", rec.Code, rec.Body)
+	}
+	// A malformed hash is still a malformed hash.
+	if rec := do(h, http.MethodPost, "/v1/invoices/INV-1/attest", `{"docHash":"0xnope"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad docHash: want 400, got %d %s", rec.Code, rec.Body)
+	}
+}
+
 func TestAttestChecksTheLogoItWillRender(t *testing.T) {
 	h, _ := newTestServerWith(t, hcs.New("0.0.1", nil))
 	body := `{"docHash":"0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08","logo":%s}`
