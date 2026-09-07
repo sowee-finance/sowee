@@ -10,7 +10,7 @@ import { useBonds } from "@/lib/use-bonds"
 import { bondNames } from "./bond-card"
 import { NotDeployed } from "./not-deployed"
 import { ErrorState } from "./states"
-import { Card, CompanyAvatar, Empty, Progress, StatTile, StatusBadge, UsdcIcon } from "./ui"
+import { Card, Empty, Progress, StatTile, StatusBadge, UsdcIcon, WalletAvatar } from "./ui"
 import { ConnectPrompt } from "./wallet-button"
 
 function InvoiceRow({ bond }: { bond: Bond }) {
@@ -63,7 +63,7 @@ export function IssuerDashboard({ deployment }: { deployment?: Deployment }) {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4 py-8">
         <div className="flex items-center gap-3">
-          <CompanyAvatar name={address} className="size-9 text-xs" />
+          <WalletAvatar className="size-9" />
           <div>
             <h1 className="font-medium text-xl tracking-tight">{shortAddress(address)}</h1>
             <p className="text-soft text-xs">Issuer wallet · {activeChain.name}</p>
