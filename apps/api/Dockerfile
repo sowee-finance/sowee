@@ -3,9 +3,11 @@ FROM golang:1.25-alpine AS build
 WORKDIR /src
 # Dependencies first, so a code change does not re-download the module graph.
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
+# The module and compiler caches are mounts, so they never land in a layer.
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
 
 FROM alpine:3.22
 # The API talks to Hedera, the facilitator and Sumsub over TLS.

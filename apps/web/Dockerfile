@@ -12,7 +12,7 @@ COPY apps/web/package.json apps/web/
 COPY apps/api/package.json apps/api/
 COPY apps/agent/package.json apps/agent/
 COPY apps/ats/package.json apps/ats/
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile
 
 FROM deps AS build
 ARG NEXT_PUBLIC_CHAIN_ID=296

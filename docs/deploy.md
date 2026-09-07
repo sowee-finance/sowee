@@ -41,21 +41,32 @@ Two values matter in production and nowhere else:
 - `TRUSTED_PROXY=true` — only set this when the API really is behind your own proxy, because it
   makes the rate limiter believe `X-Forwarded-For`.
 
-## Building on a small or shared host
+## Do not build on the host
 
-The Next build is the memory-hungry step. On a box that is also serving other things, run it in a
-container with a hard cap so an overrun is killed instead of the host:
+Images are built by `.github/workflows/images.yml` and pushed to GHCR:
+
+- `ghcr.io/sowee-finance/sowee-web`
+- `ghcr.io/sowee-finance/sowee-api`
+
+Deploying is a pull:
 
 ```sh
-docker run --rm --memory=3g --memory-swap=3g --cpus=2 \
-  -v "$PWD:/repo" -w /repo \
-  -e NEXT_PUBLIC_CHAIN_ID=296 -e NEXT_PUBLIC_API_URL=https://api.sowee.site \
-  oven/bun:1.3-alpine sh -c "bun install --frozen-lockfile && cd apps/web && bun run build"
+docker pull ghcr.io/sowee-finance/sowee-web:latest
+docker rm -f sowee-web
+docker run -d --name sowee-web --restart unless-stopped \
+  -p 127.0.0.1:3000:3000 ghcr.io/sowee-finance/sowee-web:latest
 ```
 
-Then package the traced output — `.next/standalone`, `.next/static` and `public` — into
-`node:22-alpine`. This is what `apps/web/Dockerfile`'s final stage does; splitting it apart just
-puts the cap around the part that needs one.
+This is not a preference. The host that serves these is a small shared box running thirty other
+sites, and building the Next app on it took the whole machine down twice: a burst of Docker
+build I/O, then the VM gone a few minutes later, and on the way back up the platform's
+auto-deploy started the same builds again. A CI runner has the machine to itself and the host
+only ever runs containers, which it has always done comfortably — twenty-six of them fit in
+2 GB.
+
+If you ever must build on a constrained host, cap it so an overrun is killed instead of the
+machine (`docker run --memory=3g --memory-swap=3g --cpus=2 …`), and turn off the platform's
+auto-deploy first so a reboot does not trigger every build at once.
 
 ## Rollback
 
