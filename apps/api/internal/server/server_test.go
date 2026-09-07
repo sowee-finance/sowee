@@ -237,3 +237,56 @@ func TestAttestChecksTheLogoItWillRender(t *testing.T) {
 		t.Fatalf("valid logo: want 503 from the disabled anchor, got %d %s", rec.Code, rec.Body)
 	}
 }
+
+// The document is what a gateway or an agent reads instead of our Go source, so it has to name
+// the paid resource, its price and how the 402 works — and its server URL has to follow the
+// request, since the API sits behind a proxy in production.
+func TestOpenAPIDescribesThePaidResource(t *testing.T) {
+	signer, err := quote.NewSigner(testKey, 296, testOracle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := New(config.Config{
+		ChainID:     296,
+		X402Amount:  "10000",
+		X402Asset:   "0.0.429274",
+		X402Network: "hedera:testnet",
+	}, Deps{Signer: signer, Anchor: hcs.New("", nil)})
+	rec := do(h, http.MethodGet, "/openapi.json", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d", rec.Code)
+	}
+	var doc struct {
+		OpenAPI string           `json:"openapi"`
+		Servers []map[string]any `json:"servers"`
+		Paths   map[string]struct {
+			Get struct {
+				OperationID string                     `json:"operationId"`
+				Description string                     `json:"description"`
+				Responses   map[string]json.RawMessage `json:"responses"`
+			} `json:"get"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.OpenAPI != "3.1.0" {
+		t.Fatalf("openapi version %q", doc.OpenAPI)
+	}
+	insights, ok := doc.Paths["/v1/market/insights"]
+	if !ok {
+		t.Fatal("the paid resource is not in the document")
+	}
+	if insights.Get.OperationID != "getMarketInsights" {
+		t.Fatalf("operationId %q", insights.Get.OperationID)
+	}
+	if _, ok := insights.Get.Responses["402"]; !ok {
+		t.Fatal("the 402 a caller must handle first is not described")
+	}
+	if !strings.Contains(insights.Get.Description, "USDC per call") {
+		t.Fatalf("the price is not stated: %q", insights.Get.Description)
+	}
+	if len(doc.Servers) != 1 || doc.Servers[0]["url"] == "" {
+		t.Fatalf("servers: %v", doc.Servers)
+	}
+}

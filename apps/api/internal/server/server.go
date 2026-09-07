@@ -51,6 +51,8 @@ func New(cfg config.Config, d Deps) http.Handler {
 	}
 	r.Use(middleware.Logger, middleware.Recoverer, corsFor(cfg.WebOrigins))
 
+	r.Get("/openapi.json", openapiHandler(cfg))
+
 	r.Get("/v1/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"status":   "ok",
