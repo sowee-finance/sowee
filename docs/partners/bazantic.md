@@ -1,8 +1,16 @@
 # Bazantic — making the paid API usable by an agent that has never seen it
 
 Tracks: **Agentify a New API** and **Best Recipe Using EthGlobal Hackathon Sponsor APIs**.
-Status: **API side ready** — the resource is live and describes itself; the Bazantic account,
-Gateway and Recipe are the remaining steps and need a bazantic.com login.
+Status: **live**. The gateway is published in Bazantic's public catalog and reaches our API;
+the Recipe is the remaining step.
+
+| | |
+|---|---|
+| Gateway | <https://sowee.bazgateway.com> |
+| Upstream | `https://api.sowee.site` |
+| Listing | `/services/l7db2olanbac7pjrwyrw2abfyi` |
+| MCP | `claude mcp add --transport http sowee https://sowee.bazgateway.com/mcp` |
+| Account | `ifajar` |
 
 ## What we bring
 
@@ -56,19 +64,36 @@ a shape worth writing down:
 - **What to do next.** Size an order against remaining capacity and the wallet's balance, then
   fund it on `InvoiceMarket`. Our agent does exactly this with `--execute`.
 
-## Remaining steps (need a bazantic.com account)
+## Two rails to one resource
 
-1. Create the account; record the username, which the submission has to carry.
-2. Create the x402 Gateway. The form takes three fields:
+Bazantic charges the agent **0.01 USDC on Base** (`eip155:8453`). Our own gate charges **0.01
+USDC on Hedera testnet**, settled through Blocky402. Both are x402; they are not the same rail,
+and a gateway that has collected on Base cannot then satisfy a Hedera challenge — it would have
+to hold testnet HBAR and USDC and settle on our behalf.
 
-   | Field | Value |
-   |---|---|
-   | API base URL | `https://api.sowee.site` |
-   | Docs URL | `https://github.com/sowee-finance/sowee/blob/main/apps/api/README.md` |
-   | Spec URL | `https://api.sowee.site/openapi.json` |
+So the resource has two doors, and which one an agent uses depends on where its money already
+is:
 
-   The spec answers any origin, so it can be fetched from the browser; if a tool cannot reach it
-   the same document pastes in whole.
-3. Write the Recipe from the section above, and — for the sponsor-APIs track — combine it with
+```
+agent with USDC on Hedera  ──402──▶  api.sowee.site         (Blocky402 settles on Hedera)
+agent with USDC on Base    ──402──▶  sowee.bazgateway.com ──X-SETTLEMENT-KEY──▶ api.sowee.site
+```
+
+The second door is `X402_PARTNER_KEY` (see `apps/api/README.md`). Calls arriving that way are
+metered under `bazantic`, so `GET /v1/market/insights/usage` still answers who consumed what:
+
+```json
+{"payers":[{"payer":"bazantic","calls":1,"spent":"0","last":"2026-09-07T13:55:28Z"}]}
+```
+
+They are not anchored as HCS receipts. Nothing settled on Hedera, and a receipt on that topic
+asserts an on-chain settlement — the trail has to keep meaning what it says.
+
+## Remaining steps
+
+1. ~~Account, gateway, pricing, published listing~~ — done.
+2. Write the Recipe from the section above, and — for the sponsor-APIs track — combine it with
    one service already on Bazantic so a single flow depends meaningfully on both.
-4. Screen recording of an agent completing the task through the Recipe.
+3. Screen recording of an agent completing the task through the Recipe. The MCP server Bazantic
+   generates from our spec is the shortest path: add it to a client, ask for the best available
+   yield, and the answer comes from our API through their payment rail.
