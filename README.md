@@ -179,8 +179,10 @@ Tests: `forge test` in `contracts/`, `go test ./...` in `apps/api`, `bun test` i
 
 The Sumsub **sandbox** never checks real documents. Open the wizard (`/kyc`), sign the
 challenge, fill the profile and declarations, then in the identity step upload any of Sumsub's
-[sandbox test documents](https://docs.sumsub.com/docs/sandbox-testing) — a sample passport
-image plus the liveness selfie in your browser. The review comes back in a minute; the wizard
+[document templates](https://docs.sumsub.com/docs/verification-document-templates) — a sample
+passport image plus the liveness selfie in your browser. Upload the template exactly as
+downloaded; re-saving or screenshotting it makes Sumsub treat it as an ordinary document and the
+expected result will not come back. The review comes back in a minute; the wizard
 polls `GET /v1/kyc/status` and shows `held`, `blocked` (answer "US person: yes" to see Reg S
 in action) or `granted` with the on-chain transactions. Without a webcam, a sandbox review can
 be simulated with Sumsub's `status/testCompleted` endpoint — that is how the live grant in the
