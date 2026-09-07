@@ -13,37 +13,25 @@ Consensus Service and market data that agents pay for, and act on, over x402.
 
 ## Description
 
-Small businesses wait 30–90 days to get paid. Sowee lets an issuer turn that invoice into a
-bond investors can fund today at a discount, and it does so *compliantly*: every transfer of
-bond units is checked against a KYC allowlist inside the token, so nobody who has not passed
-identity, liveness and a suitability policy (US persons excluded under Regulation S, sanctioned
-jurisdictions blocked, PEPs held) can ever hold a unit — not through the primary sale, not
-through the secondary market. Only the decision goes on-chain; no personal data, no hashes.
+A small business finishes a job, sends the invoice, and then waits 30 to 90 days to actually see the money. The work is done and the customer is good for it — the cash just isn't there yet. That gap is what kills small companies.
 
-The lifecycle is live on Hedera testnet with real transactions: the API signs an EIP-712
-discount quote that the oracle verifies and burns on-chain; `listInvoice` deploys the bond;
-investors fund in USDC (paid straight to the issuer); asks are filled on a secondary market;
-after maturity the payor repays into settlement and holders surrender units for their pro-rata
-share. Issuance, the invoice document's sha256 and x402 receipts are anchored on a Hedera
-Consensus Service topic, and the anti-double-pledge index is rebuilt from the mirror node —
-no database. There is no file store either: an issuer who attaches a company logo has it
-downscaled in their own browser and carried onto the same topic with the attestation, so the
-mark lives with the record instead of behind a link that can rot.
+Sowee turns that unpaid invoice into something an investor can fund today. The business gets most of the money now; investors put up the cash and collect the full invoice amount when the customer pays. What makes it more than a spreadsheet with a promise attached is that the rules are enforced by the token itself.
 
-An invoice can be tokenized two ways. The marketplace runs on our own compliance token, whose
-allowlist is checked on every transfer. An invoice that needs the regulated wrapper is issued
-through Hedera's **Asset Tokenization Studio** instead: an ERC-1400 security with partitions, a
-controller, an ISIN and `Reg S` recorded on chain, whose units nobody can hold without the same
-KYC — issuing to an unverified wallet reverts.
+Every transfer is checked against an allowlist inside the bond token. If a wallet has not passed identity, liveness and a suitability questionnaire, it cannot hold a unit — not by buying in the primary sale, not by being sent one on the secondary market. The transfer reverts. US persons are excluded under Regulation S, sanctioned jurisdictions are blocked, and politically exposed persons are held for review. Only the yes-or-no decision goes on chain: no names, no documents, not even a hash of one.
 
-For agents, `GET /v1/market/insights` is x402-gated: 0.01 USDC per call on hedera:testnet,
-verified and settled by the Blocky402 facilitator. Our agent discovers the price from the 402,
-pays with its own Hedera account, reads the ranked bonds, and then **funds the one it chose** —
-and it is refused by the same allowlist a human faces until that wallet passes KYC. World Selfie
-Check sits in front of KYC as an anti-sybil signal that unlocks the demo faucet and a larger API
-allowance. The same finance core also runs on **Arc testnet**, Circle's USDC-native L1, with an
-invoice listed, granted from the same KYC decision, funded in native USDC and offered on the
-secondary market.
+All of it runs live on Hedera testnet, with real transactions anyone can open on HashScan. The API signs an EIP-712 discount quote; the oracle verifies the signature and burns the nonce on chain, so a quote can be used exactly once. One transaction deploys the bond and opens it for funding. Investors fund in USDC, which goes straight to the issuer. Holders post asks on a compliant secondary market, and a fill moves units only between allowlisted wallets. At maturity the payor repays into a settlement contract and holders surrender units for their pro-rata share; claims burn, so nobody can claim twice.
+
+There is no database anywhere in this, and no file store. Issuance, the sha256 of the invoice document, and payment receipts are anchored to a Hedera Consensus Service topic. The index that stops one document being pledged against two invoices is rebuilt by replaying that topic from the mirror node at startup. Even a logo an issuer attaches is shrunk in their own browser and carried onto the topic with the record, instead of living behind a link that can rot.
+
+An invoice can be tokenized two ways. The marketplace runs on our own compliance token. An invoice that needs the regulated wrapper is issued through Hedera's Asset Tokenization Studio instead: an ERC-1400 security with partitions, a controller, an ISIN and Reg S recorded on chain — and issuing units there to a wallet that never passed KYC reverts as well.
+
+Agents are buyers here, not an afterthought. GET /v1/market/insights is paid per call over x402: 0.01 USDC on Hedera testnet, verified and settled by the Blocky402 facilitator, with the receipt anchored to the same public topic. Our agent discovers the price from the 402 response, pays from its own Hedera account, reads the ranked bonds, and then funds the one it picked — and it is refused by exactly the same allowlist a human faces until its wallet passes KYC. The endpoint is publicly hosted and describes itself at /openapi.json.
+
+World's Selfie Check sits in front of the heavier identity check as an anti-sybil signal: passing it unlocks the demo faucet and a larger API allowance, while real eligibility still needs the document check and the policy. The nullifier is anchored on the audit topic and replayed at startup, so one World ID cannot quietly verify a second wallet after a restart.
+
+The same finance core also runs on Arc, Circle's USDC-native L1 where USDC is the gas token: an invoice listed, the same KYC decision granted on chain, a bond funded in native USDC, and an open ask on the secondary market.
+
+One thing we will not overstate. The Selfie Check flow is built on both sides, but the credential is feature-flagged per app and ours was never enabled, so we have never run the camera check on a device. Everything else described here has run on a live network.
 
 ## How it's made
 
