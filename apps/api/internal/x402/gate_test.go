@@ -223,8 +223,21 @@ func TestSettlementPartnerIsLetThroughAndMetered(t *testing.T) {
 	if settled != 0 {
 		t.Fatalf("a partner call must not produce a settlement receipt, got %d", settled)
 	}
+	// Two calls, so the running total is visibly a total and not a single price.
+	req = httptest.NewRequest(http.MethodGet, "/v1/market/insights", nil)
+	req.Header.Set(HeaderPartner, "s3cret")
+	h.ServeHTTP(httptest.NewRecorder(), req)
+
 	report := g.UsageReport()
-	if len(report) != 1 || report[0].Payer != "bazantic" || report[0].Calls != 1 {
+	if len(report) != 1 || report[0].Payer != "bazantic" || report[0].Calls != 2 {
 		t.Fatalf("usage: %+v", report)
+	}
+	// The partner collected on its own rail, so it owes the list price — it did not consume
+	// for free — and nothing settled on chain.
+	if report[0].Owed != "20000" {
+		t.Fatalf("owed: want 20000 (two calls at the list price), got %q", report[0].Owed)
+	}
+	if report[0].Spent != "0" {
+		t.Fatalf("spent must stay what moved on chain, got %q", report[0].Spent)
 	}
 }

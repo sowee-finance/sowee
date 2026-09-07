@@ -192,9 +192,17 @@ it would have to hold testnet USDC and settle on our behalf. `X402_PARTNER_KEY` 
 partner a way through: a request carrying `X-SETTLEMENT-KEY` with that value skips the challenge.
 It is empty by default, and while it is empty the only way in is to pay.
 
-Those calls are metered under `X402_PARTNER_NAME` so `GET /v1/market/insights/usage` still shows
-who consumed what. They are **not** anchored as receipts on the HCS topic: nothing settled on
-Hedera, and the audit trail has to keep meaning what it says.
+Those calls are metered under `X402_PARTNER_NAME`, and they are billed rather than given away —
+the partner sold the call, it just settled somewhere else. `GET /v1/market/insights/usage`
+reports it as `owed`, kept apart from `spent` so that figure keeps meaning value that actually
+moved on chain:
+
+```json
+{"payers":[{"payer":"bazantic","calls":2,"spent":"0","owed":"20000","last":"…"}]}
+```
+
+They are **not** anchored as receipts on the HCS topic: nothing settled on Hedera, and the audit
+trail has to keep meaning what it says.
 
 ## KYC and on-chain eligibility
 

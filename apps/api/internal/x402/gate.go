@@ -21,8 +21,12 @@ type Settled func(ctx context.Context, s SettleResponse, r PaymentRequirements, 
 type Usage struct {
 	Payer string `json:"payer"`
 	Calls int    `json:"calls"`
-	Spent string `json:"spent"` // sum of Amount in asset base units
-	Last  string `json:"last"`  // RFC3339 of the last settled call
+	Spent string `json:"spent"` // settled on chain, in the asset's base units
+	// Owed is what a settlement partner has run up: it collected from the agent on its own rail,
+	// so the call is not free — it is billed to them. Kept apart from Spent so that figure keeps
+	// meaning value that actually moved on chain.
+	Owed string `json:"owed,omitempty"`
+	Last string `json:"last"` // RFC3339 of the last call
 }
 
 // Gate protects handlers with one PaymentRequirements template.
@@ -43,6 +47,7 @@ type Gate struct {
 	seen     map[string]time.Time // sha256(payload) -> first seen; replay guard
 	usage    map[string]*Usage
 	spent    map[string]uint64
+	owed     map[string]uint64
 }
 
 // New builds a gate. Amount is in the asset's base units.
@@ -54,7 +59,8 @@ func New(fac FacilitatorAPI, req PaymentRequirements, onSettle Settled) *Gate {
 		req.MaxTimeoutSeconds = 180
 	}
 	return &Gate{Fac: fac, Req: req, OnSettle: onSettle, now: time.Now,
-		seen: map[string]time.Time{}, usage: map[string]*Usage{}, spent: map[string]uint64{}}
+		seen: map[string]time.Time{}, usage: map[string]*Usage{},
+		spent: map[string]uint64{}, owed: map[string]uint64{}}
 }
 
 // Requirements returns the template with the facilitator's fee payer resolved.
@@ -243,33 +249,43 @@ func (g *Gate) record(key, payer, amount string) {
 	g.meter(payer, amount, now)
 }
 
-// recordPartner meters a call that was paid for somewhere else. It deliberately does not touch
-// the replay guard: there is no payment payload to replay.
+// recordPartner meters a call the partner collected for on its own rail. It bills the list
+// price rather than nothing — the call was sold, just not settled here — and deliberately does
+// not touch the replay guard, because there is no payment payload to replay.
 func (g *Gate) recordPartner(payer string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.meter(payer, "0", g.now())
+	now := g.now()
+	u := g.meter(payer, "0", now)
+	g.owed[payer] += parseUint(g.Req.Amount)
+	u.Owed = formatUint(g.owed[payer])
 }
 
 // meter accumulates one call against a payer. Callers hold the lock.
-func (g *Gate) meter(payer, amount string, now time.Time) {
+func (g *Gate) meter(payer, amount string, now time.Time) *Usage {
 	u := g.usage[payer]
 	if u == nil {
 		u = &Usage{Payer: payer}
 		g.usage[payer] = u
 	}
 	u.Calls++
-	var amt uint64
-	for _, c := range amount {
-		if c < '0' || c > '9' {
-			amt = 0
-			break
-		}
-		amt = amt*10 + uint64(c-'0')
-	}
-	g.spent[payer] += amt
+	g.spent[payer] += parseUint(amount)
 	u.Spent = formatUint(g.spent[payer])
 	u.Last = now.UTC().Format(time.RFC3339)
+	return u
+}
+
+// parseUint reads base units. Anything that is not a plain decimal counts as nothing rather
+// than as a guess.
+func parseUint(s string) uint64 {
+	var n uint64
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return 0
+		}
+		n = n*10 + uint64(c-'0')
+	}
+	return n
 }
 
 // UsageReport lists payers by calls, most active first.
