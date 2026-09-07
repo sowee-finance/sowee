@@ -181,3 +181,50 @@ func TestFacilitatorDownIs502(t *testing.T) {
 		t.Fatalf("want 502, got %d", rec.Code)
 	}
 }
+
+// A gateway that collected from the agent on its own rail cannot also satisfy a Hedera
+// challenge. Given a key it is let through, metered under its own name, and — deliberately —
+// leaves no settlement receipt, because nothing settled on chain.
+func TestSettlementPartnerIsLetThroughAndMetered(t *testing.T) {
+	settled := 0
+	g := New(&fakeFac{}, PaymentRequirements{
+		Network: "hedera:testnet", Asset: "0.0.429274", PayTo: "0.0.1", Amount: "10000",
+	}, func(context.Context, SettleResponse, PaymentRequirements, string) { settled++ })
+	g.PartnerKey, g.PartnerName = "s3cret", "bazantic"
+
+	h := g.Middleware("insights")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(PayerFrom(r.Context())))
+	}))
+
+	// Without the key, the resource is still paid.
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/market/insights", nil))
+	if rec.Code != http.StatusPaymentRequired {
+		t.Fatalf("no key: want 402, got %d", rec.Code)
+	}
+
+	// A wrong key buys nothing.
+	req := httptest.NewRequest(http.MethodGet, "/v1/market/insights", nil)
+	req.Header.Set(HeaderPartner, "s3cres")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusPaymentRequired {
+		t.Fatalf("wrong key: want 402, got %d", rec.Code)
+	}
+
+	// The right key gets the data, and the handler sees who it was.
+	req = httptest.NewRequest(http.MethodGet, "/v1/market/insights", nil)
+	req.Header.Set(HeaderPartner, "s3cret")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || rec.Body.String() != "bazantic" {
+		t.Fatalf("with key: got %d %q", rec.Code, rec.Body.String())
+	}
+	if settled != 0 {
+		t.Fatalf("a partner call must not produce a settlement receipt, got %d", settled)
+	}
+	report := g.UsageReport()
+	if len(report) != 1 || report[0].Payer != "bazantic" || report[0].Calls != 1 {
+		t.Fatalf("usage: %+v", report)
+	}
+}
