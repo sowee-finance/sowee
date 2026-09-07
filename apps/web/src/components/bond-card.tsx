@@ -20,6 +20,22 @@ import { CompanyAvatar, STATUS_TREND, StatusBadge, TREND_FILL, TrendText } from 
 /** Issuer company and payor from the token name; a bond named otherwise shows its symbol. */
 export const bondNames = (b: Pick<Bond, "name">) => splitName(b.name)
 
+/**
+ * The issuer's mark for one bond: the logo they anchored, or the generated avatar when they
+ * never attached one. Every place a bond's issuer appears goes through this, so a mark shows up
+ * on the cards, the top lists, search, the order panel and the portfolio alike.
+ */
+export function BondAvatar({
+  bond,
+  className,
+}: {
+  bond: Pick<Bond, "name" | "invoiceId">
+  className?: string
+}) {
+  const logo = useLogo(bond.invoiceId)
+  return <CompanyAvatar name={bondNames(bond).issuer} src={logo} className={className} />
+}
+
 /** Marketplace card for one invoice bond. */
 /**
  * What the card says under the face value. A live bond quotes what an investor gets; once it is
@@ -40,7 +56,6 @@ export function BondCard({ bond }: { bond: Bond }) {
   const apr = impliedApr(bond)
   const days = Math.max(tenorDays(bond.maturity), 0)
   const { issuer, payor } = bondNames(bond)
-  const logo = useLogo(bond.invoiceId)
   return (
     <Link
       href={`/invoices/${bond.invoiceId}`}
@@ -48,7 +63,7 @@ export function BondCard({ bond }: { bond: Bond }) {
       style={{ "--card-tint": TREND_FILL[trend] } as React.CSSProperties}
     >
       <div className="flex items-center gap-3 p-5 pb-0">
-        <CompanyAvatar name={issuer} src={logo} />
+        <BondAvatar bond={bond} />
         <div className="min-w-0">
           <div className="truncate font-medium text-[15px]">{issuer}</div>
           <div className="truncate text-[13px] text-soft">

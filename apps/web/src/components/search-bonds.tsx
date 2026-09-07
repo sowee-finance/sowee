@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation"
 import { useCallback, useRef, useState } from "react"
 import { type Bond, bondStatus, type Contracts, dollars, impliedApr, pct } from "@/lib/market"
 import { useBonds } from "@/lib/use-bonds"
-import { bondNames } from "./bond-card"
-import { CompanyAvatar, Sheet, TrendText, useOutsideClick } from "./ui"
+import { BondAvatar, bondNames } from "./bond-card"
+import { Sheet, TrendText, useOutsideClick } from "./ui"
 
 /** Case-insensitive match on issuer, payor or symbol. */
 export function matches(b: Bond, q: string): boolean {
@@ -25,7 +25,7 @@ function SuggestionRow({ bond, onSelect }: { bond: Bond; onSelect: () => void })
       onClick={onSelect}
       className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-shade"
     >
-      <CompanyAvatar name={issuer} className="size-9 text-xs" />
+      <BondAvatar bond={bond} className="size-9 text-xs" />
       <div className="min-w-0">
         <div className="truncate font-medium text-sm">{issuer}</div>
         <div className="truncate text-soft text-xs">{payor ? `Payor: ${payor}` : bond.symbol}</div>

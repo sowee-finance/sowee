@@ -23,13 +23,12 @@ import {
 import { useAsks, useBonds, usePositions } from "@/lib/use-bonds"
 import { useKycStatus } from "@/lib/use-kyc"
 import { useTx } from "@/lib/use-tx"
-import { bondNames } from "./bond-card"
+import { BondAvatar, bondNames } from "./bond-card"
 import { NotDeployed } from "./not-deployed"
 import { ErrorState } from "./states"
 import {
   blackPill,
   Card,
-  CompanyAvatar,
   Empty,
   StatTile,
   StatusBadge,
@@ -251,7 +250,7 @@ function ClaimRow({ p, deployment }: { p: Position; deployment: Deployment }) {
   return (
     <div className="rounded-xl bg-pos/5 p-3.5">
       <div className="flex flex-wrap items-center gap-3">
-        <CompanyAvatar name={issuer} className="size-8 text-[10px]" />
+        <BondAvatar bond={p.bond} className="size-8 text-[10px]" />
         <div className="min-w-0">
           <div className="truncate font-medium text-sm">
             {issuer} <span className="font-mono text-soft text-xs">{p.bond.symbol}</span>
@@ -291,7 +290,7 @@ function HoldingRow({ p }: { p: Position }) {
           href={`/invoices/${p.bond.invoiceId}`}
           className="flex items-center gap-2.5 hover:underline"
         >
-          <CompanyAvatar name={issuer} className="size-7 text-[9px]" />
+          <BondAvatar bond={p.bond} className="size-7 text-[9px]" />
           <span className="font-medium">{issuer}</span>
           <span className="font-mono text-soft text-xs">{p.bond.symbol}</span>
         </Link>
