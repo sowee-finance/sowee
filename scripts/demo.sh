@@ -78,11 +78,14 @@ down() {
 }
 
 status() {
-  local health
+  local health web
   health=$(curl -s "http://localhost:$api_port/v1/healthz" 2>/dev/null || true)
+  # Print what is actually listening. A link to a port nothing serves is worse than no link:
+  # it reads as "ready" right up to the moment the recording starts.
+  curl -sf -o /dev/null -m 3 "http://localhost:$web_port/" 2>/dev/null && web="" || web="  (not answering)"
   echo
-  echo "  marketplace   http://localhost:$web_port"
-  echo "  kyc wizard    http://localhost:$web_port/kyc"
+  echo "  marketplace   http://localhost:$web_port$web"
+  echo "  kyc wizard    http://localhost:$web_port/kyc$web"
   echo "  api           http://localhost:$api_port/v1/healthz  ${health:-(not answering)}"
   [ -n "${INVOICE_MARKET:-}" ] && echo "  market        https://hashscan.io/testnet/contract/$INVOICE_MARKET"
   [ -n "${HCS_TOPIC_ID:-}" ] && echo "  audit trail   https://hashscan.io/testnet/topic/$HCS_TOPIC_ID"
