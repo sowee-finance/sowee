@@ -64,6 +64,26 @@ auto-deploy started the same builds again. A CI runner has the machine to itself
 only ever runs containers, which it has always done comfortably — twenty-six of them fit in
 2 GB.
 
+### A host with no registry credentials
+
+`workflow_dispatch` on the images workflow takes a `bundle` input. It saves both images and
+uploads them as an artifact:
+
+```sh
+gh workflow run images.yml -f bundle=true
+gh run download <run-id> -n images -D ./img
+cat img/sowee-api.tar | ssh <host> docker load
+cat img/sowee-web.tar | ssh <host> docker load
+```
+
+Around 90 MB for the pair. The host still builds nothing.
+
+### Cutting over behind an existing proxy
+
+Run the new containers on free ports, check them there, and only then move the proxy. Leave the
+previous containers running on their own ports: rolling back is a proxy change, and nothing has
+to be rebuilt.
+
 If you ever must build on a constrained host, cap it so an overrun is killed instead of the
 machine (`docker run --memory=3g --memory-swap=3g --cpus=2 …`), and turn off the platform's
 auto-deploy first so a reboot does not trigger every build at once.
