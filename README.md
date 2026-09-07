@@ -18,6 +18,8 @@ Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments ·
 
 | What | Where |
 |---|---|
+| **The app** | [app.sowee.site](https://app.sowee.site) |
+| **The API** | [api.sowee.site/v1/healthz](https://api.sowee.site/v1/healthz) |
 | DiscountOracle | [`0xb6d7F1…9010`](https://hashscan.io/testnet/contract/0xb6d7F1e018195E0000eb0EE017E36c61113e9010) |
 | InvoiceMarket | [`0xe7f896…5962`](https://hashscan.io/testnet/contract/0xe7f89692940f5BCc30096cd48f360F2144155962) |
 | MaturitySettlement | [`0x68faa9…6219`](https://hashscan.io/testnet/contract/0x68faa98A8e42ef8ffC946e3d571C3940Dc0f6219) |
