@@ -16,9 +16,6 @@ const (
 	HeaderSignature = "PAYMENT-SIGNATURE"
 	HeaderResponse  = "PAYMENT-RESPONSE"
 	legacyHeader    = "X-PAYMENT" // v1 clients
-	// HeaderPartner carries a settlement partner's key: a gateway that already collected from
-	// the agent on its own rail and cannot also satisfy an on-chain challenge.
-	HeaderPartner = "X-SETTLEMENT-KEY"
 )
 
 // PaymentRequirements is one acceptable way to pay.

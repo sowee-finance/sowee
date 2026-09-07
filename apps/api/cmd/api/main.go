@@ -39,10 +39,6 @@ func main() {
 			log.Printf("x402: receipt not anchored: %v", err)
 		}
 	})
-	gate.PartnerKey, gate.PartnerName = cfg.X402PartnerKey, cfg.X402PartnerName
-	if gate.PartnerKey != "" {
-		log.Printf("x402: settlement partner %q may call without an on-chain payment", gate.PartnerName)
-	}
 	flow := newFlow(cfg)
 	worldSvc, err := world.New(world.Config{
 		AppID: cfg.WorldAppID, RPID: cfg.WorldRPID, SigningKeyHex: cfg.WorldRPSigningKey,

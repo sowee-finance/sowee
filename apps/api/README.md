@@ -185,17 +185,6 @@ again with the reason in `error`; a malformed header is `400`; a facilitator out
 | `X402_NETWORK` / `X402_ASSET` / `X402_PAY_TO` / `X402_AMOUNT` | the single accepted requirement; `extra.feePayer` is read from `/supported` |
 | `RPC_URL` / `INVOICE_MARKET` | where insights read live state from; empty market → empty list, payment still works |
 
-### A second way in, for a settlement partner
-
-A gateway that collects from the agent on its own rail cannot also satisfy a Hedera challenge —
-it would have to hold testnet USDC and settle on our behalf. `X402_PARTNER_KEY` gives such a
-partner a way through: a request carrying `X-SETTLEMENT-KEY` with that value skips the challenge.
-It is empty by default, and while it is empty the only way in is to pay.
-
-Those calls are metered under `X402_PARTNER_NAME` so `GET /v1/market/insights/usage` still shows
-who consumed what. They are **not** anchored as receipts on the HCS topic: nothing settled on
-Hedera, and the audit trail has to keep meaning what it says.
-
 ## KYC and on-chain eligibility
 
 Wallet → Sumsub (document + liveness + suitability questionnaire) → policy → `BondToken.setEligible`
