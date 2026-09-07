@@ -98,7 +98,8 @@ Three partners, several tracks inside them (multiple tracks from one partner cou
 2. **Arc** — *Best DeFi / Onchain Finance* and *Launch on Arc Testnet & Push to Mainnet*: the same
    finance core live on Arc, funded in native USDC, with the mainnet step a configuration change.
    See `docs/partners/arc.md`.
-3. **World** — *Selfie Check*, as an anti-sybil signal in front of KYC. See `docs/partners/world.md`.
+3. **World** — *Selfie Check*, as an anti-sybil signal in front of KYC. See `docs/partners/world.md`,
+   and the required feedback document at `docs/partners/world-feedback.md`.
 
 ## Links
 
