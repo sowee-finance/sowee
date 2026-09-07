@@ -59,8 +59,16 @@ a shape worth writing down:
 ## Remaining steps (need a bazantic.com account)
 
 1. Create the account; record the username, which the submission has to carry.
-2. Create the x402 Gateway pointing at `https://api.sowee.site/v1/market/insights`, submitting
-   `https://api.sowee.site/openapi.json` as the spec.
+2. Create the x402 Gateway. The form takes three fields:
+
+   | Field | Value |
+   |---|---|
+   | API base URL | `https://api.sowee.site` |
+   | Docs URL | `https://github.com/sowee-finance/sowee/blob/main/apps/api/README.md` |
+   | Spec URL | `https://api.sowee.site/openapi.json` |
+
+   The spec answers any origin, so it can be fetched from the browser; if a tool cannot reach it
+   the same document pastes in whole.
 3. Write the Recipe from the section above, and — for the sponsor-APIs track — combine it with
    one service already on Bazantic so a single flow depends meaningfully on both.
 4. Screen recording of an agent completing the task through the Recipe.
