@@ -89,11 +89,34 @@ metered under `bazantic`, so `GET /v1/market/insights/usage` still answers who c
 They are not anchored as HCS receipts. Nothing settled on Hedera, and a receipt on that topic
 asserts an on-chain settlement — the trail has to keep meaning what it says.
 
+## The MCP server is generated from our spec
+
+Bazantic turns the OpenAPI document into an MCP server, and the tools it exposes are ours —
+the `operationId`s and descriptions we wrote are what an agent reads:
+
+```
+- getHealth          Chain, audit topic and quote signer this API is configured for (free)
+- getInsightsUsage   Who has paid for insights, and how often (free)
+- getMarketInsights  Costs 0.01 USDC per call on hedera:testnet (asset 0.0.429274)…
+- info               Show API metadata: title, version, description, and terms of service.
+```
+
+That is the argument for serving a spec from the running process rather than writing one by
+hand: the agent-facing surface of the API is generated from it, so a description that drifts is
+a description an agent acts on.
+
+**Every call is authorised, including the free ones.** Calling `getInsightsUsage` — priced at 0
+— still answers `402` with a zero-amount charge. Bazantic authorises every request through its
+payment layer rather than short-circuiting free ones, so a client needs a Bazantic API key and a
+funded balance before any tool returns data.
+
 ## Remaining steps
 
 1. ~~Account, gateway, pricing, published listing~~ — done.
-2. Write the Recipe from the section above, and — for the sponsor-APIs track — combine it with
+2. Create a Bazantic API key and add funds to the balance. Every call is authorised, so nothing
+   returns data until there is a balance — a dollar covers a hundred paid calls.
+3. Write the Recipe from the section above, and — for the sponsor-APIs track — combine it with
    one service already on Bazantic so a single flow depends meaningfully on both.
-3. Screen recording of an agent completing the task through the Recipe. The MCP server Bazantic
-   generates from our spec is the shortest path: add it to a client, ask for the best available
-   yield, and the answer comes from our API through their payment rail.
+4. Screen recording of an agent completing the task through the Recipe. The MCP server is the
+   shortest path: `claude mcp add --transport http sowee https://sowee.bazgateway.com/mcp`, ask
+   for the best available yield, and the answer comes from our API through their payment rail.
