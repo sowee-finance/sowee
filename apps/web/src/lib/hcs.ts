@@ -41,15 +41,79 @@ export type TopicMessage = {
   body: Attestation | Receipt | { type: string }
 }
 
+type WireMessage = {
+  sequence_number: number
+  consensus_timestamp: string
+  message: string
+  /** Present when a submission was split; absent or `total: 1` for a whole one. */
+  chunk_info?: {
+    initial_transaction_id?: {
+      account_id?: string
+      transaction_valid_start?: string
+      nonce?: number
+    }
+    number: number
+    total: number
+  } | null
+}
+
 type Wire = {
-  messages: { sequence_number: number; consensus_timestamp: string; message: string }[]
+  messages: WireMessage[]
   links?: { next?: string | null }
 }
 
+const bytesOf = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+
+/**
+ * A submission over 1 KB is split across several consensus messages, so a message is a slice of
+ * bytes rather than a record — a logo makes three of them. Joins the slices of each submission
+ * back together, keyed by the transaction that started it, and drops any set the mirror node has
+ * not finished serving.
+ */
+export function joinChunks(messages: WireMessage[]): WireMessage[] {
+  const whole: WireMessage[] = []
+  const parts = new Map<string, { head: WireMessage; slices: (Uint8Array | undefined)[] }>()
+  for (const m of messages) {
+    const c = m.chunk_info
+    if (!c || c.total <= 1) {
+      whole.push(m)
+      continue
+    }
+    const t = c.initial_transaction_id
+    const key = `${t?.account_id}@${t?.transaction_valid_start}/${t?.nonce ?? 0}`
+    let entry = parts.get(key)
+    if (!entry) {
+      // Filled, not sparse: `some` skips the holes of `new Array(n)`, so an incomplete
+      // submission would look complete.
+      entry = { head: m, slices: new Array(c.total).fill(undefined) }
+      parts.set(key, entry)
+    }
+    // The first chunk carries the sequence number and timestamp the trail is ordered by.
+    if (c.number === 1) entry.head = m
+    entry.slices[c.number - 1] = bytesOf(m.message)
+  }
+  for (const { head, slices } of parts.values()) {
+    if (slices.some((s) => s === undefined)) continue
+    const size = slices.reduce((n, s) => n + (s?.length ?? 0), 0)
+    const joined = new Uint8Array(size)
+    let at = 0
+    for (const s of slices) {
+      if (s) {
+        joined.set(s, at)
+        at += s.length
+      }
+    }
+    let binary = ""
+    for (const byte of joined) binary += String.fromCharCode(byte)
+    whole.push({ ...head, message: btoa(binary) })
+  }
+  return whole
+}
+
 /** base64 JSON → message; undefined for anything the topic holds that is not ours. */
-export function decodeMessage(m: Wire["messages"][number]): TopicMessage | undefined {
+export function decodeMessage(m: WireMessage): TopicMessage | undefined {
   try {
-    const bytes = Uint8Array.from(atob(m.message), (c) => c.charCodeAt(0))
+    const bytes = bytesOf(m.message)
     const body = JSON.parse(new TextDecoder().decode(bytes)) as { type?: unknown }
     if (typeof body.type !== "string") return undefined
     return {
@@ -70,19 +134,23 @@ const MAX_PAGES = 10
  * lose its attestations once the topic grows past one page of 100.
  */
 export async function fetchTopic(fetchFn: typeof fetch = fetch): Promise<TopicMessage[]> {
-  const out: TopicMessage[] = []
+  // Pages are collected before the chunks are joined: one submission can straddle a page
+  // boundary, and half of a logo is not a record.
+  const wire: WireMessage[] = []
   let url: string | undefined = messagesUrl
   for (let page = 0; url && page < MAX_PAGES; page++) {
     const res = await fetchFn(url)
     if (!res.ok) throw new Error(`mirror node answered ${res.status}`)
-    const wire = (await res.json()) as Wire
-    for (const m of wire.messages) {
-      const decoded = decodeMessage(m)
-      if (decoded) out.push(decoded)
-    }
+    const body = (await res.json()) as Wire
+    wire.push(...body.messages)
     // `next` comes back as a path on the same host.
-    const next = wire.links?.next
+    const next = body.links?.next
     url = next ? new URL(next, mirrorOrigin).toString() : undefined
+  }
+  const out: TopicMessage[] = []
+  for (const m of joinChunks(wire)) {
+    const decoded = decodeMessage(m)
+    if (decoded) out.push(decoded)
   }
   return out
 }
