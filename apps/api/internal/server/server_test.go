@@ -289,4 +289,8 @@ func TestOpenAPIDescribesThePaidResource(t *testing.T) {
 	if len(doc.Servers) != 1 || doc.Servers[0]["url"] == "" {
 		t.Fatalf("servers: %v", doc.Servers)
 	}
+	// A gateway reading the spec from a browser is exactly who this is for.
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("the spec must be readable from any origin, got %q", got)
+	}
 }

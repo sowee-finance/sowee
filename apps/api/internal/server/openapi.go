@@ -15,6 +15,10 @@ import (
 // answers 402 — because that is the only part a caller has to understand before paying.
 func openapiHandler(cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// The whole point of the document is to be read by tools we have never heard of, so it
+		// answers any origin. The origin rule the rest of the API follows exists to protect the
+		// paid endpoint and the wallet-signed KYC routes; a public price list needs no such thing.
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		// The server URL comes from the request, the way the x402 challenge builds its resource
 		// URL, so the document is correct behind a proxy without being told where it lives.
 		scheme := "http"
