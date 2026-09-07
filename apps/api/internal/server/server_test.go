@@ -176,6 +176,23 @@ func TestAttestDisabledIs503(t *testing.T) {
 	}
 }
 
+// A logo the size a browser really sends must reach the handler. The body limit and the logo
+// limit were set apart from each other once, and everything larger than 1 KB — which is every
+// real mark — came back as "invalid JSON body".
+func TestAttestAcceptsALogoOfTheSizeABrowserSends(t *testing.T) {
+	h, _ := newTestServerWith(t, hcs.New("0.0.1", nil))
+	logo := "data:image/webp;base64," + strings.Repeat("A", 8*1024)
+	body := fmt.Sprintf(
+		`{"docHash":"0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08","logo":%q}`,
+		logo,
+	)
+	rec := do(h, http.MethodPost, "/v1/invoices/INV-1/attest", body)
+	// 503 is the disabled anchor: the body was read and the logo passed its checks.
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("an %d-byte logo: want 503 from the disabled anchor, got %d %s", len(logo), rec.Code, rec.Body)
+	}
+}
+
 func TestAttestChecksTheLogoItWillRender(t *testing.T) {
 	h, _ := newTestServerWith(t, hcs.New("0.0.1", nil))
 	body := `{"docHash":"0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08","logo":%s}`
