@@ -100,9 +100,11 @@ Three partners, several tracks inside them (multiple tracks from one partner cou
    finance core live on Arc, funded in native USDC, with the mainnet step a configuration change.
    See `docs/partners/arc.md`.
 3. **Bazantic** — *Agentify a New API* and *Best Recipe Using Sponsor APIs*: our paid market-data
-   endpoint is live at `https://api.sowee.site/v1/market/insights`, answers a real x402 challenge,
-   and describes itself at `/openapi.json`. It did not exist at the start of the event. See
-   `docs/partners/bazantic.md`.
+   endpoint is agentified and published in Bazantic's catalog at `https://sowee.bazgateway.com`,
+   with an MCP server generated from the OpenAPI document our API serves itself. The API did not
+   exist at the start of the event. Bazantic charges the agent in USDC on Base while our own gate
+   charges on Hedera, so the resource has two doors and takes whichever matches where the agent's
+   money already is. Account `ifajar`. See `docs/partners/bazantic.md`.
 
 **Not entered, though it is built:** World's Selfie Check. The integration is complete on both
 sides and gates the demo faucet and the API allowance, but Selfie Check (Beta) is feature-flagged
@@ -114,7 +116,8 @@ demonstrate. The code and the required developer feedback are in the repository:
 ## Links
 
 - Live app: https://app.sowee.site
-- Live API: https://api.sowee.site/v1/healthz
+- Live API: https://api.sowee.site/v1/healthz — spec at https://api.sowee.site/openapi.json
+- The API as an agent capability: https://sowee.bazgateway.com
 - Repo: https://github.com/sowee-finance/sowee
 - Video: (add)
 - Contracts, transactions and the HCS topic: README table.
