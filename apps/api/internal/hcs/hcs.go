@@ -103,8 +103,11 @@ func (a *Anchor) Attest(ctx context.Context, invoiceID, docHash, event, logo str
 	docHash = normalizeHash(docHash)
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if owner, seen := a.docHashes[docHash]; seen && owner != invoiceID {
-		return Result{}, ErrDuplicateDocHash
+	// An attestation without a document — a logo, say — pledges nothing, so it binds nothing.
+	if docHash != "" {
+		if owner, seen := a.docHashes[docHash]; seen && owner != invoiceID {
+			return Result{}, ErrDuplicateDocHash
+		}
 	}
 	res, err := a.write(ctx, Attestation{
 		Type:      "attestation.v1",
@@ -117,7 +120,9 @@ func (a *Anchor) Attest(ctx context.Context, invoiceID, docHash, event, logo str
 	if err != nil {
 		return Result{}, err
 	}
-	a.docHashes[docHash] = invoiceID
+	if docHash != "" {
+		a.docHashes[docHash] = invoiceID
+	}
 	return res, nil
 }
 

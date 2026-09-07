@@ -169,18 +169,31 @@ func attestHandler(anchor *hcs.Anchor) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}
-		h := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(req.DocHash)), "0x")
-		if b, err := hex.DecodeString(h); err != nil || len(b) != 32 {
-			writeError(w, http.StatusBadRequest, "docHash must be a 32-byte sha256 hex")
-			return
-		}
-		if req.Event == "" {
-			req.Event = "issued"
-		}
 		logo := strings.TrimSpace(req.Logo)
 		if err := checkLogo(logo); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
+		}
+		h := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(req.DocHash)), "0x")
+		// A mark is not a document. An issuer attaching or replacing one should not have to
+		// pledge a file to do it, and a bond listed before this existed has no document
+		// attestation to re-anchor — inventing a hash for it would put a claim on a permanent
+		// public trail that no file backs.
+		switch {
+		case h == "" && logo == "":
+			writeError(w, http.StatusBadRequest, "nothing to anchor: send a docHash, a logo, or both")
+			return
+		case h != "":
+			if b, err := hex.DecodeString(h); err != nil || len(b) != 32 {
+				writeError(w, http.StatusBadRequest, "docHash must be a 32-byte sha256 hex")
+				return
+			}
+		}
+		if req.Event == "" {
+			req.Event = "issued"
+			if h == "" {
+				req.Event = "logo"
+			}
 		}
 		res, err := anchor.Attest(r.Context(), chi.URLParam(r, "id"), h, req.Event, logo)
 		switch {
