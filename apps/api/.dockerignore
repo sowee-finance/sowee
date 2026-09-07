@@ -1,0 +1,4 @@
+# apps/api is its own build context.
+.env
+.env.*
+!.env.example

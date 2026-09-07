@@ -1,0 +1,17 @@
+# The build context is the repository root; keep the heavy and the local out of it.
+node_modules
+**/node_modules
+.next
+**/.next
+.git
+.turbo
+**/.turbo
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+docs/screenshots
+.env
+.env.*
+!.env.example
+!**/.env.example

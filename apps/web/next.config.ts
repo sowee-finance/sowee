@@ -31,6 +31,9 @@ const csp = [
 const nextConfig: NextConfig = {
   // Do not write AGENTS.md / CLAUDE.md into this package; the repo root has its own guide.
   agentRules: false,
+  // Traced output for the container image: the server plus only the files it actually reaches,
+  // instead of the whole workspace and its node_modules. `next start` is unaffected.
+  output: "standalone",
   headers: async () => [
     {
       source: "/(.*)",
