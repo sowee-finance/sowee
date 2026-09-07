@@ -83,6 +83,12 @@ status() {
   # Print what is actually listening. A link to a port nothing serves is worse than no link:
   # it reads as "ready" right up to the moment the recording starts.
   curl -sf -o /dev/null -m 3 "http://localhost:$web_port/" 2>/dev/null && web="" || web="  (not answering)"
+  # A served build older than the source is the quiet failure: the page loads, and it is
+  # yesterday's page. `next start` serves whatever .next holds, so nothing else says so.
+  local build newest
+  build="$root/apps/web/.next/BUILD_ID"
+  newest=$(find "$root/apps/web/src" -type f -newer "$build" -print -quit 2>/dev/null || true)
+  [ -n "$newest" ] && web="$web  (build is older than the source — run: scripts/demo.sh up)"
   echo
   echo "  marketplace   http://localhost:$web_port$web"
   echo "  kyc wizard    http://localhost:$web_port/kyc$web"
