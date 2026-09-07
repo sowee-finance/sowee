@@ -17,11 +17,11 @@ import {
   tenorDays,
 } from "@/lib/market"
 import { useBonds } from "@/lib/use-bonds"
-import { BondCard, bondNames } from "./bond-card"
+import { BondAvatar, BondCard, bondNames } from "./bond-card"
 import { NotDeployed } from "./not-deployed"
 import { matches } from "./search-bonds"
 import { ErrorState, SkeletonGrid } from "./states"
-import { CompanyAvatar, Dropdown, TrendText } from "./ui"
+import { Dropdown, TrendText } from "./ui"
 
 /* ----------------------------------- hero ---------------------------------- */
 
@@ -90,7 +90,7 @@ function Row({ bond, secondary }: { bond: Bond; secondary: (b: Bond) => React.Re
       href={`/invoices/${bond.invoiceId}`}
       className="flex items-center gap-3 py-4 hover:bg-shade/50"
     >
-      <CompanyAvatar name={issuer} className="size-10 text-sm" />
+      <BondAvatar bond={bond} className="size-10 text-sm" />
       <div className="min-w-0">
         <div className="truncate font-medium text-[15px]">{issuer}</div>
         <div className="truncate text-sm text-soft">{payor ? `Payor: ${payor}` : bond.symbol}</div>

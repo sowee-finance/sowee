@@ -11,8 +11,8 @@ import { activeChain } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
 import { type Bond, bondStatus, dollars, feeOn, maturityDate, usdc, usdcAmount } from "@/lib/market"
 import { useTx } from "@/lib/use-tx"
-import { bondNames } from "./bond-card"
-import { AmountPanel, blackButton, CompanyAvatar, TokenChip, TxStatus, UsdcChip } from "./ui"
+import { BondAvatar } from "./bond-card"
+import { AmountPanel, blackButton, TokenChip, TxStatus, UsdcChip } from "./ui"
 import { ConnectButton } from "./wallet-button"
 
 const chain = { chainId: activeChain.id } as const
@@ -123,7 +123,6 @@ function Order({
   const total = (cost.data ?? 0n) + fee
   const available = bond.faceValue - bond.supply
   const unitPrice = 1 - bond.discountRateBps / 10_000
-  const { issuer } = bondNames(bond)
 
   const blocker = ((): string | undefined => {
     if (!wallet) return undefined
@@ -162,7 +161,7 @@ function Order({
           value={amount}
           onChange={setAmount}
           tokenChip={
-            <TokenChip icon={<CompanyAvatar name={issuer} className="size-5.5 text-[9px]" />}>
+            <TokenChip icon={<BondAvatar bond={bond} className="size-5.5 text-[9px]" />}>
               {bond.symbol}
             </TokenChip>
           }

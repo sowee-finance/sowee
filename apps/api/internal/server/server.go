@@ -127,6 +127,11 @@ func insightsHandler(cfg config.Config, reader *market.Reader) http.HandlerFunc 
 // through a log.
 const maxLogoBytes = 12 * 1024
 
+// maxAttestBody follows the logo it has to carry. They were set independently once, at 1 KB and
+// 12 KB, so every logo a browser actually produces was refused as an unreadable body before
+// checkLogo ever saw it.
+const maxAttestBody = maxLogoBytes + 2*1024
+
 // checkLogo accepts an empty logo, or a data URI holding a small raster image. It is rendered by
 // every visitor's browser, so the type is pinned rather than trusted: an SVG would carry script.
 func checkLogo(logo string) error {
@@ -160,7 +165,7 @@ type attestRequest struct {
 func attestHandler(anchor *hcs.Anchor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req attestRequest
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxAttestBody)).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
 			return
 		}

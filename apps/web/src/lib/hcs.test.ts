@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import { attestationsFor, decodeMessage, fetchTopic, invoiceIdOf, isReceipt } from "./hcs"
+import {
+  attestationsFor,
+  decodeMessage,
+  fetchTopic,
+  invoiceIdOf,
+  isReceipt,
+  joinChunks,
+} from "./hcs"
 
 const b64 = (s: string) => Buffer.from(s).toString("base64")
 
@@ -89,4 +96,49 @@ test("the trail follows the mirror node's pages instead of stopping at the first
   expect(messages).toHaveLength(2)
   expect(seen).toHaveLength(2)
   expect(seen[1]).toBe("https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.1/messages?page=2")
+})
+
+// HCS caps one consensus message at 1 KB, so anything larger — a logo is around 2.5 KB — arrives
+// as several. Each is a slice of bytes, not a record, and parsing them one by one finds nothing.
+test("joinChunks puts a split submission back together", () => {
+  const body = JSON.stringify({
+    type: "attestation.v1",
+    invoiceId: "INV-1",
+    docHash: "aa",
+    event: "logo",
+    logo: `data:image/webp;base64,${"A".repeat(2000)}`,
+  })
+  const b64 = btoa(body)
+  const third = Math.ceil(b64.length / 3)
+  const id = { account_id: "0.0.7", transaction_valid_start: "1788.1", nonce: 0 }
+  const raw = [0, 1, 2].map((i) => ({
+    sequence_number: i + 1,
+    consensus_timestamp: "1788.0",
+    // Split the decoded bytes, the way the SDK does, not the base64 text.
+    message: btoa(body.slice(i * Math.ceil(body.length / 3), (i + 1) * Math.ceil(body.length / 3))),
+    chunk_info: { initial_transaction_id: id, number: i + 1, total: 3 },
+  }))
+  expect(third).toBeGreaterThan(0)
+
+  const joined = joinChunks(raw)
+  expect(joined).toHaveLength(1)
+  const decoded = decodeMessage(joined[0])
+  if (!decoded) throw new Error("the joined submission did not parse")
+  expect(decoded.body).toMatchObject({ type: "attestation.v1", invoiceId: "INV-1" })
+  expect((decoded.body as { logo: string }).logo.length).toBeGreaterThan(2000)
+  // The first chunk carries the sequence number the trail is ordered by.
+  expect(decoded.sequenceNumber).toBe(1)
+})
+
+test("joinChunks drops a submission the mirror node has not finished serving", () => {
+  const id = { account_id: "0.0.7", transaction_valid_start: "1788.2", nonce: 0 }
+  const half = [
+    {
+      sequence_number: 1,
+      consensus_timestamp: "1788.0",
+      message: btoa('{"type":"attest'),
+      chunk_info: { initial_transaction_id: id, number: 1, total: 2 },
+    },
+  ]
+  expect(joinChunks(half)).toHaveLength(0)
 })
