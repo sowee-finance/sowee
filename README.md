@@ -31,7 +31,19 @@ Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments ·
 | The agent funding the bond it paid to find | [`0x89d2462b…`](https://hashscan.io/testnet/transaction/0x89d2462bb54ca04f90437e02de567e998f84abc2698571732db18f7148f0e8ec) |
 | Full lifecycle: list → KYC grant → fund → ask → fill → repay → settle → claim | [ten transactions](contracts/README.md#live-lifecycle-testnet-transactions) |
 
-All contract sources are exact-match verified on Sourcify.
+Every contract we deploy is exact-match verified on Sourcify, on both chains — the oracle, the
+market, the settlement and **each bond token**, which the market deploys rather than the script.
+
+The ATS security is Hedera's own contract, not ours: `0xb438390f…` is a `ResolverProxy` from
+[`@hashgraph/asset-tokenization-contracts`](https://www.npmjs.com/package/@hashgraph/asset-tokenization-contracts)
+`8.0.0`, deployed by the ATS factory. Its deployed bytecode matches the published artifact byte
+for byte, which anyone can check:
+
+```sh
+cast code 0xb438390fE710b12d1951E3b250889A673356e078 --rpc-url https://testnet.hashio.io/api
+# equals .deployedBytecode of
+# artifacts/contracts/infrastructure/proxy/ResolverProxy.sol/ResolverProxy.json
+```
 
 The same finance core also runs on **Arc testnet**, Circle's USDC-native L1: an invoice listed
 from an API-signed quote, the same KYC decision granted on-chain, a bond funded in **native

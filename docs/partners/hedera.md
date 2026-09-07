@@ -69,7 +69,8 @@ account id, so usage is publicly auditable.
 | Oracle | EIP-712 pull oracle, consume-once nonce — live |
 | Custom fees | 0.5% platform fee buyer → treasury on primary and secondary — live |
 | Consensus Service audit trail | attestations + x402 receipts on topic `0.0.10388277`, replayed from the mirror node — live |
-| Agentic payments (x402) | 402 challenge, facilitator verify/settle, receipt, metering; real paid request — live |
+| Agentic payments (x402) | 402 challenge, facilitator verify/settle, receipt, metering; real paid request — live. The service is **publicly hosted**: `GET https://api.sowee.site/v1/market/insights` answers `402` with a `hedera:testnet` exact-scheme challenge, payable by anyone |
+| Contract verification | every contract we deploy is exact-match on Sourcify, on Hedera testnet and Arc testnet, including **each `BondToken`** — the market deploys those, so the deploy script never saw them. The ATS security is Hedera's own `ResolverProxy` from `@hashgraph/asset-tokenization-contracts@8.0.0`; the npm package ships no build-info and its metadata is not pinned on IPFS, so it cannot be verified from what is published, but its deployed bytecode matches the package's artifact byte for byte (`cast code` against `ResolverProxy.json`'s `deployedBytecode`) |
 | Scheduled transactions (HSS) | not used: settlement is permissionless instead, so anyone can settle after maturity without relying on scheduled dispatch |
 | Upstream contribution (hedera-harness) | open PR: [hedera-dev/hedera-harness#42](https://github.com/hedera-dev/hedera-harness/pull/42) — `doctor` now checks the chain operator can fund the run |
 
