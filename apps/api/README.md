@@ -141,6 +141,13 @@ both come back after a restart, so one World ID still cannot verify twice under 
 | `HCS_TOPIC_ID` | topic to write to; created and logged when empty |
 | `MIRROR_URL` | mirror node used to replay the topic at startup; only messages paid for by the operator are replayed, so a stranger posting to the public topic cannot poison the double-pledge index |
 
+## The API describes itself
+
+`GET /openapi.json` — OpenAPI 3.1, built by the running process, so it cannot drift from the
+service. It names the paid operation, its price, the response shape and the 402 a caller has to
+handle first. The `servers` URL follows the request, so it is right behind a proxy without being
+told where it lives. This is what an agent framework or a gateway reads instead of this README.
+
 ## Paid market insights (x402)
 
 `GET /v1/market/insights` is pay-per-call: **0.01 USDC on Hedera testnet**, settled through the
