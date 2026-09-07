@@ -28,8 +28,6 @@ type Config struct {
 	X402Asset          string // X402_ASSET, default 0.0.429274 (USDC on Hedera testnet)
 	X402PayTo          string // X402_PAY_TO, default HEDERA_OPERATOR_ID
 	X402Amount         string // X402_AMOUNT in asset base units, default 10000 (0.01 USDC)
-	X402PartnerKey     string // X402_PARTNER_KEY — a settlement partner that has already been paid; empty disables it
-	X402PartnerName    string // X402_PARTNER_NAME, the name that partner's calls are metered under
 
 	SumsubAppToken        string // SUMSUB_APP_TOKEN (sandbox: sbx:…); KYC disabled when empty
 	SumsubSecretKey       string // SUMSUB_SECRET_KEY
@@ -75,8 +73,6 @@ func FromEnv() Config {
 		X402Asset:          env("X402_ASSET", "0.0.429274"),
 		X402PayTo:          env("X402_PAY_TO", os.Getenv("HEDERA_OPERATOR_ID")),
 		X402Amount:         env("X402_AMOUNT", "10000"),
-		X402PartnerKey:     os.Getenv("X402_PARTNER_KEY"),
-		X402PartnerName:    env("X402_PARTNER_NAME", "settlement-partner"),
 
 		SumsubAppToken:        os.Getenv("SUMSUB_APP_TOKEN"),
 		SumsubSecretKey:       os.Getenv("SUMSUB_SECRET_KEY"),

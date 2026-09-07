@@ -11,13 +11,9 @@ and pull requests, and [`AI-USAGE.md`](AI-USAGE.md). The web app's visual design
 assets follow Sowee's existing brand; the implementation is new.
 
 Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments · Open Source) ·
-**Arc** (DeFi on Circle's USDC-native L1) · **Bazantic** (agentifying the paid API). Partner
-notes: [`docs/partners/`](docs/partners/).
-
-World's Selfie Check is built and shipped — it gates the demo faucet and the API allowance — but
-it is not among the three partner prizes we enter, because Selfie Check (Beta) is feature-flagged
-per app and ours was never enabled, so we cannot show the check running. The integration and the
-[developer feedback](docs/partners/world-feedback.md) are in the repository either way.
+**World** (Selfie Check) · **Arc** (DeFi on Circle's USDC-native L1). Partner notes:
+[`docs/partners/`](docs/partners/), including World's required
+[developer feedback](docs/partners/world-feedback.md).
 
 ## Live on Hedera testnet
 
@@ -25,7 +21,6 @@ per app and ours was never enabled, so we cannot show the check running. The int
 |---|---|
 | **The app** | [app.sowee.site](https://app.sowee.site) |
 | **The API** | [api.sowee.site/v1/healthz](https://api.sowee.site/v1/healthz) · [OpenAPI](https://api.sowee.site/openapi.json) |
-| **The API, as an agent capability** | [sowee.bazgateway.com](https://sowee.bazgateway.com) — published on Bazantic, MCP generated from the spec |
 | DiscountOracle | [`0xb6d7F1…9010`](https://hashscan.io/testnet/contract/0xb6d7F1e018195E0000eb0EE017E36c61113e9010) |
 | InvoiceMarket | [`0xe7f896…5962`](https://hashscan.io/testnet/contract/0xe7f89692940f5BCc30096cd48f360F2144155962) |
 | MaturitySettlement | [`0x68faa9…6219`](https://hashscan.io/testnet/contract/0x68faa98A8e42ef8ffC946e3d571C3940Dc0f6219) |

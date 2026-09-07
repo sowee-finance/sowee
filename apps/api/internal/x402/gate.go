@@ -3,7 +3,6 @@ package x402
 import (
 	"context"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -31,12 +30,6 @@ type Gate struct {
 	Req      PaymentRequirements // Extra.feePayer is filled from /supported when missing
 	OnSettle Settled
 	now      func() time.Time
-
-	// PartnerKey lets a settlement partner through without an on-chain payment: a gateway that
-	// already collected from the agent on its own rail cannot also satisfy a Hedera challenge.
-	// Empty means there is no such partner, which is the default — the only way in is to pay.
-	PartnerKey  string
-	PartnerName string
 
 	mu       sync.Mutex
 	feePayer string
@@ -112,16 +105,6 @@ func (g *Gate) Middleware(description string) func(http.Handler) http.Handler {
 			ctx := r.Context()
 			reqs := g.Requirements(ctx)
 			resource := Resource{URL: absoluteURL(r), Description: description, MimeType: "application/json"}
-
-			// A partner that has been paid elsewhere is metered under its own name, so usage
-			// still shows who consumed what. It is not anchored on the topic: nothing settled on
-			// Hedera, and the audit trail has to keep meaning what it says.
-			if g.PartnerKey != "" && subtle.ConstantTimeCompare(
-				[]byte(r.Header.Get(HeaderPartner)), []byte(g.PartnerKey)) == 1 {
-				g.recordPartner(g.PartnerName)
-				next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, ctxKey{}, g.PartnerName)))
-				return
-			}
 
 			raw := r.Header.Get(HeaderSignature)
 			if raw == "" {
@@ -240,19 +223,6 @@ func (g *Gate) record(key, payer, amount string) {
 	now := g.now()
 	g.seen[key] = now
 	g.prune(now)
-	g.meter(payer, amount, now)
-}
-
-// recordPartner meters a call that was paid for somewhere else. It deliberately does not touch
-// the replay guard: there is no payment payload to replay.
-func (g *Gate) recordPartner(payer string) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	g.meter(payer, "0", g.now())
-}
-
-// meter accumulates one call against a payer. Callers hold the lock.
-func (g *Gate) meter(payer, amount string, now time.Time) {
 	u := g.usage[payer]
 	if u == nil {
 		u = &Usage{Payer: payer}

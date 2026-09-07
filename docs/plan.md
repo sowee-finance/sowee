@@ -32,12 +32,10 @@ partners, not of tracks.
 | Hedera | Open Source | `hedera-dev/hedera-harness#42`, opened in-window |
 | Arc | DeFi / Onchain Finance | the same finance core on Arc testnet, funded in native USDC |
 | Arc | Launch on Arc Testnet & Push to Mainnet | mainnet is a configuration change; Arc mainnet itself opens 16 September, after this deadline |
-| Bazantic | Agentify a New API · Best Recipe | the paid endpoint, live and self-describing at `/openapi.json`, wrapped as an agent capability |
+| World | Selfie Check | anti-sybil signal in front of full KYC, verified server-side, nullifiers replayed from the topic |
 
-**World is built but not entered.** Selfie Check is integrated on both sides and gates the faucet
-and the API allowance, but the credential is feature-flagged per app and ours was never enabled,
-so the check was never run against a device. The track asks for a working app tested through the
-Sandbox App; we do not claim what we could not demonstrate.
+The live check is gated on World enabling Selfie Check (Beta) for our app; the integration and
+the required feedback document are written either way.
 
 **The Graph was considered and ruled out.** It does not index Hedera at all — Hedera's own guide
 says to run a local graph node, which the track excludes as "mocked/local" — and the Arc network
