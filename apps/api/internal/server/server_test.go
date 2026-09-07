@@ -283,7 +283,7 @@ func TestOpenAPIDescribesThePaidResource(t *testing.T) {
 	if _, ok := insights.Get.Responses["402"]; !ok {
 		t.Fatal("the 402 a caller must handle first is not described")
 	}
-	if !strings.Contains(insights.Get.Description, "USDC per call") {
+	if !strings.Contains(insights.Get.Description, "0.01 USDC per call") {
 		t.Fatalf("the price is not stated: %q", insights.Get.Description)
 	}
 	if len(doc.Servers) != 1 || doc.Servers[0]["url"] == "" {
