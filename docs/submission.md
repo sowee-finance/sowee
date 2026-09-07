@@ -86,7 +86,8 @@ secondary market.
 
 Solidity, Foundry, OpenZeppelin · Go, chi, go-ethereum, hiero-sdk-go, idkit · Next.js, React,
 wagmi, viem, Tailwind · bun, Turborepo, Biome · Hedera (HTS, HCS, Hashio, mirror node),
-Blocky402 (x402 facilitator), Sumsub (sandbox KYC), World ID (Selfie Check), Arc (native USDC).
+Blocky402 (x402 facilitator), Sumsub (sandbox KYC), World ID (Selfie Check), Arc (native USDC),
+Bazantic (agent gateway over the paid endpoint).
 
 ## Partner prizes (max 3)
 
@@ -98,8 +99,17 @@ Three partners, several tracks inside them (multiple tracks from one partner cou
 2. **Arc** — *Best DeFi / Onchain Finance* and *Launch on Arc Testnet & Push to Mainnet*: the same
    finance core live on Arc, funded in native USDC, with the mainnet step a configuration change.
    See `docs/partners/arc.md`.
-3. **World** — *Selfie Check*, as an anti-sybil signal in front of KYC. See `docs/partners/world.md`,
-   and the required feedback document at `docs/partners/world-feedback.md`.
+3. **Bazantic** — *Agentify a New API* and *Best Recipe Using Sponsor APIs*: our paid market-data
+   endpoint is live at `https://api.sowee.site/v1/market/insights`, answers a real x402 challenge,
+   and describes itself at `/openapi.json`. It did not exist at the start of the event. See
+   `docs/partners/bazantic.md`.
+
+**Not entered, though it is built:** World's Selfie Check. The integration is complete on both
+sides and gates the demo faucet and the API allowance, but Selfie Check (Beta) is feature-flagged
+per app and ours was never enabled, so the check itself was never run against a device. The track
+asks for a working app tested through the Sandbox App, and we will not claim what we could not
+demonstrate. The code and the required developer feedback are in the repository:
+`docs/partners/world.md`, `docs/partners/world-feedback.md`.
 
 ## Links
 

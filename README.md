@@ -10,10 +10,14 @@ September 2026. No code here predates the hacking window; see the commit history
 and pull requests, and [`AI-USAGE.md`](AI-USAGE.md). The web app's visual design and brand
 assets follow Sowee's existing brand; the implementation is new.
 
-Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments · Open Source) · **World**
-(Selfie Check) · **Arc** (DeFi on Circle's USDC-native L1). Partner notes:
-[`docs/partners/`](docs/partners/), including World's required
-[developer feedback](docs/partners/world-feedback.md).
+Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments · Open Source) ·
+**Arc** (DeFi on Circle's USDC-native L1) · **Bazantic** (agentifying the paid API). Partner
+notes: [`docs/partners/`](docs/partners/).
+
+World's Selfie Check is built and shipped — it gates the demo faucet and the API allowance — but
+it is not among the three partner prizes we enter, because Selfie Check (Beta) is feature-flagged
+per app and ours was never enabled, so we cannot show the check running. The integration and the
+[developer feedback](docs/partners/world-feedback.md) are in the repository either way.
 
 ## Live on Hedera testnet
 

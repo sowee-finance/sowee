@@ -22,12 +22,27 @@ An unpaid invoice becomes a compliance-gated, fractional bond token. The lifecyc
 
 ## Partner tracks (max three)
 
+Three partners; every track a partner offers counts against one slot, so the choice is of
+partners, not of tracks.
+
 | Partner | Track | What earns it |
 |---|---|---|
-| Hedera | Tokenization of Anything | bond token + full lifecycle + HCS trail on Hedera testnet |
-| Hedera | AI & Agentic Payments | x402-gated market-insights API + an agent that pays per call |
-| World | Selfie Check | anti-sybil gate in front of full KYC, verified server-side |
-| Arc | DeFi / Onchain Finance (stretch) | the same finance core on Arc testnet with native USDC |
+| Hedera | Tokenization of Anything | the invoice issued through Asset Tokenization Studio as a Reg S ERC-1400 |
+| Hedera | AI & Agentic Payments | x402-gated market-insights API, publicly hosted, and an agent that pays per call and acts on it |
+| Hedera | Open Source | `hedera-dev/hedera-harness#42`, opened in-window |
+| Arc | DeFi / Onchain Finance | the same finance core on Arc testnet, funded in native USDC |
+| Arc | Launch on Arc Testnet & Push to Mainnet | mainnet is a configuration change; Arc mainnet itself opens 16 September, after this deadline |
+| Bazantic | Agentify a New API · Best Recipe | the paid endpoint, live and self-describing at `/openapi.json`, wrapped as an agent capability |
+
+**World is built but not entered.** Selfie Check is integrated on both sides and gates the faucet
+and the API allowance, but the credential is feature-flagged per app and ours was never enabled,
+so the check was never run against a device. The track asks for a working app tested through the
+Sandbox App; we do not claim what we could not demonstrate.
+
+**The Graph was considered and ruled out.** It does not index Hedera at all — Hedera's own guide
+says to run a local graph node, which the track excludes as "mocked/local" — and the Arc network
+it supports is mainnet (chain 5042), which opens 16 September, after this deadline. Arc testnet
+is not indexed. There is no chain in this project The Graph can serve inside the window.
 
 ## Milestones
 
