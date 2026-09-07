@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strings"
 
 	"github.com/sowee-finance/sowee/apps/api/internal/config"
 )
@@ -33,8 +34,10 @@ func priceLabel(cfg config.Config) string {
 		return "nothing — the payment gate is not configured on this instance"
 	}
 	whole := new(big.Rat).SetFrac(amount, big.NewInt(1_000_000))
-	return fmt.Sprintf("%s USDC per call on %s (asset %s)",
-		whole.FloatString(6), cfg.X402Network, cfg.X402Asset)
+	// FloatString pads to the full six decimals; "0.010000 USDC" is a price nobody writes.
+	price := strings.TrimRight(whole.FloatString(6), "0")
+	price = strings.TrimSuffix(price, ".")
+	return fmt.Sprintf("%s USDC per call on %s (asset %s)", price, cfg.X402Network, cfg.X402Asset)
 }
 
 func openapi(cfg config.Config, publicURL string) map[string]any {
