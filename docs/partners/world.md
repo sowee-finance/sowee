@@ -70,10 +70,9 @@ feature flag on the app — until World enables it, World App will refuse the cr
 
 ## Feedback document (required by the track)
 
-To be filled while integrating:
-
-- Docs & integration flow — what worked, what was missing (result payload shape, credential naming, validity handling)
-- Developer Portal — feature-flag latency, app/action/rp_id configuration
-- Sandbox app — states, proof flows, test users, errors
-- What was confusing, missing, broken, or hard to test (expected vs actual, repro, fix)
-- Suggestions (e.g. a non-JS server verify example; guidance on using a medium-assurance signal inside a compliance stack)
+[`world-feedback.md`](world-feedback.md) — six findings from the integration: the feature flag
+having no self-serve path, the RP signature having no worked example outside JavaScript, a 4.0
+request flow receiving a 3.0-shaped proof, sandbox access being a separate gate, the nullifier's
+durability going unmentioned even though the anti-sybil property depends on it, and how easily
+a medium-assurance credential is read as identity. It states plainly what we could and could
+not test.

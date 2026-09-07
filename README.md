@@ -12,7 +12,8 @@ assets follow Sowee's existing brand; the implementation is new.
 
 Partner tracks: **Hedera** (Tokenization of Anything · AI & Agentic Payments · Open Source) · **World**
 (Selfie Check) · **Arc** (DeFi on Circle's USDC-native L1). Partner notes:
-[`docs/partners/`](docs/partners/).
+[`docs/partners/`](docs/partners/), including World's required
+[developer feedback](docs/partners/world-feedback.md).
 
 ## Live on Hedera testnet
 
