@@ -6,14 +6,15 @@ Intro under 20 seconds. Everything shown must be live. Target 3:30.
 Prepare (off camera): `scripts/demo.sh up` with a filled `.env.demo` brings up the API and the web
 app against Hedera testnet and prints the links; MetaMask holding the investor wallet (`0x05F2…a6af`, USDC and
 a few HBAR) and the issuer wallet (`0xbD6b…e910`); a terminal in `apps/agent` with `.env` filled;
-HashScan tabs for the market contract and the HCS topic.
+HashScan tabs for the market contract and the HCS topic; `sowee.site` open in its own tab for the
+opening shot.
 
 Hedera reserves `gasLimit × gasPrice` up front, so keep 2–3 HBAR on any wallet that will sign
 during the recording — a wallet with "enough for the fee" still gets rejected.
 
 | Time | Screen | Say |
 |---|---|---|
-| 0:00 | README header + live-links table | "Sowee turns an unpaid invoice into a compliant, tradable bond on Hedera. Everything you'll see is live on testnet and was built from scratch this week." |
+| 0:00 | `sowee.site`: hero, then one scroll to the card | "Sowee turns an unpaid invoice into a compliant, tradable bond on Hedera. That card is a real listing — the page read it out of the market contract a moment ago. Everything you'll see is live on testnet and was built from scratch this week." |
 | 0:20 | `/issuer/new`: issuer company (pick a logo next to it), payor, reference, face value, due date, drop a PDF | "The issuer submits an invoice, with their own logo. The document is hashed in the browser — only the sha256 leaves the device, and the logo rides along to the audit trail so the bond carries its issuer's mark without a file store anywhere." |
 | 0:40 | Click *Get a Quote* → discount and implied APY shown in the checklist | "The API prices it and signs an EIP-712 quote; the oracle verifies signer, expiry and burns the nonce on-chain — no price feed needed." |
 | 0:55 | *List on-chain* → wallet confirms → *Anchor the document hash* runs → HCS link; the bond appears in Newly Issued | "One transaction deploys the bond and opens funding. The issuance and the document hash are anchored to a Hedera Consensus Service topic — a public audit trail without a database." |

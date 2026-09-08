@@ -73,7 +73,7 @@ One thing we will not overstate. The Selfie Check flow is built on both sides, b
 ## Tech stack
 
 Solidity, Foundry, OpenZeppelin · Go, chi, go-ethereum, hiero-sdk-go, idkit · Next.js, React,
-wagmi, viem, Tailwind · bun, Turborepo, Biome · Hedera (HTS, HCS, Hashio, mirror node),
+wagmi, viem, Tailwind (the dapp and the landing) · bun, Turborepo, Biome · Hedera (HTS, HCS, Hashio, mirror node),
 Blocky402 (x402 facilitator), Sumsub (sandbox KYC), World ID (Selfie Check), Arc (native USDC).
 
 ## Partner prizes (max 3)
@@ -95,6 +95,7 @@ Three partners, several tracks inside them (multiple tracks from one partner cou
 
 ## Links
 
+- Live site: https://sowee.site — the listing on the card is read from `InvoiceMarket` at request time
 - Live app: https://app.sowee.site
 - Live API: https://api.sowee.site/v1/healthz — spec at https://api.sowee.site/openapi.json
 - Repo: https://github.com/sowee-finance/sowee
