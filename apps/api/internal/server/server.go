@@ -69,6 +69,7 @@ func New(cfg config.Config, d Deps) http.Handler {
 		verified = d.KYC.SelfieCheck
 	}
 	limiter := ratelimit.New(nz(cfg.RateBase, 30), nz(cfg.RateVerified, 300), verified, cfg.TrustedProxy)
+	limiter.Prove = provenWallet
 	r.Group(func(r chi.Router) {
 		r.Use(limiter.Middleware)
 		r.Post("/v1/invoices/{id}/quote", quoteHandler(signer))
@@ -210,6 +211,22 @@ func attestHandler(anchor *hcs.Anchor) http.HandlerFunc {
 			writeJSON(w, http.StatusCreated, res)
 		}
 	}
+}
+
+// provenWallet returns the wallet a request has demonstrated it controls, using the same signed
+// challenge the KYC writes carry, read from headers so the body is left for the handler. A
+// request that merely names a wallet proves nothing: grants are public on chain, so an
+// unauthenticated header would hand the larger allowance to anyone who can read HashScan.
+func provenWallet(r *http.Request) string {
+	wallet := r.Header.Get("X-Wallet")
+	if wallet == "" {
+		return ""
+	}
+	if kyc.VerifyChallenge(wallet, r.Header.Get("X-Wallet-Issued-At"),
+		r.Header.Get("X-Wallet-Signature"), time.Now()) != nil {
+		return ""
+	}
+	return wallet
 }
 
 // cors reflects an allowed origin rather than answering `*`. The x402 endpoint is paid and the

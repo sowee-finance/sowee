@@ -10,6 +10,9 @@ import (
 func TestTiers(t *testing.T) {
 	verified := map[string]bool{"0xaaa": true}
 	l := New(2, 5, func(w string) bool { return verified[w] }, false)
+	// This test is about the tiers, not about how control is proved: stand in for the signed
+	// challenge the server wires up. Without a prover nobody reaches the verified rate at all.
+	l.Prove = func(r *http.Request) string { return r.URL.Query().Get("wallet") }
 	now := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
 	l.now = func() time.Time { return now }
 	h := l.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(200) }))
@@ -78,41 +81,67 @@ func TestIdleBucketsAreDropped(t *testing.T) {
 	}
 }
 
-// Verified wallets are public on chain, so anyone can put one in X-Wallet. They must not be able
-// to spend the allowance that wallet's owner earned.
-func TestNamingAVerifiedWalletCannotDrainItsOwner(t *testing.T) {
+// Verified wallets are public on chain, so naming one is free. The larger allowance has to
+// require proof of control, not a header anyone can set.
+func TestTheVerifiedTierNeedsProofNotAClaim(t *testing.T) {
 	const wallet = "0xabc"
-	lim := New(1, 2, func(w string) bool { return w == wallet }, false)
+	lim := New(1, 5, func(w string) bool { return w == wallet }, false)
+	// Only a request carrying the right secret has proved anything.
+	lim.Prove = func(r *http.Request) string {
+		if r.Header.Get("X-Wallet-Signature") == "real" {
+			return r.Header.Get("X-Wallet")
+		}
+		return ""
+	}
 	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	h := lim.Middleware(ok)
 
-	call := func(from string) int {
+	call := func(from, sig string) int {
 		req := httptest.NewRequest(http.MethodGet, "/v1/market/insights", nil)
 		req.RemoteAddr = from + ":1234"
 		req.Header.Set("X-Wallet", wallet)
+		if sig != "" {
+			req.Header.Set("X-Wallet-Signature", sig)
+		}
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, req)
 		return rec.Code
 	}
 
-	// A stranger spends its own two calls under that wallet's name.
-	if c := call("10.0.0.1"); c != http.StatusOK {
+	// Naming the wallet without proof buys the base rate: one call, then refused.
+	if c := call("10.0.0.1", ""); c != http.StatusOK {
 		t.Fatalf("stranger call 1: %d", c)
 	}
-	if c := call("10.0.0.2"); c != http.StatusOK {
-		t.Fatalf("stranger call 2: %d", c)
+	if c := call("10.0.0.1", ""); c != http.StatusTooManyRequests {
+		t.Fatalf("a claimed wallet must not lift the limit: %d", c)
 	}
-	if c := call("10.0.0.1"); c != http.StatusOK {
-		t.Fatalf("stranger call 3: %d", c)
+	// The stranger has also spent nothing the owner had: proof gets the full allowance.
+	for i := range 5 {
+		if c := call("192.168.1.1", "real"); c != http.StatusOK {
+			t.Fatalf("owner call %d: %d", i+1, c)
+		}
 	}
-	// The owner still has a full allowance of its own.
-	if c := call("192.168.1.1"); c != http.StatusOK {
-		t.Fatalf("owner call 1: %d", c)
+	if c := call("192.168.1.1", "real"); c != http.StatusTooManyRequests {
+		t.Fatalf("the owner's own allowance is unbounded: %d", c)
 	}
-	if c := call("192.168.1.1"); c != http.StatusOK {
-		t.Fatalf("owner call 2: %d", c)
+}
+
+// With no way to prove anything, nobody reaches the larger allowance at all.
+func TestWithoutAProverEveryoneGetsTheBaseRate(t *testing.T) {
+	lim := New(1, 100, func(string) bool { return true }, false)
+	h := lim.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
+	call := func() int {
+		req := httptest.NewRequest(http.MethodGet, "/x", nil)
+		req.RemoteAddr = "10.0.0.9:1"
+		req.Header.Set("X-Wallet", "0xabc")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
 	}
-	if c := call("192.168.1.1"); c != http.StatusTooManyRequests {
-		t.Fatalf("owner is still rate limited on its own bucket: %d", c)
+	if c := call(); c != http.StatusOK {
+		t.Fatalf("first call: %d", c)
+	}
+	if c := call(); c != http.StatusTooManyRequests {
+		t.Fatalf("Prove is nil, so the verified tier must be unreachable: %d", c)
 	}
 }
