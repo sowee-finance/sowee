@@ -651,6 +651,18 @@ a {
 
 /* ===== breakpoints ===== */
 @media (max-width: 767px) {
+  /* The reference's 18rem of fade is enough behind two lines and a button. This copy is taller and
+     reaches further up the frame, and white type on a sunlit sky is not readable. */
+  .hero__fade {
+    height: 78%;
+    background: linear-gradient(
+      to top,
+      #071b12 0%,
+      rgba(7, 27, 18, 0.88) 42%,
+      rgba(7, 27, 18, 0.55) 68%,
+      transparent 100%
+    );
+  }
   .card-sec {
     --card-w: 84vw;
     /* Taller than a payment card: the same figures need more room at this width. */

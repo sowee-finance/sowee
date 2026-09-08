@@ -21,7 +21,9 @@ WORKDIR /repo
 COPY --from=deps /repo/node_modules ./node_modules
 COPY --from=deps /repo/apps/landing/node_modules ./apps/landing/node_modules
 ARG NEXT_PUBLIC_RPC_URL=https://testnet.hashio.io/api
+ARG NEXT_PUBLIC_SITE_URL=https://sowee.site
 ENV NEXT_PUBLIC_RPC_URL=$NEXT_PUBLIC_RPC_URL \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NEXT_TELEMETRY_DISABLED=1
 COPY . .
 RUN cd apps/landing && npx --no-install next build

@@ -116,6 +116,10 @@ jobs:
           file: apps/landing/Dockerfile
           platforms: linux/amd64
           push: true
+          # Canonical, Open Graph and the sitemap are absolute, so the public origin is fixed
+          # when the image is built.
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=https://sowee.site
           tags: |
             ghcr.io/${{ github.repository }}-landing:latest
             ghcr.io/${{ github.repository }}-landing:${{ github.sha }}
