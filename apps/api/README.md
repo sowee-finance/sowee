@@ -257,7 +257,12 @@ policy pass above.
 | `POST /v1/faucet` | signed | drips `FAUCET_USDC_AMOUNT` from the treasury to the wallet; `403` without the Selfie Check signal, `429` inside the cooldown, `502` if the wallet is not associated with USDC |
 
 Rate limits on `/v1/invoices/*/quote`, `/v1/invoices/*/attest`, `/v1/kyc/*`, `/v1/world/*` and `/v1/faucet`: `RATE_BASE_PER_MIN` per client IP, or
-`RATE_VERIFIED_PER_MIN` per wallet once it carries the signal (send `X-Wallet` or `?wallet=`).
+`RATE_VERIFIED_PER_MIN` for a request that has **proved** it controls a wallet carrying the
+signal. The proof is the same signed challenge the KYC writes use, in headers so the body is left
+alone: `X-Wallet`, `X-Wallet-Issued-At`, `X-Wallet-Signature` over `GET /v1/kyc/challenge`.
+Naming a wallet is not enough — grants are public on chain, so an unauthenticated header would
+hand the larger allowance to anyone who can read HashScan, and let them spend an allowance its
+owner earned.
 The Selfie Check step in the web wizard is skipped until `WORLD_*` is configured; the routes
 answer `503` meanwhile. `X-Forwarded-For` is ignored unless `TRUSTED_PROXY=true`; the granter
 and the faucet serialise transactions per key so they never race on the account nonce.

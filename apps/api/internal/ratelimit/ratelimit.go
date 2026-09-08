@@ -16,7 +16,11 @@ type Tiered struct {
 	Base       int                      // requests per minute for anyone
 	Verified   int                      // requests per minute for verified wallets
 	IsVerified func(wallet string) bool // signal lookup; nil means nobody is verified
-	TrustProxy bool                     // honour X-Forwarded-For (only behind our own proxy)
+	// Prove returns the wallet a request has demonstrated it controls, or "". nil means no
+	// request can, which is the safe default: the larger allowance is then unreachable rather
+	// than claimable by anyone who can name a verified address.
+	Prove      func(r *http.Request) string
+	TrustProxy bool // honour X-Forwarded-For (only behind our own proxy)
 	now        func() time.Time
 	mu         sync.Mutex
 	buckets    map[string]*bucket
@@ -74,14 +78,15 @@ func (t *Tiered) sweep(now time.Time) {
 	}
 }
 
-// Middleware keys unverified traffic by client IP at the base rate, and verified wallets
-// (X-Wallet header or ?wallet=) by wallet at the verified rate. Buckets nobody has touched for
+// Middleware keys traffic by client IP at the base rate. A request that has *proved* it controls
+// a verified wallet is keyed by that wallet instead, at the verified rate — proof, not a claim,
+// because grants are public on chain and naming one is free. Buckets nobody has touched for
 // idleTTL are swept, so the map does not grow with every stranger that ever called.
 func (t *Tiered) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		wallet := strings.ToLower(r.Header.Get("X-Wallet"))
-		if wallet == "" {
-			wallet = strings.ToLower(r.URL.Query().Get("wallet"))
+		wallet := ""
+		if t.Prove != nil {
+			wallet = strings.ToLower(t.Prove(r))
 		}
 		key, rate := "ip:"+clientIP(r, t.TrustProxy), t.Base
 		if wallet != "" && t.IsVerified != nil && t.IsVerified(wallet) {
