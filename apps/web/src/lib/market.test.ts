@@ -10,6 +10,7 @@ import {
   fetchBonds,
   fetchPositions,
   fundedPct,
+  holdingsCurve,
   impliedApr,
   maturityDate,
   pricePath,
@@ -167,5 +168,42 @@ describe("unitValue", () => {
   test("a matured bond is worth par, and nothing is claimed about the past", () => {
     expect(unitValue(b(-1), now, now)).toBe(1)
     expect(unitValue(b(100), at(-30), now)).toBeCloseTo(0.95, 6)
+  })
+})
+
+describe("holdingsCurve", () => {
+  const now = Date.UTC(2026, 8, 8)
+  const at = (days: number) => now + days * 86_400_000
+  const pos = (maturityDays: number, units: bigint, extra = {}) => ({
+    bond: { discountRateBps: 500, maturity: at(maturityDays) / 1000, settled: false, ...extra },
+    units,
+    claimable: 0n,
+  })
+
+  test("a wallet whose bonds have all matured is worth what they pay, not nothing", () => {
+    const curve = holdingsCurve([pos(-10, 10_000_000_000n)], now)
+    expect(curve.length).toBeGreaterThan(1)
+    expect(curve[0].value).toBeCloseTo(10_000, 6)
+    expect(curve.at(-1)?.value).toBeCloseTo(10_000, 6)
+  })
+
+  test("a settled bond contributes what it will actually pay, not its face", () => {
+    // 10,000 of face, but settlement only covered 6,000.
+    const settled = { ...pos(-10, 10_000_000_000n, { settled: true }), claimable: 6_000_000_000n }
+    expect(holdingsCurve([settled], now)[0].value).toBeCloseTo(6_000, 6)
+  })
+
+  test("positions accrete on their own clocks and the curve ends at total face", () => {
+    const curve = holdingsCurve([pos(10, 1_000_000n), pos(100, 1_000_000n)], now)
+    expect(curve[0].value).toBeCloseTo(1.9, 6) // both still at cost
+    expect(curve.at(-1)?.value).toBeCloseTo(2, 6) // both at par
+    // The short bond is already at par a third of the way in; the long one is not.
+    const third = curve[Math.floor(curve.length / 3)].value
+    expect(third).toBeGreaterThan(1.9)
+    expect(third).toBeLessThan(2)
+  })
+
+  test("no positions, no curve", () => {
+    expect(holdingsCurve([], now)).toEqual([])
   })
 })

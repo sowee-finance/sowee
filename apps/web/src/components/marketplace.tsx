@@ -13,10 +13,10 @@ import {
   bpsToPct,
   type Contracts,
   dollars,
+  holdingsCurve,
   impliedApr,
   pct,
   tenorDays,
-  unitValue,
 } from "@/lib/market"
 import { useBonds, usePositions } from "@/lib/use-bonds"
 import { BondAvatar, BondCard, bondNames } from "./bond-card"
@@ -24,7 +24,7 @@ import { Sparkline } from "./charts"
 import { NotDeployed } from "./not-deployed"
 import { matches } from "./search-bonds"
 import { ErrorState, SkeletonGrid } from "./states"
-import { Dropdown, TrendText, WalletAvatar } from "./ui"
+import { Dropdown, STATUS_TREND, TrendText, WalletAvatar } from "./ui"
 
 /* ------------------------------ your portfolio ----------------------------- */
 
@@ -33,29 +33,23 @@ import { Dropdown, TrendText, WalletAvatar } from "./ui"
  * Shows nothing at all before a wallet is connected, and nothing while it holds no units —
  * an empty row saying zero is worse than no row.
  */
-function PortfolioSummary({ contracts }: { contracts: Contracts }) {
+function PortfolioSummary({ contracts, bonds }: { contracts: Contracts; bonds?: Bond[] }) {
   const { address, chainId } = useAccount()
   const wallet = address && chainId === activeChain.id ? address : undefined
-  const positions = usePositions(contracts, wallet)
+  const positions = usePositions(contracts, wallet, bonds)
   const rows = positions.data ?? []
+  // Hold the space while the positions load, so arriving holdings do not shove the hero and
+  // every list below it down the page. Nothing at all for a wallet that holds nothing.
+  if (wallet && positions.isPending)
+    return <div className="mt-4 h-[132px] animate-pulse rounded-3xl bg-shade" />
   if (!wallet || !rows.length) return null
 
   const face = rows.reduce((sum, p) => sum + p.units, 0n)
-  const now = Date.now()
-  const value = rows.reduce(
-    (sum, p) => sum + (Number(p.units) / 1e6) * unitValue(p.bond, now, now),
-    0,
-  )
-  const path = rows.length
-    ? Array.from({ length: 24 }, (_, i) => {
-        const end = rows.reduce((m, p) => Math.max(m, p.bond.maturity * 1000), now)
-        const at = now + ((end - now) * i) / 23
-        return rows.reduce(
-          (sum, p) => sum + (Number(p.units) / 1e6) * unitValue(p.bond, at, now),
-          0,
-        )
-      })
-    : []
+  const claimable = rows.reduce((sum, p) => sum + p.claimable, 0n)
+  // The same helper the portfolio draws from. Two implementations of one number is how the two
+  // pages came to disagree about a wallet whose bonds had all matured.
+  const path = holdingsCurve(rows, Date.now(), 24).map((p) => p.value)
+  const trend = rows.some((p) => STATUS_TREND[bondStatus(p.bond)] === "up") ? "up" : "flat"
 
   return (
     <Link
@@ -67,17 +61,15 @@ function PortfolioSummary({ contracts }: { contracts: Contracts }) {
           <WalletAvatar className="size-7" />
           <span className="font-medium text-[15px]">Welcome, {shortAddress(wallet)}</span>
         </div>
-        <div className="mt-3 text-soft text-xs">Portfolio value</div>
-        <div className="tabular font-medium text-3xl tracking-tight">
-          {dollars(BigInt(Math.round(value * 1e6)))}
-        </div>
+        <div className="mt-3 text-soft text-xs">Face value held</div>
+        <div className="tabular font-medium text-3xl tracking-tight">{dollars(face)}</div>
         <div className="tabular mt-1 text-soft text-xs">
-          {dollars(face)} at maturity · {rows.length} bond{rows.length === 1 ? "" : "s"}
+          {dollars(claimable)} claimable · {rows.length} bond{rows.length === 1 ? "" : "s"}
         </div>
       </div>
       {/* h-20 keeps the sparkline short enough that the card stays a summary, not a chart. */}
       <div className="hidden h-20 min-w-0 flex-1 md:block">
-        <Sparkline values={path} trend="up" />
+        <Sparkline values={path} trend={trend} />
       </div>
       <span className="ml-auto flex shrink-0 items-center gap-1.5 font-medium text-sm">
         View Full Portfolio <ArrowRight size={15} />
@@ -499,7 +491,7 @@ function Listings({ contracts }: { contracts: Contracts }) {
   const all = data ?? []
   return (
     <>
-      <PortfolioSummary contracts={contracts} />
+      <PortfolioSummary contracts={contracts} bonds={all} />
       <Hero />
       <TopLists bonds={all} loading={isPending} />
       <Explore

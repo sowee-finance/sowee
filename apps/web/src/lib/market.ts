@@ -121,8 +121,11 @@ export async function fetchPositions(
   client: PublicClient,
   d: Contracts,
   wallet: Address,
+  // The caller usually has the listings already — the marketplace renders them. Re-reading the
+  // whole market to get them back doubles the calls against a rate-limited relay.
+  known?: Bond[],
 ): Promise<Position[]> {
-  const bonds = await fetchBonds(client, d)
+  const bonds = known ?? (await fetchBonds(client, d))
   const positions = await Promise.all(
     bonds.map(async (bond) => {
       const token = { address: bond.bond, abi: bondTokenAbi } as const
@@ -246,10 +249,11 @@ export function impliedApr(
 }
 
 /**
- * What one unit is worth at a moment. A unit is 1 USDC of face bought at a discount, so it is
- * worth `1 - discount` when the bond is listed and exactly 1 at maturity, moving linearly
- * between the two. This is the bond's own arithmetic, not a market price — nothing trades often
- * enough here to have one — so it is the only value curve we can draw honestly.
+ * What one unit pays out at a moment, per 1 USDC of face. The payoff line of a zero-coupon note:
+ * the discounted cost accreting to par at maturity, the same shape `pricePath` draws on a bond
+ * page. It is arithmetic, not a valuation — the chain does not record when a bond was listed, so
+ * the curve is anchored at `from` and drawn forward, and it says nothing about a bond's worth
+ * today beyond what it will pay.
  */
 export function unitValue(
   b: Pick<Bond, "discountRateBps" | "maturity">,
@@ -259,10 +263,49 @@ export function unitValue(
   const end = b.maturity * 1000
   if (at >= end || end <= from) return 1
   const cost = 1 - b.discountRateBps / 10_000
-  // We do not know when the bond was listed, so the curve is anchored at `from` — today's cost
-  // — and drawn forward. Nothing is claimed about the past.
   if (at <= from) return cost
   return cost + (1 - cost) * ((at - from) / (end - from))
+}
+
+/**
+ * The payoff line for a wallet's holdings, from today to the last maturity. Each position runs
+ * on its own clock — a bond maturing next week reaches par long before one maturing in a quarter
+ * — so the curve is their sum, and it flattens as each one lands.
+ *
+ * A settled bond contributes what it will actually pay, not its face: settlement may be partial,
+ * and `claimable` is the real figure. A bond that is merely matured contributes face, because
+ * that is what is owed. Returns a flat line rather than nothing when every bond has already
+ * matured, so the caller never has to invent a value for an empty curve.
+ */
+export function holdingsCurve(
+  rows: {
+    bond: Pick<Bond, "discountRateBps" | "maturity" | "settled">
+    units: bigint
+    claimable: bigint
+  }[],
+  now = Date.now(),
+  n = 96,
+): { timestamp: number; value: number }[] {
+  if (!rows.length) return []
+  const payout = (r: (typeof rows)[number], at: number) =>
+    r.bond.settled
+      ? Number(r.claimable) / 1e6
+      : (Number(r.units) / 1e6) * unitValue(r.bond, at, now)
+  const total = (at: number) => rows.reduce((sum, r) => sum + payout(r, at), 0)
+
+  const end = rows.reduce((latest, r) => Math.max(latest, r.bond.maturity * 1000), 0)
+  // Everything has matured: the line is flat at what it pays, over a window wide enough to draw.
+  if (end <= now) {
+    const value = total(now)
+    return [
+      { timestamp: now - 30 * 86_400_000, value },
+      { timestamp: now, value },
+    ]
+  }
+  return Array.from({ length: n }, (_, i) => {
+    const at = Math.round(now + ((end - now) * i) / (n - 1))
+    return { timestamp: at, value: total(at) }
+  })
 }
 
 /** `matures in 29 days`, `matures today`, `matured 3 days ago`. */
