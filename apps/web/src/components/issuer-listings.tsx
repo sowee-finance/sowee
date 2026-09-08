@@ -69,7 +69,9 @@ export function IssuerDashboard({ deployment }: { deployment?: Deployment }) {
     .sort((a, b) => a - b)[0]
 
   return (
-    <div>
+    // Same width as the portfolio: the two dashboards are the same kind of page and should not
+    // disagree about where they start and end.
+    <div className="mx-auto w-full max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-4 py-8">
         <div className="flex items-center gap-3">
           <WalletAvatar className="size-9" />
