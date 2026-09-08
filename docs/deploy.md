@@ -62,6 +62,19 @@ docker run -d --name sowee-web --restart unless-stopped \
   -p 127.0.0.1:3000:3000 ghcr.io/sowee-finance/sowee-web:latest
 ```
 
+The landing is the same, on its own host port. Every image listens on 3000 inside the container,
+so the host port is whatever the `sowee.site` vhost already proxies to — check before you bind it,
+because a mismatch is the 502 you will then spend ten minutes on:
+
+```sh
+grep -r proxy_pass /etc/nginx/sites-enabled/ | grep sowee.site   # the port the vhost expects
+docker pull ghcr.io/sowee-finance/sowee-landing:latest
+docker rm -f sowee-landing 2>/dev/null
+docker run -d --name sowee-landing --restart unless-stopped \
+  -p 127.0.0.1:<that port>:3000 ghcr.io/sowee-finance/sowee-landing:latest
+curl -sI localhost:<that port> | head -1                          # 200 before you reload nginx
+```
+
 This is not a preference. The host that serves these is a small shared box running thirty other
 sites, and building the Next app on it took the whole machine down twice: a burst of Docker
 build I/O, then the VM gone a few minutes later, and on the way back up the platform's
