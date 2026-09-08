@@ -1,12 +1,13 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { Marketplace } from "@/components/marketplace"
-import { activeChain, networkBrand } from "@/lib/chains"
+import { activeChain } from "@/lib/chains"
 import { getDeployment } from "@/lib/deployments"
 
-// The root segment shares the layout's segment, so the `%s | Sowee` template does not apply here.
+// No `title` here: the template in the root layout applies to this page like any other, so
+// setting the same string the layout already uses as its default rendered it twice —
+// "Sowee | Compliant Invoice Financing on Hedera | Sowee". The default covers this page.
 export const metadata: Metadata = {
-  title: `Sowee | Compliant Invoice Financing on ${networkBrand}`,
   alternates: { canonical: "/" },
 }
 
