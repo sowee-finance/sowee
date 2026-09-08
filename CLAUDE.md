@@ -14,6 +14,7 @@ An **ETHOnline 2026** submission, built from scratch inside the hacking window
 | `apps/api/` | Go service — discount-quote signer, KYC orchestration, x402 gate, HCS anchor |
 | `apps/agent/` | x402 consumer agent that discovers, pays for, uses and acts on the market-insights API |
 | `apps/ats/` | issuing an invoice as a regulated security through Hedera's Asset Tokenization Studio |
+| `apps/landing/` | Next.js marketing page at `sowee.site` — one screen at a time, a live listing drawn as a bond card |
 
 Sowee turns an unpaid invoice into a KYC-gated, fractional, tradable bond token:
 issue → price (signed discount quote) → fund in USDC → trade → settle pro-rata at maturity.

@@ -61,6 +61,7 @@ finance core runs on **Arc**, Circle's USDC-native L1, funded in native USDC.
 | [`apps/web/`](apps/web/) | Next.js: marketplace, bond page, issuer flow, portfolio, KYC wizard |
 | [`apps/agent/`](apps/agent/) | x402: discover → pay → read → fund |
 | [`apps/ats/`](apps/ats/) | issuing an invoice as a regulated security through ATS |
+| [`apps/landing/`](apps/landing/) | the page at `sowee.site`, showing a live listing read from the market |
 | [`docs/`](docs/) | plan, partner notes, deploy, video runbook |
 
 ## Run it
