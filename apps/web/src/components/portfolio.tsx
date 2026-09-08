@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeftRight, CircleCheckBig, ShieldCheck, Wallet } from "lucide-react"
+import { ArrowLeftRight, ShieldCheck, Wallet } from "lucide-react"
 import Link from "next/link"
 import { formatUnits, type Hex } from "viem"
 import { useAccount, useSwitchChain } from "wagmi"
@@ -15,17 +15,17 @@ import {
   bondStatus,
   bpsToPct,
   dollars,
+  holdingsCurve,
   impliedApr,
   maturityDate,
   type Position,
   pct,
-  unitValue,
 } from "@/lib/market"
 import { useAsks, useBonds, usePositions } from "@/lib/use-bonds"
 import { useKycStatus } from "@/lib/use-kyc"
 import { useTx } from "@/lib/use-tx"
 import { BondAvatar, bondNames } from "./bond-card"
-import { type Point, PriceChart } from "./charts"
+import { PriceChart } from "./charts"
 import { NotDeployed } from "./not-deployed"
 import { ErrorState } from "./states"
 import {
@@ -33,31 +33,12 @@ import {
   Card,
   ChainChip,
   Empty,
-  StatTile,
+  STATUS_TREND,
   StatusBadge,
   TxStatus,
-  UsdcIcon,
   WalletAvatar,
 } from "./ui"
 import { ConnectPrompt } from "./wallet-button"
-
-/**
- * What the wallet's units are worth from today to the last maturity. Each position accretes on
- * its own clock — a bond maturing next week reaches par long before one maturing in a quarter —
- * so the curve is the sum of them, sampled on a shared grid, and it flattens as each settles.
- */
-function holdingsCurve(rows: Position[], now = Date.now(), n = 96): Point[] {
-  const end = rows.reduce((latest, p) => Math.max(latest, p.bond.maturity * 1000), 0)
-  if (!rows.length || end <= now) return []
-  return Array.from({ length: n }, (_, i) => {
-    const at = Math.round(now + ((end - now) * i) / (n - 1))
-    const value = rows.reduce(
-      (sum, p) => sum + (Number(p.units) / 1e6) * unitValue(p.bond, at, now),
-      0,
-    )
-    return { timestamp: at, value }
-  })
-}
 
 export function Portfolio({ deployment }: { deployment?: Deployment }) {
   const { address, chainId } = useAccount()
@@ -99,7 +80,9 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
   const faceHeld = rows.reduce((s, p) => s + p.units, 0n)
   const claimable = rows.reduce((s, p) => s + p.claimable, 0n)
   const curve = holdingsCurve(rows)
-  const valueNow = curve.length ? BigInt(Math.round(curve[0].value * 1e6)) : 0n
+  // Neutral once nothing is still accreting, the way STATUS_TREND treats a single bond: a green
+  // rising line over a flat series claims a climb that is not happening.
+  const _trend = rows.some((p) => STATUS_TREND[bondStatus(p.bond)] === "up") ? "up" : "flat"
   const mine = (asks.data ?? []).filter((a) => a.maker.toLowerCase() === wallet.toLowerCase())
   const nameOf = (id: Hex) => {
     const b = bonds.data?.find((x) => x.invoiceId === id)
@@ -117,12 +100,11 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
       </div>
 
       <Card>
-        <div className="text-sm text-soft">Portfolio value</div>
+        <div className="text-sm text-soft">Face value held</div>
         <div className="tabular mt-1 font-medium text-4xl tracking-tight">
-          {positions.isPending ? "…" : dollars(valueNow)}
+          {positions.isPending ? "…" : dollars(faceHeld)}
         </div>
         <div className="tabular mt-3 font-mono text-soft text-xs">
-          {positions.isPending ? "…" : dollars(faceHeld)} at maturity ·{" "}
           {positions.isPending ? "…" : dollars(claimable)} claimable · {rows.length} bond
           {rows.length === 1 ? "" : "s"} held
         </div>
@@ -157,20 +139,6 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
 
       <Card className="mt-6">
         <h2 className="font-medium text-[15px]">My Holdings</h2>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <StatTile
-            icon={<UsdcIcon size={26} />}
-            name="Face value held"
-            value={positions.isPending ? "…" : dollars(faceHeld)}
-            tint="bg-[#e9f1fc]"
-          />
-          <StatTile
-            icon={<CircleCheckBig size={24} className="text-pos" strokeWidth={1.75} />}
-            name="Claimable now"
-            value={positions.isPending ? "…" : dollars(claimable)}
-            tint="bg-[#e9f4ee]"
-          />
-        </div>
         {positions.isPending ? (
           <div className="mt-4 h-32 animate-pulse rounded-xl bg-shade" />
         ) : positions.error ? (

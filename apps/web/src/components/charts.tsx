@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { TREND_COLOR, TREND_FILL, type Trend } from "./ui"
 
 // SVG charts: the card sparkline and the 380px detail chart. Both draw a series that is
-// computed, never fetched (`pricePath` / `accretion` in market.ts).
+// computed, never fetched — `pricePath`, `unitValue` and `holdingsCurve` in market.ts.
 
 type XY = { x: number; y: number }
 

@@ -1,7 +1,6 @@
 "use client"
 
 import { ChevronDown } from "lucide-react"
-import Image from "next/image"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { accountUrl, activeChain, explorerUrl, shortAddress, txUrl } from "@/lib/chains"
@@ -166,7 +165,10 @@ export function ChainIcon({ size = 18 }: { size?: number }) {
     )
   }
   return (
-    <Image
+    // Not next/image: an 18px decorative mark does not need an optimiser round-trip, and every
+    // other mark in this file costs zero requests.
+    // biome-ignore lint/performance/noImgElement: fixed-size decorative icon
+    <img
       src={src}
       alt=""
       aria-hidden
