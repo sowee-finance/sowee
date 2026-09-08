@@ -399,6 +399,7 @@ function Nav({ dark }: { dark: boolean }) {
         {links.map((l, i) => (
           <a
             key={l.label}
+            className="menu-panel__link"
             href={l.href}
             style={{ transitionDelay: `${80 + i * 40}ms` }}
             onClick={() => setOpen(false)}

@@ -269,10 +269,6 @@ a {
 .card-sec__bottom {
   pointer-events: none;
 }
-.card-sec__top .pill,
-.card-sec__bottom .btn {
-  pointer-events: auto;
-}
 .card-sec__top {
   position: absolute;
   top: 0;
@@ -307,6 +303,10 @@ a {
 }
 .pill:hover {
   background: rgba(24, 22, 27, 0.1);
+}
+.card-sec__top .pill,
+.card-sec__bottom .btn {
+  pointer-events: auto;
 }
 .card-sec__bottom {
   position: absolute;
@@ -467,6 +467,74 @@ a {
   transform: scale(1.25);
 }
 
+/* ===== mobile menu ===== */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 54;
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  visibility: hidden;
+  backdrop-filter: blur(4px);
+  transition:
+    opacity 0.3s,
+    visibility 0.3s;
+}
+.menu-overlay[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+}
+.menu-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 55;
+  padding: 5rem 1.25rem 2rem;
+  background: rgba(7, 27, 18, 0.98);
+  transform: translateY(-100%);
+  backdrop-filter: blur(12px);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-panel[data-open="true"] {
+  transform: none;
+}
+/* Classes rather than a bare descendant `a`: the nav has its own link rules, and two selectors
+   ending in the same element read as a cascade order problem even where they can never meet. */
+.menu-panel__link,
+.menu-panel__foot .btn {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition:
+    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-panel__link {
+  display: block;
+  padding: 0.875rem 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.125rem;
+}
+.menu-panel__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.menu-panel__foot .btn {
+  width: 100%;
+}
+.menu-panel[data-open="true"] .menu-panel__link,
+.menu-panel[data-open="true"] .btn {
+  opacity: 1;
+  transform: none;
+}
+
 /* ===== nav ===== */
 .nav {
   position: fixed;
@@ -558,68 +626,6 @@ a {
 .nav__burger svg {
   width: 24px;
   height: 24px;
-}
-
-/* ===== mobile menu ===== */
-.menu-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 54;
-  width: 100%;
-  border: 0;
-  cursor: pointer;
-  background: rgba(0, 0, 0, 0.6);
-  opacity: 0;
-  visibility: hidden;
-  backdrop-filter: blur(4px);
-  transition:
-    opacity 0.3s,
-    visibility 0.3s;
-}
-.menu-overlay[data-open="true"] {
-  opacity: 1;
-  visibility: visible;
-}
-.menu-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 55;
-  padding: 5rem 1.25rem 2rem;
-  background: rgba(7, 27, 18, 0.98);
-  transform: translateY(-100%);
-  backdrop-filter: blur(12px);
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.menu-panel[data-open="true"] {
-  transform: none;
-}
-.menu-panel a {
-  display: block;
-  padding: 0.875rem 0;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 1.125rem;
-  opacity: 0;
-  transform: translateY(-8px);
-  transition:
-    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.menu-panel[data-open="true"] a {
-  opacity: 1;
-  transform: none;
-}
-.menu-panel__foot {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-.menu-panel__foot .btn {
-  width: 100%;
 }
 
 /* ===== the one thing the reference does not need: a nudge ===== */
