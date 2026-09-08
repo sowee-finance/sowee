@@ -1,13 +1,14 @@
 # Deploying Sowee
 
-Two services: the Next.js app and the Go API. Both ship as containers
-(`apps/web/Dockerfile`, `apps/api/Dockerfile`) behind whatever reverse proxy already terminates
-TLS for the domain.
+Three services: the Next.js app, the Go API and the marketing site. All ship as containers
+(`apps/web/Dockerfile`, `apps/api/Dockerfile`, `apps/landing/Dockerfile`) behind whatever reverse
+proxy already terminates TLS for the domain.
 
 | Service | Container port | Public name |
 |---|---|---|
 | web | 3000 | `app.sowee.site` |
 | api | 8080 | `api.sowee.site` |
+| landing | 3000 | `sowee.site` |
 
 ## Build arguments are not run-time settings
 
@@ -22,7 +23,10 @@ docker build -f apps/web/Dockerfile \
   -t sowee-web .
 ```
 
-Point the app at a different API and it has to be rebuilt, not restarted.
+Point the app at a different API and it has to be rebuilt, not restarted. The landing has one of
+its own, `NEXT_PUBLIC_RPC_URL`, for the same reason — its CSP is derived from that origin — and it
+reads the market address out of `contracts/deployments/296.json` at build time, so a redeploy of
+the contracts means a rebuild of the landing too.
 
 ## The API's environment
 
@@ -47,6 +51,7 @@ Images are built by `.github/workflows/images.yml` and pushed to GHCR:
 
 - `ghcr.io/sowee-finance/sowee-web`
 - `ghcr.io/sowee-finance/sowee-api`
+- `ghcr.io/sowee-finance/sowee-landing`
 
 Deploying is a pull:
 
@@ -74,9 +79,11 @@ gh workflow run images.yml -f bundle=true
 gh run download <run-id> -n images -D ./img
 cat img/sowee-api.tar | ssh <host> docker load
 cat img/sowee-web.tar | ssh <host> docker load
+cat img/sowee-landing.tar | ssh <host> docker load
 ```
 
-Around 90 MB for the pair. The host still builds nothing.
+Around 90 MB for the app and the API, and the landing is the smaller of the two Next images. The
+host still builds nothing.
 
 ### Cutting over behind an existing proxy
 

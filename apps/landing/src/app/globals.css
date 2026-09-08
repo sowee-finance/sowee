@@ -1,0 +1,766 @@
+@import "tailwindcss";
+@import "./theme.pcss";
+
+/*
+ * Ported from the reference the team picked: one screen at a time, a hero over a parallax grid,
+ * a spotlight that follows the cursor, and a scroll that hands the screen to a single card on a
+ * light ground. Its stills and its clip are used as they are; the object on the light ground is
+ * not — that is a bond, drawn from a live listing.
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #f4f0ed;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background: #f4f0ed;
+}
+
+/* ===== entrances ===== */
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.anim-stagger,
+.stagger {
+  opacity: 0;
+  animation: fadeSlideUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* The card section is inert until it is handed the screen; its entrance must not run behind it. */
+.app[data-shown="false"] .stagger {
+  animation: none;
+  opacity: 0;
+}
+
+/* ===== the spotlight, shared by both sections ===== */
+.reveal {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: radial-gradient(
+    circle var(--r, 300px) at var(--mx, 62%) var(--my, 46%),
+    #fff 0%,
+    #fff 42%,
+    rgba(255, 255, 255, 0.7) 62%,
+    rgba(255, 255, 255, 0.3) 78%,
+    rgba(255, 255, 255, 0.08) 90%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    circle var(--r, 300px) at var(--mx, 62%) var(--my, 46%),
+    #fff 0%,
+    #fff 42%,
+    rgba(255, 255, 255, 0.7) 62%,
+    rgba(255, 255, 255, 0.3) 78%,
+    rgba(255, 255, 255, 0.08) 90%,
+    transparent 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  pointer-events: none;
+}
+
+/* ===== layer 2: the transition ===== */
+.transition-video {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+.app[data-phase="playing"] .transition-video {
+  opacity: 1;
+}
+
+/* ===== layer 3: hero ===== */
+.hero {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: clip;
+  color: #fff;
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* The hero is gone the moment the clip starts, not when the card arrives. */
+.app:not([data-phase="idle"]) .hero {
+  opacity: 0;
+  pointer-events: none;
+}
+.hero__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.hero__grid {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  opacity: 0.07;
+}
+.hero__reveal {
+  background-image: url("/hero-2.webp");
+  background-position: center;
+  background-size: cover;
+}
+.hero__fade {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  height: 18rem;
+  background: linear-gradient(to top, #071b12 0%, rgba(7, 27, 18, 0.6) 50%, transparent 100%);
+}
+.hero__content {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
+  display: grid;
+  gap: 2.5rem;
+  padding: 0 1.5rem 3rem;
+}
+.hero__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.hero__dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: #7ed4a0;
+}
+.hero__eyebrow span {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+.hero h1 {
+  margin: 1.5rem 0 0;
+  font-weight: 300;
+  font-size: clamp(2.2rem, 6.5vw, 5rem);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+}
+.hero__btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+.hero__copy {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+/* ===== buttons ===== */
+.btn {
+  display: inline-flex;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0 1.5rem;
+  border: 0;
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.btn--primary {
+  background: #fff;
+  color: #0c2d1d;
+  font-weight: 500;
+}
+.btn--primary:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+.btn--ghost {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  backdrop-filter: blur(8px);
+}
+.btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.btn--dark {
+  background: #18161b;
+  color: #fff;
+  font-weight: 500;
+}
+.btn--dark:hover {
+  background: #2a262f;
+}
+
+/* ===== layer 1: the bond card ===== */
+.card-sec {
+  --card-w: min(30rem, 82vw);
+  --card-ratio: 1.586;
+  --card-lift: 0px;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  color: #18161b;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.app[data-shown="true"] .card-sec {
+  opacity: 1;
+  pointer-events: auto;
+}
+.card-sec__mark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(24, 22, 27, 0.04);
+  font-weight: 500;
+  font-size: clamp(4rem, 15vw, 14rem);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+}
+/* Both faces sit in the same place; the mask on `.card-sec__reveal` is what shows the second. */
+.card-sec__card {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Both layers take the same lift, or the wash stops sitting on the card. */
+  transform: translateY(var(--card-lift));
+}
+.card-sec__reveal {
+  z-index: 11;
+}
+/* The top and bottom bars stretch the full width, so their empty space would otherwise sit over
+   the card and swallow every click aimed at it. Only what is actually interactive takes a click. */
+.card-sec__top,
+.card-sec__bottom {
+  pointer-events: none;
+}
+.card-sec__top {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 4rem 1.25rem 0;
+}
+.card-sec h2 {
+  margin: 0;
+  font-weight: 300;
+  font-size: clamp(2rem, 7vw, 5.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+}
+.pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(24, 22, 27, 0.15);
+  border-radius: 9999px;
+  background: rgba(24, 22, 27, 0.05);
+  color: rgba(24, 22, 27, 0.8);
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+.pill:hover {
+  background: rgba(24, 22, 27, 0.1);
+}
+.card-sec__top .pill,
+.card-sec__bottom .btn {
+  pointer-events: auto;
+}
+.card-sec__bottom {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  gap: 2rem;
+  padding: 0 1.25rem 3rem;
+}
+.card-sec__copy {
+  max-width: 28rem;
+  color: rgba(24, 22, 27, 0.7);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.card-sec__copy p {
+  margin: 0 0 1.25rem;
+}
+.card-sec__h2-right {
+  text-align: left;
+}
+
+/* ===== the card itself ===== */
+/* Height from the width, never from the content: the wash is an empty box of the same size, so a
+   card that grows to fit an extra line of text would slide out from under its own light. */
+.bond {
+  display: flex;
+  width: var(--card-w);
+  height: calc(var(--card-w) / var(--card-ratio));
+  overflow: hidden;
+  flex-direction: column;
+  padding: clamp(1.1rem, 3.2vw, 1.75rem);
+  border-radius: clamp(0.9rem, 2.4vw, 1.35rem);
+  box-shadow:
+    0 2px 6px rgba(12, 45, 29, 0.12),
+    0 30px 60px -20px rgba(12, 45, 29, 0.45);
+  transform: rotate(-11deg);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-sec__card:hover .bond {
+  transform: rotate(-11deg) scale(1.02);
+}
+.bond--dark {
+  background: linear-gradient(145deg, #14663c 0%, #0c2d1d 60%, #081f14 100%);
+  color: #fff;
+}
+/* The light itself: a translucent wash in the card's own shape, laid over the one card. No text
+   of its own, so nothing can ghost, and the printing underneath brightens rather than swaps. */
+.bond--lit {
+  background: linear-gradient(
+    145deg,
+    rgba(160, 245, 197, 0.78) 0%,
+    rgba(64, 190, 124, 0.5) 55%,
+    rgba(24, 118, 70, 0.3) 100%
+  );
+  box-shadow: none;
+}
+.bond__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bond__mark {
+  font-weight: 500;
+  font-size: 0.8125rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.bond__sym {
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  opacity: 0.7;
+}
+/* The chip, the one piece of a payment card worth keeping: it says at a glance what this is. */
+.bond__chip {
+  width: 2.6rem;
+  height: 2rem;
+  margin-top: clamp(0.9rem, 3vw, 1.4rem);
+  border-radius: 0.375rem;
+  background: linear-gradient(135deg, #e5c96b 0%, #c9a94a 45%, #f0e0a4 100%);
+  opacity: 0.85;
+}
+.bond__face {
+  margin-top: auto;
+  font-weight: 500;
+  font-size: clamp(1.9rem, 6vw, 2.75rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.bond__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.35rem;
+  font-size: 0.8125rem;
+  opacity: 0.75;
+}
+.bond__meta span + span::before {
+  margin-right: 0.75rem;
+  content: "·";
+}
+.bond__foot {
+  display: flex;
+  flex-direction: column;
+  margin-top: clamp(0.9rem, 2.5vw, 1.35rem);
+  gap: 0.15rem;
+}
+.bond__party {
+  overflow: hidden;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bond__payor {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+/* Which listing the card shows. The reference has one card and needs no such control; the market
+   has more than one bond, and hiding the rest behind a link would be a poorer answer. */
+.card-dots {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  z-index: 21;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: calc(var(--card-w) / 3.172 + 3.25rem);
+  transform: translateY(var(--card-lift));
+}
+.card-dot {
+  pointer-events: auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: rgba(24, 22, 27, 0.22);
+  cursor: pointer;
+  transition:
+    background-color 0.3s,
+    transform 0.3s;
+}
+.card-dot:hover {
+  background: rgba(24, 22, 27, 0.4);
+}
+.card-dot[data-on="true"] {
+  background: #0c2d1d;
+  transform: scale(1.25);
+}
+
+/* ===== mobile menu ===== */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 54;
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  visibility: hidden;
+  backdrop-filter: blur(4px);
+  transition:
+    opacity 0.3s,
+    visibility 0.3s;
+}
+.menu-overlay[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+}
+.menu-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 55;
+  padding: 5rem 1.25rem 2rem;
+  background: rgba(7, 27, 18, 0.98);
+  transform: translateY(-100%);
+  backdrop-filter: blur(12px);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-panel[data-open="true"] {
+  transform: none;
+}
+/* Classes rather than a bare descendant `a`: the nav has its own link rules, and two selectors
+   ending in the same element read as a cascade order problem even where they can never meet. */
+.menu-panel__link,
+.menu-panel__foot .btn {
+  opacity: 0;
+  transform: translateY(-8px);
+  transition:
+    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-panel__link {
+  display: block;
+  padding: 0.875rem 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.125rem;
+}
+.menu-panel__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.menu-panel__foot .btn {
+  width: 100%;
+}
+.menu-panel[data-open="true"] .menu-panel__link,
+.menu-panel[data-open="true"] .btn {
+  opacity: 1;
+  transform: none;
+}
+
+/* ===== nav ===== */
+.nav {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  color: #fff;
+  transition: color 0.5s;
+}
+.nav[data-dark="true"] {
+  color: #18161b;
+}
+.nav__brand span {
+  font-weight: 500;
+  font-size: 0.875rem;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+.nav__center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: none;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  backdrop-filter: blur(12px);
+  transition: background-color 0.5s;
+}
+.nav[data-dark="true"] .nav__center {
+  background: rgba(24, 22, 27, 0.07);
+}
+.nav__center a {
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+  transition:
+    color 0.2s,
+    background-color 0.5s;
+}
+.nav__center a:hover {
+  color: #fff;
+}
+.nav[data-dark="true"] .nav__center a {
+  color: rgba(24, 22, 27, 0.7);
+}
+.nav[data-dark="true"] .nav__center a:hover {
+  color: #18161b;
+}
+.nav__right {
+  display: none;
+  align-items: center;
+  gap: 0.625rem;
+}
+.nav__cta {
+  padding: 0.5rem 1.125rem;
+  border-radius: 9999px;
+  background: #fff;
+  color: #18161b;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition:
+    background-color 0.5s,
+    color 0.5s;
+}
+.nav[data-dark="true"] .nav__cta {
+  background: #18161b;
+  color: #fff;
+}
+.nav__burger {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.nav__burger svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* ===== the one thing the reference does not need: a nudge ===== */
+.hint {
+  position: absolute;
+  right: 0;
+  bottom: 1rem;
+  left: 0;
+  z-index: 20;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.75rem;
+  text-align: center;
+  pointer-events: none;
+  transition: color 0.5s;
+}
+.app[data-dark="true"] .hint {
+  color: rgba(24, 22, 27, 0.4);
+}
+
+/* ===== breakpoints ===== */
+@media (max-width: 767px) {
+  /* The reference's 18rem of fade is enough behind two lines and a button. This copy is taller and
+     reaches further up the frame, and white type on a sunlit sky is not readable. */
+  .hero__fade {
+    height: 78%;
+    background: linear-gradient(
+      to top,
+      #071b12 0%,
+      rgba(7, 27, 18, 0.88) 42%,
+      rgba(7, 27, 18, 0.55) 68%,
+      transparent 100%
+    );
+  }
+  .card-sec {
+    --card-w: 84vw;
+    /* Taller than a payment card: the same figures need more room at this width. */
+    --card-ratio: 1.3;
+    --card-lift: -4vh;
+  }
+  .bond__chip {
+    width: 2.1rem;
+    height: 1.6rem;
+  }
+  .bond__meta {
+    font-size: 0.75rem;
+  }
+  /* Under the pill, in the empty band above the card — below it the copy already is. */
+  .card-dots {
+    top: 9.5rem;
+    justify-content: flex-end;
+    margin-top: 0;
+    padding-right: 1.25rem;
+    transform: none;
+  }
+}
+@media (min-width: 640px) {
+  .nav {
+    padding: 1.25rem 2rem;
+  }
+  .hero__content {
+    padding: 0 2.5rem 4rem;
+  }
+  .card-sec__top {
+    padding: 7rem 2.5rem 0;
+  }
+  .card-sec__bottom {
+    padding: 0 2.5rem 4rem;
+  }
+  .hero__copy,
+  .card-sec__copy {
+    font-size: 1rem;
+  }
+}
+@media (min-width: 768px) {
+  .nav {
+    padding: 1.25rem 2.5rem;
+  }
+  .nav__center,
+  .nav__right {
+    display: flex;
+  }
+  .nav__burger {
+    display: none;
+  }
+  .hero__content {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: end;
+    padding: 0 3.5rem 5rem;
+  }
+  .hero__left {
+    grid-column: span 7;
+  }
+  .hero__right {
+    grid-column: span 5;
+  }
+  .card-sec__top {
+    padding: 8rem 3.5rem 0;
+  }
+  .card-sec__bottom {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: end;
+    padding: 0 3.5rem 5rem;
+  }
+  .card-sec__bottom-l,
+  .card-sec__bottom-r {
+    grid-column: span 6;
+  }
+  .card-sec__h2-right {
+    text-align: right;
+  }
+}
+@media (min-width: 1024px) {
+  .hero__left {
+    grid-column: span 8;
+  }
+  .hero__right {
+    grid-column: span 4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-stagger,
+  .stagger {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .hero,
+  .card-sec,
+  .bond,
+  .transition-video {
+    transition: none;
+  }
+}

@@ -1,4 +1,4 @@
-# Builds the two container images and pushes them to GHCR.
+# Builds the container images and pushes them to GHCR.
 #
 # The images are built here and nowhere else. The host that serves them is a small shared box:
 # a Next build there competes with everything else on it, and twice took the whole machine down.
@@ -10,8 +10,18 @@ on:
     branches: [main]
     paths:
       - "apps/web/**"
+      - "apps/landing/**"
       - "apps/api/**"
+      - "contracts/deployments/**"
       - "package.json"
+      - "bun.lock"
+      - ".github/workflows/images.yml"
+  # A pull request that touches the landing builds its image without pushing one. The Dockerfile
+  # is otherwise unproven until it is already on main, and the host only ever pulls.
+  pull_request:
+    paths:
+      - "apps/landing/**"
+      - "apps/web/Dockerfile"
       - "bun.lock"
       - ".github/workflows/images.yml"
   workflow_dispatch:
@@ -37,6 +47,7 @@ env:
 jobs:
   api:
     name: api image
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -64,6 +75,7 @@ jobs:
 
   web:
     name: web image
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -94,11 +106,43 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
+  landing:
+    name: landing image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/landing/Dockerfile
+          platforms: linux/amd64
+          # Built on a pull request, pushed only from main.
+          push: ${{ github.event_name != 'pull_request' }}
+          # Canonical, Open Graph and the sitemap are absolute, so the public origin is fixed
+          # when the image is built.
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=https://sowee.site
+          tags: |
+            ghcr.io/${{ github.repository }}-landing:latest
+            ghcr.io/${{ github.repository }}-landing:${{ github.sha }}
+          cache-from: type=gha,scope=landing
+          cache-to: type=gha,mode=max,scope=landing
+
   # A host with no registry credentials can still be deployed to: the same images, saved as
   # tarballs and shipped over ssh (`docker load`). Off by default; it doubles the build.
   bundle:
     name: image tarballs
-    if: inputs.bundle
+    if: github.event_name != 'pull_request' && inputs.bundle
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -127,6 +171,15 @@ jobs:
           tags: sowee-web:bundle
           outputs: type=docker,dest=/tmp/sowee-web.tar
           cache-from: type=gha,scope=web
+      - name: landing tarball
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/landing/Dockerfile
+          platforms: linux/amd64
+          tags: sowee-landing:bundle
+          outputs: type=docker,dest=/tmp/sowee-landing.tar
+          cache-from: type=gha,scope=landing
       - uses: actions/upload-artifact@v4
         with:
           name: images
