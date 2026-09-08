@@ -42,10 +42,9 @@ export function IssuerForm({ deployment }: { deployment?: Deployment }) {
   const [draft, setDraft] = useState<{ draft: Draft; quote: SignedQuote }>()
   if (!deployment) return <NotDeployed />
   return (
-    // Same container as the portfolio and the issuer dashboard, so the three pages share a left
-    // edge; the form itself stays narrow inside it, because a field stretched to 1400px is not a
-    // field anyone wants to fill in.
-    <div className="mx-auto w-full max-w-6xl py-10">
+    // A single-column form, centred: there is nothing beside it to line up with, and a field
+    // stretched across the page is not a field anyone wants to fill in.
+    <div className="mx-auto w-full max-w-2xl py-10">
       <Link
         href="/issuer"
         className="flex w-fit items-center gap-1.5 text-sm text-soft hover:text-ink"
@@ -59,19 +58,17 @@ export function IssuerForm({ deployment }: { deployment?: Deployment }) {
           ? "Quote signed — list the bond from your wallet, then the document hash is anchored."
           : "Submit an unpaid invoice, then issue it as a bond and list it on the marketplace."}
       </p>
-      <div className="max-w-2xl">
-        {draft ? (
-          <Checklist
-            key={draft.quote.quote.invoiceId}
-            deployment={deployment}
-            draft={draft.draft}
-            quote={draft.quote}
-            onDiscard={() => setDraft(undefined)}
-          />
-        ) : (
-          <InvoiceForm onQuoted={(d, q) => setDraft({ draft: d, quote: q })} />
-        )}
-      </div>
+      {draft ? (
+        <Checklist
+          key={draft.quote.quote.invoiceId}
+          deployment={deployment}
+          draft={draft.draft}
+          quote={draft.quote}
+          onDiscard={() => setDraft(undefined)}
+        />
+      ) : (
+        <InvoiceForm onQuoted={(d, q) => setDraft({ draft: d, quote: q })} />
+      )}
     </div>
   )
 }
