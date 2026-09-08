@@ -54,7 +54,7 @@ jobs:
       - run: go test ./...
 
   web:
-    name: web + agent
+    name: web + agent + landing
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,3 +76,9 @@ jobs:
         working-directory: apps/web
         env:
           NEXT_PUBLIC_CHAIN_ID: "296"
+      # The landing shares the runner rather than taking one of its own: it is one page, and
+      # `lint` here is next's typegen plus tsc, which nothing else was running over it.
+      - run: bun run lint
+        working-directory: apps/landing
+      - run: bun run build
+        working-directory: apps/landing
