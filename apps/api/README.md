@@ -257,7 +257,10 @@ policy pass above.
 | `POST /v1/faucet` | signed | drips `FAUCET_USDC_AMOUNT` from the treasury to the wallet; `403` without the Selfie Check signal, `429` inside the cooldown, `502` if the wallet is not associated with USDC |
 
 Rate limits on `/v1/invoices/*/quote`, `/v1/invoices/*/attest`, `/v1/kyc/*`, `/v1/world/*` and `/v1/faucet`: `RATE_BASE_PER_MIN` per client IP, or
-`RATE_VERIFIED_PER_MIN` per wallet once it carries the signal (send `X-Wallet` or `?wallet=`).
+`RATE_VERIFIED_PER_MIN` once the wallet carries the signal (send `X-Wallet` or `?wallet=`). That
+bucket is keyed by wallet **and** caller: nothing proves a request controls the wallet it names,
+grants are public on chain, and a shared bucket would let a stranger spend the allowance its
+owner earned.
 The Selfie Check step in the web wizard is skipped until `WORLD_*` is configured; the routes
 answer `503` meanwhile. `X-Forwarded-For` is ignored unless `TRUSTED_PROXY=true`; the granter
 and the faucet serialise transactions per key so they never race on the account nonce.

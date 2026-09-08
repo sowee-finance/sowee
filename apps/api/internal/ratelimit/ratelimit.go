@@ -83,9 +83,13 @@ func (t *Tiered) Middleware(next http.Handler) http.Handler {
 		if wallet == "" {
 			wallet = strings.ToLower(r.URL.Query().Get("wallet"))
 		}
-		key, rate := "ip:"+clientIP(r, t.TrustProxy), t.Base
+		ip := clientIP(r, t.TrustProxy)
+		key, rate := "ip:"+ip, t.Base
 		if wallet != "" && t.IsVerified != nil && t.IsVerified(wallet) {
-			key, rate = "wallet:"+wallet, t.Verified
+			// Keyed by wallet *and* caller. Nothing proves this request controls the wallet —
+			// grants are public on chain, so anyone can name a verified one — and a shared bucket
+			// would let a stranger exhaust the allowance the wallet's owner earned.
+			key, rate = "wallet:"+wallet+"|"+ip, t.Verified
 		}
 		if !t.Allow(key, rate) {
 			w.Header().Set("Retry-After", strconv.Itoa(60/max(rate, 1)+1))

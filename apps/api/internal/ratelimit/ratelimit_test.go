@@ -77,3 +77,42 @@ func TestIdleBucketsAreDropped(t *testing.T) {
 		t.Fatal("the active bucket was swept")
 	}
 }
+
+// Verified wallets are public on chain, so anyone can put one in X-Wallet. They must not be able
+// to spend the allowance that wallet's owner earned.
+func TestNamingAVerifiedWalletCannotDrainItsOwner(t *testing.T) {
+	const wallet = "0xabc"
+	lim := New(1, 2, func(w string) bool { return w == wallet }, false)
+	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	h := lim.Middleware(ok)
+
+	call := func(from string) int {
+		req := httptest.NewRequest(http.MethodGet, "/v1/market/insights", nil)
+		req.RemoteAddr = from + ":1234"
+		req.Header.Set("X-Wallet", wallet)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	// A stranger spends its own two calls under that wallet's name.
+	if c := call("10.0.0.1"); c != http.StatusOK {
+		t.Fatalf("stranger call 1: %d", c)
+	}
+	if c := call("10.0.0.2"); c != http.StatusOK {
+		t.Fatalf("stranger call 2: %d", c)
+	}
+	if c := call("10.0.0.1"); c != http.StatusOK {
+		t.Fatalf("stranger call 3: %d", c)
+	}
+	// The owner still has a full allowance of its own.
+	if c := call("192.168.1.1"); c != http.StatusOK {
+		t.Fatalf("owner call 1: %d", c)
+	}
+	if c := call("192.168.1.1"); c != http.StatusOK {
+		t.Fatalf("owner call 2: %d", c)
+	}
+	if c := call("192.168.1.1"); c != http.StatusTooManyRequests {
+		t.Fatalf("owner is still rate limited on its own bucket: %d", c)
+	}
+}
