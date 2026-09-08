@@ -254,7 +254,6 @@ export function Landing({ bonds }: { bonds: Row[] }) {
               strokeLinecap="round"
               aria-hidden="true"
             >
-              <title>Plus</title>
               <path d="M5 12h14" />
               <path d="M12 5v14" />
             </svg>
@@ -317,7 +316,6 @@ export function Landing({ bonds }: { bonds: Row[] }) {
         {/* biome-ignore lint/performance/noImgElement: one full-bleed background, already sized */}
         <img className="hero__bg" src="/hero-1.webp" alt="" />
         <svg className="hero__grid" aria-hidden="true">
-          <title>Grid</title>
           <defs>
             <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
               <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#8fd0aa" strokeWidth="0.5" />
@@ -443,7 +441,6 @@ function Nav({ dark }: { dark: boolean }) {
             strokeLinecap="round"
             aria-hidden="true"
           >
-            <title>Menu</title>
             {open ? (
               <>
                 <path d="M18 6 6 18" />
