@@ -181,6 +181,8 @@ func (s *Service) Verify(ctx context.Context, payload json.RawMessage) (string, 
 		return "", ErrReplay
 	}
 	s.used[nullifier] = time.Now()
-	// ponytail: nullifiers live in memory; persist them before production.
+	// This map is the live copy; the durable one is the audit topic. Each pass is anchored as
+	// selfie.v1 and replayed through Restore at startup, so a restart cannot hand the same World
+	// ID a second wallet — which is the whole of the anti-sybil guarantee.
 	return nullifier, nil
 }
