@@ -1,6 +1,7 @@
 "use client"
 
 import { ChevronDown } from "lucide-react"
+import Image from "next/image"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { accountUrl, activeChain, explorerUrl, shortAddress, txUrl } from "@/lib/chains"
@@ -140,34 +141,39 @@ export function WalletAvatar({ className = "" }: { className?: string }) {
   )
 }
 
+/** The networks whose own mark we ship. Anything else falls back to a monogram. */
+const CHAIN_LOGOS: Record<number, string> = {
+  296: "/chains/hedera.png",
+  5042002: "/chains/arc.png",
+}
+
 /**
- * The chain's own mark, when we have one we can draw faithfully. Hedera's is a white ħ on black
- * and simple enough to render as geometry. Anything else falls back to the network's initial on
- * a neutral disc — a wrong logo is worse than an honest monogram, and nothing here ships a brand
- * asset we did not draw.
+ * The chain's own mark. These are the partners' brand assets, used to identify their network and
+ * nothing else; a chain we have no asset for gets its initial on a neutral disc, because a wrong
+ * logo is worse than an honest monogram.
  */
 export function ChainIcon({ size = 18 }: { size?: number }) {
-  if (activeChain.id === 296) {
+  const src = CHAIN_LOGOS[activeChain.id]
+  if (!src) {
     return (
-      <svg viewBox="0 0 32 32" width={size} height={size} aria-hidden="true">
-        <circle cx="16" cy="16" r="16" fill="#000" />
-        <g fill="#fff">
-          <rect x="9" y="7" width="3" height="18" rx="0.5" />
-          <rect x="20" y="7" width="3" height="18" rx="0.5" />
-          <rect x="9" y="12.5" width="14" height="2.6" />
-          <rect x="9" y="17.5" width="14" height="2.6" />
-        </g>
-      </svg>
+      <span
+        aria-hidden
+        className="flex shrink-0 items-center justify-center rounded-full bg-ink font-medium text-[10px] text-white"
+        style={{ width: size, height: size }}
+      >
+        {activeChain.name[0]}
+      </span>
     )
   }
   return (
-    <span
+    <Image
+      src={src}
+      alt=""
       aria-hidden
-      className="flex shrink-0 items-center justify-center rounded-full bg-ink font-medium text-[10px] text-white"
-      style={{ width: size, height: size }}
-    >
-      {activeChain.name[0]}
-    </span>
+      width={size}
+      height={size}
+      className="shrink-0 rounded-full"
+    />
   )
 }
 
