@@ -3,7 +3,7 @@
 import { ChevronDown } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { accountUrl, explorerUrl, shortAddress, txUrl } from "@/lib/chains"
+import { accountUrl, activeChain, explorerUrl, shortAddress, txUrl } from "@/lib/chains"
 import { type BondStatus, statusLabel } from "@/lib/market"
 
 // Shared design-system primitives: identity marks, badges, popovers, sheets and the
@@ -137,6 +137,47 @@ export function WalletAvatar({ className = "" }: { className?: string }) {
     <span
       className={`inline-block shrink-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,#7fb2ff_0%,#2f6fed_45%,#1b2f6e_100%)] ${className}`}
     />
+  )
+}
+
+/**
+ * The chain's own mark, when we have one we can draw faithfully. Hedera's is a white ħ on black
+ * and simple enough to render as geometry. Anything else falls back to the network's initial on
+ * a neutral disc — a wrong logo is worse than an honest monogram, and nothing here ships a brand
+ * asset we did not draw.
+ */
+export function ChainIcon({ size = 18 }: { size?: number }) {
+  if (activeChain.id === 296) {
+    return (
+      <svg viewBox="0 0 32 32" width={size} height={size} aria-hidden="true">
+        <circle cx="16" cy="16" r="16" fill="#000" />
+        <g fill="#fff">
+          <rect x="9" y="7" width="3" height="18" rx="0.5" />
+          <rect x="20" y="7" width="3" height="18" rx="0.5" />
+          <rect x="9" y="12.5" width="14" height="2.6" />
+          <rect x="9" y="17.5" width="14" height="2.6" />
+        </g>
+      </svg>
+    )
+  }
+  return (
+    <span
+      aria-hidden
+      className="flex shrink-0 items-center justify-center rounded-full bg-ink font-medium text-[10px] text-white"
+      style={{ width: size, height: size }}
+    >
+      {activeChain.name[0]}
+    </span>
+  )
+}
+
+/** The network, named and marked. Used wherever a page states which chain it is talking to. */
+export function ChainChip({ className = "" }: { className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-2 text-soft ${className}`}>
+      <ChainIcon />
+      {activeChain.name}
+    </span>
   )
 }
 

@@ -2,7 +2,6 @@ import { skipToken, useQuery } from "@tanstack/react-query"
 import type { Address, Hex } from "viem"
 import { usePublicClient } from "wagmi"
 import { activeChain } from "./chains"
-import type { Deployment } from "./deployments"
 import { type Contracts, fetchAsks, fetchBond, fetchBonds, fetchPositions } from "./market"
 
 // Reads always go to the active chain, whatever chain the wallet is on.
@@ -30,7 +29,9 @@ export function useAsks(market: Address | undefined) {
   })
 }
 
-export function usePositions(deployment: Deployment | undefined, wallet: Address | undefined) {
+// Takes Contracts rather than a full Deployment: the market address is all it reads, and the
+// marketplace has only that much on hand.
+export function usePositions(deployment: Contracts | undefined, wallet: Address | undefined) {
   const client = usePublicClient({ chainId: activeChain.id })
   return useQuery({
     queryKey: ["positions", activeChain.id, deployment?.invoiceMarket, wallet],

@@ -1,10 +1,11 @@
 "use client"
 
-import { FileCheck2, Search } from "lucide-react"
+import { ArrowRight, FileCheck2, Search } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useRef, useState } from "react"
-import { activeChain, networkBrand } from "@/lib/chains"
+import { useAccount } from "wagmi"
+import { activeChain, networkBrand, shortAddress } from "@/lib/chains"
 import {
   type Bond,
   type BondStatus,
@@ -15,13 +16,75 @@ import {
   impliedApr,
   pct,
   tenorDays,
+  unitValue,
 } from "@/lib/market"
-import { useBonds } from "@/lib/use-bonds"
+import { useBonds, usePositions } from "@/lib/use-bonds"
 import { BondAvatar, BondCard, bondNames } from "./bond-card"
+import { Sparkline } from "./charts"
 import { NotDeployed } from "./not-deployed"
 import { matches } from "./search-bonds"
 import { ErrorState, SkeletonGrid } from "./states"
-import { Dropdown, TrendText } from "./ui"
+import { Dropdown, TrendText, WalletAvatar } from "./ui"
+
+/* ------------------------------ your portfolio ----------------------------- */
+
+/**
+ * A connected wallet arriving on the marketplace should not have to remember it owns anything.
+ * Shows nothing at all before a wallet is connected, and nothing while it holds no units —
+ * an empty row saying zero is worse than no row.
+ */
+function PortfolioSummary({ contracts }: { contracts: Contracts }) {
+  const { address, chainId } = useAccount()
+  const wallet = address && chainId === activeChain.id ? address : undefined
+  const positions = usePositions(contracts, wallet)
+  const rows = positions.data ?? []
+  if (!wallet || !rows.length) return null
+
+  const face = rows.reduce((sum, p) => sum + p.units, 0n)
+  const now = Date.now()
+  const value = rows.reduce(
+    (sum, p) => sum + (Number(p.units) / 1e6) * unitValue(p.bond, now, now),
+    0,
+  )
+  const path = rows.length
+    ? Array.from({ length: 24 }, (_, i) => {
+        const end = rows.reduce((m, p) => Math.max(m, p.bond.maturity * 1000), now)
+        const at = now + ((end - now) * i) / 23
+        return rows.reduce(
+          (sum, p) => sum + (Number(p.units) / 1e6) * unitValue(p.bond, at, now),
+          0,
+        )
+      })
+    : []
+
+  return (
+    <Link
+      href="/portfolio"
+      className="mt-4 flex flex-wrap items-center gap-6 rounded-3xl border border-line bg-white p-5 hover:border-faint"
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-2.5">
+          <WalletAvatar className="size-7" />
+          <span className="font-medium text-[15px]">Welcome, {shortAddress(wallet)}</span>
+        </div>
+        <div className="mt-3 text-soft text-xs">Portfolio value</div>
+        <div className="tabular font-medium text-3xl tracking-tight">
+          {dollars(BigInt(Math.round(value * 1e6)))}
+        </div>
+        <div className="tabular mt-1 text-soft text-xs">
+          {dollars(face)} at maturity · {rows.length} bond{rows.length === 1 ? "" : "s"}
+        </div>
+      </div>
+      {/* h-20 keeps the sparkline short enough that the card stays a summary, not a chart. */}
+      <div className="hidden h-20 min-w-0 flex-1 md:block">
+        <Sparkline values={path} trend="up" />
+      </div>
+      <span className="ml-auto flex shrink-0 items-center gap-1.5 font-medium text-sm">
+        View Full Portfolio <ArrowRight size={15} />
+      </span>
+    </Link>
+  )
+}
 
 /* ----------------------------------- hero ---------------------------------- */
 
@@ -34,9 +97,8 @@ function Hero() {
             Compliant Invoice Financing on {networkBrand}
           </h1>
           <p className="mt-2 text-[#8fd0aa] text-sm md:text-[15px]">
-            Issuers tokenize unpaid invoices as compliant bonds. Investors fund them at a discount
-            in USDC and trade them on a compliant secondary market — settlement is automatic at
-            maturity.
+            Get paid for an invoice today. Investors put up the cash and collect when your customer
+            pays.
           </p>
           <Link
             href="/issuer/new"
@@ -437,6 +499,7 @@ function Listings({ contracts }: { contracts: Contracts }) {
   const all = data ?? []
   return (
     <>
+      <PortfolioSummary contracts={contracts} />
       <Hero />
       <TopLists bonds={all} loading={isPending} />
       <Explore

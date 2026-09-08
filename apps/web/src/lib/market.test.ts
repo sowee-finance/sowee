@@ -16,6 +16,7 @@ import {
   relativeMaturity,
   splitName,
   tenorDays,
+  unitValue,
   usdc,
 } from "./market"
 
@@ -146,4 +147,25 @@ test("all bonds means the ones still worth looking at, not the finished ones", (
   expect(bondStatus({ ...base, supply: 100n, settled: false })).toBe("funded")
   expect(bondStatus({ ...base, maturity: 1, settled: false })).toBe("matured")
   expect(bondStatus({ ...base, maturity: 1, settled: true })).toBe("settled")
+})
+
+describe("unitValue", () => {
+  const bond = { discountRateBps: 500, maturity: 0 } // 5% discount
+  const now = Date.UTC(2026, 8, 8)
+  const at = (days: number) => now + days * 86_400_000
+  const b = (maturityDays: number) => ({ ...bond, maturity: at(maturityDays) / 1000 })
+
+  test("a unit is worth its discounted cost today and par at maturity", () => {
+    expect(unitValue(b(100), now, now)).toBeCloseTo(0.95, 6)
+    expect(unitValue(b(100), at(100), now)).toBe(1)
+  })
+
+  test("it accretes linearly in between", () => {
+    expect(unitValue(b(100), at(50), now)).toBeCloseTo(0.975, 6)
+  })
+
+  test("a matured bond is worth par, and nothing is claimed about the past", () => {
+    expect(unitValue(b(-1), now, now)).toBe(1)
+    expect(unitValue(b(100), at(-30), now)).toBeCloseTo(0.95, 6)
+  })
 })

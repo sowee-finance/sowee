@@ -245,6 +245,26 @@ export function impliedApr(
   return days > 0 ? (b.discountRateBps * 365) / days / 100 : undefined
 }
 
+/**
+ * What one unit is worth at a moment. A unit is 1 USDC of face bought at a discount, so it is
+ * worth `1 - discount` when the bond is listed and exactly 1 at maturity, moving linearly
+ * between the two. This is the bond's own arithmetic, not a market price — nothing trades often
+ * enough here to have one — so it is the only value curve we can draw honestly.
+ */
+export function unitValue(
+  b: Pick<Bond, "discountRateBps" | "maturity">,
+  at: number,
+  from = Date.now(),
+): number {
+  const end = b.maturity * 1000
+  if (at >= end || end <= from) return 1
+  const cost = 1 - b.discountRateBps / 10_000
+  // We do not know when the bond was listed, so the curve is anchored at `from` — today's cost
+  // — and drawn forward. Nothing is claimed about the past.
+  if (at <= from) return cost
+  return cost + (1 - cost) * ((at - from) / (end - from))
+}
+
 /** `matures in 29 days`, `matures today`, `matured 3 days ago`. */
 export function relativeMaturity(maturity: number, now = Date.now()): string {
   const days = Math.ceil((maturity * 1000 - now) / 86_400_000)
