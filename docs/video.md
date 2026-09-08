@@ -9,8 +9,14 @@ a few HBAR) and the issuer wallet (`0xbD6b…e910`); a terminal in `apps/agent` 
 HashScan tabs for the market contract and the HCS topic; `sowee.site` open in its own tab for the
 opening shot.
 
-Hedera reserves `gasLimit × gasPrice` up front, so keep 2–3 HBAR on any wallet that will sign
-during the recording — a wallet with "enough for the fee" still gets rejected.
+Hedera reserves `gasLimit × gasPrice` up front, not the gas actually used, so a wallet holding
+"enough for the fee" is still rejected. Measured on testnet: gas price 0.00000112 HBAR/gas, so a
+2,000,000-gas limit reserves **2.24 HBAR** for one transaction. Two or three HBAR therefore covers
+about one signature, which is how a take dies in the middle.
+
+**Top each signing wallet to 10 HBAR before recording** (portal.hedera.com — the in-app faucet
+drips 1 USDC, not HBAR). The investor signs approve, `buyPrimary`, `makeAsk`, a fill and a claim,
+so it needs the most.
 
 | Time | Screen | Say |
 |---|---|---|
