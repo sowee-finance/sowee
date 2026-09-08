@@ -75,8 +75,8 @@ func (t *Tiered) sweep(now time.Time) {
 }
 
 // Middleware keys unverified traffic by client IP at the base rate, and verified wallets
-// (X-Wallet header or ?wallet=) by wallet at the verified rate. ponytail: buckets are never
-// pruned; fine for a demo, add an eviction sweep for a long-running service.
+// (X-Wallet header or ?wallet=) by wallet at the verified rate. Buckets nobody has touched for
+// idleTTL are swept, so the map does not grow with every stranger that ever called.
 func (t *Tiered) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		wallet := strings.ToLower(r.Header.Get("X-Wallet"))
