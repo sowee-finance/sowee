@@ -4,8 +4,8 @@
 /*
  * Ported from the reference the team picked: one screen at a time, a hero over a parallax grid,
  * a spotlight that follows the cursor, and a scroll that hands the screen to a single card on a
- * light ground. The reference's photography and footage are not ours, so the card is drawn from
- * a real listing and the light is built from the brand instead.
+ * light ground. Its stills and its clip are used as they are; the object on the light ground is
+ * not — that is a bond, drawn from a live listing.
  */
 
 html,
@@ -78,6 +78,22 @@ a {
   pointer-events: none;
 }
 
+/* ===== layer 2: the transition ===== */
+.transition-video {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s;
+}
+.app[data-phase="playing"] .transition-video {
+  opacity: 1;
+}
+
 /* ===== layer 3: hero ===== */
 .hero {
   position: absolute;
@@ -87,14 +103,17 @@ a {
   color: #fff;
   transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.app[data-shown="true"] .hero {
+/* The hero is gone the moment the clip starts, not when the card arrives. */
+.app:not([data-phase="idle"]) .hero {
   opacity: 0;
   pointer-events: none;
 }
 .hero__bg {
   position: absolute;
   inset: 0;
-  background: #0a1410;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .hero__grid {
   position: absolute;
@@ -104,24 +123,9 @@ a {
   opacity: 0.07;
 }
 .hero__reveal {
-  background: linear-gradient(180deg, #134f31 0%, #0d3a24 100%);
-  --r: 340px;
-  -webkit-mask-image: radial-gradient(
-    circle var(--r) at var(--mx, 62%) var(--my, 46%),
-    rgba(255, 255, 255, 0.85) 0%,
-    rgba(255, 255, 255, 0.5) 30%,
-    rgba(255, 255, 255, 0.24) 55%,
-    rgba(255, 255, 255, 0.08) 78%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    circle var(--r) at var(--mx, 62%) var(--my, 46%),
-    rgba(255, 255, 255, 0.85) 0%,
-    rgba(255, 255, 255, 0.5) 30%,
-    rgba(255, 255, 255, 0.24) 55%,
-    rgba(255, 255, 255, 0.08) 78%,
-    transparent 100%
-  );
+  background-image: url("/hero-2.webp");
+  background-position: center;
+  background-size: cover;
 }
 .hero__fade {
   position: absolute;
@@ -743,7 +747,8 @@ a {
   }
   .hero,
   .card-sec,
-  .bond {
+  .bond,
+  .transition-video {
     transition: none;
   }
 }

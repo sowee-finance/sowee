@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { daysLeft, dollars, fundedPct, impliedApr } from "@/lib/bonds"
 
 /** The page ships bigints as strings; everything below works from those. */
@@ -23,19 +23,73 @@ const APP = "https://app.sowee.site"
  * face of it under the cursor. The card here is a bond — a real listing, read from the market —
  * and the face the spotlight uncovers is the next one.
  *
- * The reference plays a video across the handover. We have no footage of our own and will not
- * borrow anyone else's, so the two sections cross-fade.
+ * The handover plays the reference's own clip: idle, then playing, then done. The card arrives
+ * two seconds in rather than at the end, so the clip hands over to something already there.
  */
+type Phase = "idle" | "playing" | "done"
+
 export function Landing({ bonds }: { bonds: Row[] }) {
+  const [phase, setPhase] = useState<Phase>("idle")
+  // The card appears part way through the clip, not at the end of it, so the two are separate.
   const [shown, setShown] = useState(false)
   const [at, setAt] = useState(0)
+  const video = useRef<HTMLVideoElement>(null)
+  // The scroll handlers are bound once; a ref is how they read the phase they were not closed
+  // over. A stale `phase` there would let a second scroll restart a clip already playing.
+  const phaseRef = useRef<Phase>("idle")
+  phaseRef.current = phase
+  const stuck = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const finish = useCallback(() => {
+    clearTimeout(stuck.current)
+    setPhase("done")
+    setShown(true)
+  }, [])
+
+  const play = useCallback(() => {
+    if (phaseRef.current !== "idle") return
+    // Nothing to sit through if the visitor asked for less motion.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      finish()
+      return
+    }
+    setPhase("playing")
+    setShown(false)
+    const v = video.current
+    if (!v) {
+      finish()
+      return
+    }
+    try {
+      v.currentTime = 0
+    } catch {}
+    v.play()?.catch(finish)
+    // The clip is 5s and large. If it stalls on a slow connection the visitor would be left
+    // watching nothing, so the handover completes on its own either way.
+    clearTimeout(stuck.current)
+    stuck.current = setTimeout(finish, 8000)
+  }, [finish])
+
+  const reset = useCallback(() => {
+    if (phaseRef.current !== "done") return
+    clearTimeout(stuck.current)
+    setPhase("idle")
+    setShown(false)
+    const v = video.current
+    v?.pause()
+    if (v) {
+      try {
+        v.currentTime = 0
+      } catch {}
+    }
+  }, [])
 
   // Wheel, touch and the arrow keys drive the handover; the page itself never scrolls.
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
-      if (e.deltaY > 0) setShown(true)
-      else if (e.deltaY < 0) setShown(false)
+      if (e.deltaY > 0) play()
+      else if (e.deltaY < 0) reset()
     }
     let startY: number | null = null
     const onStart = (e: TouchEvent) => {
@@ -46,18 +100,18 @@ export function Landing({ bonds }: { bonds: Row[] }) {
       const dy = e.touches[0].clientY - startY
       if (dy < -40) {
         startY = null
-        setShown(true)
+        play()
       } else if (dy > 40) {
         startY = null
-        setShown(false)
+        reset()
       }
     }
     const onEnd = () => {
       startY = null
     }
     const onKey = (e: KeyboardEvent) => {
-      if (["ArrowDown", "PageDown", " "].includes(e.key)) setShown(true)
-      if (["ArrowUp", "PageUp"].includes(e.key)) setShown(false)
+      if (["ArrowDown", "PageDown", " "].includes(e.key)) play()
+      if (["ArrowUp", "PageUp"].includes(e.key)) reset()
     }
     window.addEventListener("wheel", onWheel, { passive: false })
     window.addEventListener("touchstart", onStart, { passive: true })
@@ -71,7 +125,9 @@ export function Landing({ bonds }: { bonds: Row[] }) {
       window.removeEventListener("touchend", onEnd)
       window.removeEventListener("keydown", onKey)
     }
-  }, [])
+  }, [play, reset])
+
+  useEffect(() => () => clearTimeout(stuck.current), [])
 
   // The spotlight and the grid drift toward the cursor rather than snapping to it. The reveal
   // layers are looked up each frame instead of held in refs: the card section remounts to replay
@@ -136,7 +192,7 @@ export function Landing({ bonds }: { bonds: Row[] }) {
   const front = sorted[at] ?? sorted[0]
 
   return (
-    <div className="app" data-shown={shown} data-dark={shown}>
+    <div className="app" data-phase={phase} data-shown={shown} data-dark={shown}>
       <Nav dark={shown} />
 
       {/* ===== layer 1: the bond card ===== */}
@@ -236,9 +292,30 @@ export function Landing({ bonds }: { bonds: Row[] }) {
         </div>
       </section>
 
+      {/* ===== layer 2: the transition, played across the handover ===== */}
+      <video
+        ref={video}
+        className="transition-video"
+        muted
+        playsInline
+        preload="auto"
+        src="/transition.mp4"
+        // No controls and nothing to read: it is scenery, so it is out of the tab order too.
+        tabIndex={-1}
+        aria-hidden="true"
+        onTimeUpdate={(e) => {
+          // The card arrives part way through rather than at the end, so the clip hands over to
+          // something already there instead of cutting to it.
+          if (e.currentTarget.currentTime >= 2) setShown(true)
+        }}
+        onEnded={finish}
+        onError={finish}
+      />
+
       {/* ===== layer 3: hero ===== */}
       <section className="hero" aria-hidden={shown}>
-        <div className="hero__bg" />
+        {/* biome-ignore lint/performance/noImgElement: one full-bleed background, already sized */}
+        <img className="hero__bg" src="/hero-1.webp" alt="" />
         <svg className="hero__grid" aria-hidden="true">
           <title>Grid</title>
           <defs>
@@ -248,9 +325,7 @@ export function Landing({ bonds }: { bonds: Row[] }) {
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
         </svg>
-        {/* The light the cursor carries is the green the app's own hero uses. The layer is evenly
-            lit: anchoring its gradient to a corner leaves the spotlight invisible everywhere
-            else, since the mask is what makes the shape. */}
+        {/* The second frame, uncovered only where the cursor is. */}
         <div className="reveal hero__reveal" />
         <div className="hero__fade" aria-hidden="true" />
 

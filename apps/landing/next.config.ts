@@ -8,6 +8,7 @@ const csp = [
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
+  "media-src 'self'",
   "font-src 'self'",
   `connect-src 'self' ${new URL(rpc).origin}`,
   "frame-ancestors 'none'",

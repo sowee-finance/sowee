@@ -35,10 +35,18 @@ numbers of its own: every figure on it is either from the chain or absent.
 ## The motion
 
 One screen at a time — the page itself never scrolls. Wheel, swipe and the arrow keys hand the
-screen between the hero and the card; a spotlight follows the cursor, revealing a lighter field on
-the hero and light falling across the card. The light rests at a fixed point until the visitor
-moves, so nothing is flat on arrival, and `prefers-reduced-motion` turns the whole thing off.
+screen between the hero and the card, and a clip plays across the handover. A spotlight follows
+the cursor, uncovering a second still on the hero and light falling across the card. It rests at a
+fixed point until the visitor moves, so nothing is flat on arrival, and `prefers-reduced-motion`
+turns the motion off.
 
-The layout follows a reference the team picked. Its photography and footage are not ours and are
-not used: the hero is the brand's own green over a drifting grid, and the object in the second
-screen is the bond card rather than a product shot.
+The layout, the hero stills (`public/hero-1.webp`, `public/hero-2.webp`) and the transition clip
+(`public/transition.mp4`) come from the reference the team picked. They are not the team's own
+work and are used at the team's decision. The one thing that is ours is the object in the second
+screen: a bond, drawn from a live listing, rather than the reference's product shot.
+
+The clip came off the reference at 1920x1080 and 46.6 Mbps — near lossless, for five silent
+seconds. It is re-encoded here at CRF 26: 1.5 MB rather than 29 MB, SSIM 0.990 against the source.
+Even so it is the largest thing the page loads, so the handover completes on its own after eight
+seconds and on any playback error — a visitor on a slow connection is never left watching nothing.
+It is skipped entirely under `prefers-reduced-motion`.

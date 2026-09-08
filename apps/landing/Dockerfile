@@ -29,10 +29,11 @@ RUN cd apps/landing && npx --no-install next build
 FROM node:22-alpine AS run
 WORKDIR /app
 RUN adduser -D -u 10001 web
-# `output: "standalone"` traces the server's own files; static assets are not traced, so they
-# are copied beside it.
+# `output: "standalone"` traces the server's own files; static assets and the public directory
+# are not traced, so they are copied beside it.
 COPY --from=build /repo/apps/landing/.next/standalone ./
 COPY --from=build /repo/apps/landing/.next/static ./apps/landing/.next/static
+COPY --from=build /repo/apps/landing/public ./apps/landing/public
 USER web
 ENV PORT=3000 HOSTNAME=0.0.0.0 NODE_ENV=production
 EXPOSE 3000
