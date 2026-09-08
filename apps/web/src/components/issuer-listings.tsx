@@ -3,14 +3,23 @@
 import { CalendarDays, FilePlus2, FileText, Landmark } from "lucide-react"
 import Link from "next/link"
 import { useAccount } from "wagmi"
-import { activeChain, shortAddress } from "@/lib/chains"
+import { shortAddress } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
 import { type Bond, bondStatus, dollars, fundedPct, maturityDate } from "@/lib/market"
 import { useBonds } from "@/lib/use-bonds"
 import { bondNames } from "./bond-card"
 import { NotDeployed } from "./not-deployed"
 import { ErrorState } from "./states"
-import { Card, Empty, Progress, StatTile, StatusBadge, UsdcIcon, WalletAvatar } from "./ui"
+import {
+  Card,
+  ChainChip,
+  Empty,
+  Progress,
+  StatTile,
+  StatusBadge,
+  UsdcIcon,
+  WalletAvatar,
+} from "./ui"
 import { ConnectPrompt } from "./wallet-button"
 
 function InvoiceRow({ bond }: { bond: Bond }) {
@@ -66,7 +75,9 @@ export function IssuerDashboard({ deployment }: { deployment?: Deployment }) {
           <WalletAvatar className="size-9" />
           <div>
             <h1 className="font-medium text-xl tracking-tight">{shortAddress(address)}</h1>
-            <p className="text-soft text-xs">Issuer wallet · {activeChain.name}</p>
+            <p className="flex items-center gap-1.5 text-soft text-xs">
+              Issuer wallet · <ChainChip className="text-xs" />
+            </p>
           </div>
         </div>
         <Link

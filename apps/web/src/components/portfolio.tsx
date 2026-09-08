@@ -19,16 +19,19 @@ import {
   maturityDate,
   type Position,
   pct,
+  unitValue,
 } from "@/lib/market"
 import { useAsks, useBonds, usePositions } from "@/lib/use-bonds"
 import { useKycStatus } from "@/lib/use-kyc"
 import { useTx } from "@/lib/use-tx"
 import { BondAvatar, bondNames } from "./bond-card"
+import { type Point, PriceChart } from "./charts"
 import { NotDeployed } from "./not-deployed"
 import { ErrorState } from "./states"
 import {
   blackPill,
   Card,
+  ChainChip,
   Empty,
   StatTile,
   StatusBadge,
@@ -37,6 +40,24 @@ import {
   WalletAvatar,
 } from "./ui"
 import { ConnectPrompt } from "./wallet-button"
+
+/**
+ * What the wallet's units are worth from today to the last maturity. Each position accretes on
+ * its own clock — a bond maturing next week reaches par long before one maturing in a quarter —
+ * so the curve is the sum of them, sampled on a shared grid, and it flattens as each settles.
+ */
+function holdingsCurve(rows: Position[], now = Date.now(), n = 96): Point[] {
+  const end = rows.reduce((latest, p) => Math.max(latest, p.bond.maturity * 1000), 0)
+  if (!rows.length || end <= now) return []
+  return Array.from({ length: n }, (_, i) => {
+    const at = Math.round(now + ((end - now) * i) / (n - 1))
+    const value = rows.reduce(
+      (sum, p) => sum + (Number(p.units) / 1e6) * unitValue(p.bond, at, now),
+      0,
+    )
+    return { timestamp: at, value }
+  })
+}
 
 export function Portfolio({ deployment }: { deployment?: Deployment }) {
   const { address, chainId } = useAccount()
@@ -77,6 +98,8 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
   const rows = positions.data ?? []
   const faceHeld = rows.reduce((s, p) => s + p.units, 0n)
   const claimable = rows.reduce((s, p) => s + p.claimable, 0n)
+  const curve = holdingsCurve(rows)
+  const valueNow = curve.length ? BigInt(Math.round(curve[0].value * 1e6)) : 0n
   const mine = (asks.data ?? []).filter((a) => a.maker.toLowerCase() === wallet.toLowerCase())
   const nameOf = (id: Hex) => {
     const b = bonds.data?.find((x) => x.invoiceId === id)
@@ -90,18 +113,31 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
           <WalletAvatar className="size-9" />
           <h1 className="font-medium text-xl tracking-tight">Welcome, {shortAddress(wallet)}</h1>
         </div>
-        <span className="text-sm text-soft">{activeChain.name}</span>
+        <ChainChip className="text-sm" />
       </div>
 
       <Card>
-        <div className="text-sm text-soft">Face value held</div>
+        <div className="text-sm text-soft">Portfolio value</div>
         <div className="tabular mt-1 font-medium text-4xl tracking-tight">
-          {positions.isPending ? "…" : dollars(faceHeld)}
+          {positions.isPending ? "…" : dollars(valueNow)}
         </div>
         <div className="tabular mt-3 font-mono text-soft text-xs">
+          {positions.isPending ? "…" : dollars(faceHeld)} at maturity ·{" "}
           {positions.isPending ? "…" : dollars(claimable)} claimable · {rows.length} bond
           {rows.length === 1 ? "" : "s"} held
         </div>
+        {curve.length > 1 && (
+          <>
+            <div className="mt-5">
+              <PriceChart points={curve} trend="up" />
+            </div>
+            <p className="mt-2 text-[11px] text-faint">
+              What the units you hold are worth from today to maturity. Each unit is 1 USDC of face
+              bought at a discount, so it accretes to par — this is the bond&apos;s own arithmetic,
+              not a traded price.
+            </p>
+          </>
+        )}
       </Card>
 
       {rows.some((p) => p.claimable > 0n) && (

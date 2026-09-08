@@ -1,9 +1,10 @@
 "use client"
 
 import { ChevronDown } from "lucide-react"
+import Image from "next/image"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { accountUrl, explorerUrl, shortAddress, txUrl } from "@/lib/chains"
+import { accountUrl, activeChain, explorerUrl, shortAddress, txUrl } from "@/lib/chains"
 import { type BondStatus, statusLabel } from "@/lib/market"
 
 // Shared design-system primitives: identity marks, badges, popovers, sheets and the
@@ -137,6 +138,52 @@ export function WalletAvatar({ className = "" }: { className?: string }) {
     <span
       className={`inline-block shrink-0 rounded-full bg-[radial-gradient(circle_at_30%_30%,#7fb2ff_0%,#2f6fed_45%,#1b2f6e_100%)] ${className}`}
     />
+  )
+}
+
+/** The networks whose own mark we ship. Anything else falls back to a monogram. */
+const CHAIN_LOGOS: Record<number, string> = {
+  296: "/chains/hedera.png",
+  5042002: "/chains/arc.png",
+}
+
+/**
+ * The chain's own mark. These are the partners' brand assets, used to identify their network and
+ * nothing else; a chain we have no asset for gets its initial on a neutral disc, because a wrong
+ * logo is worse than an honest monogram.
+ */
+export function ChainIcon({ size = 18 }: { size?: number }) {
+  const src = CHAIN_LOGOS[activeChain.id]
+  if (!src) {
+    return (
+      <span
+        aria-hidden
+        className="flex shrink-0 items-center justify-center rounded-full bg-ink font-medium text-[10px] text-white"
+        style={{ width: size, height: size }}
+      >
+        {activeChain.name[0]}
+      </span>
+    )
+  }
+  return (
+    <Image
+      src={src}
+      alt=""
+      aria-hidden
+      width={size}
+      height={size}
+      className="shrink-0 rounded-full"
+    />
+  )
+}
+
+/** The network, named and marked. Used wherever a page states which chain it is talking to. */
+export function ChainChip({ className = "" }: { className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-2 text-soft ${className}`}>
+      <ChainIcon />
+      {activeChain.name}
+    </span>
   )
 }
 
