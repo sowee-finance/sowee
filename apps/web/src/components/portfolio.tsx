@@ -2,6 +2,7 @@
 
 import { ArrowLeftRight, ShieldCheck, Wallet } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
 import { formatUnits, type Hex } from "viem"
 import { useAccount, useSwitchChain } from "wagmi"
 import { invoiceMarketAbi } from "@/lib/abi/invoiceMarket"
@@ -40,6 +41,19 @@ import {
 } from "./ui"
 import { ConnectPrompt } from "./wallet-button"
 
+/**
+ * How far forward to draw. The curve looks ahead rather than back — there is no price history to
+ * show — so these zoom the near term instead of reaching into a past we cannot know. Anything
+ * past the last maturity is the same picture, which is what ALL gives.
+ */
+const RANGES = [
+  { label: "1W", ms: 7 * 86_400_000 },
+  { label: "1M", ms: 30 * 86_400_000 },
+  { label: "3M", ms: 90 * 86_400_000 },
+  { label: "1Y", ms: 365 * 86_400_000 },
+  { label: "ALL", ms: undefined },
+] as const
+
 export function Portfolio({ deployment }: { deployment?: Deployment }) {
   const { address, chainId } = useAccount()
   const { switchChain, isPending: switching } = useSwitchChain()
@@ -47,7 +61,21 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
   const positions = usePositions(deployment, wallet)
   const asks = useAsks(deployment?.invoiceMarket)
   const bonds = useBonds(deployment)
+  // Fixed per load: a clock ticking in the header would rerender the whole page every second,
+  // and the figures beside it are only as fresh as the read that fetched them.
+  const [readAt] = useState(() =>
+    new Date().toLocaleString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  )
+  const [range, setRange] = useState<(typeof RANGES)[number]["label"]>("ALL")
 
+  // Every hook is above this line: the early returns below change which branch renders, and a
+  // hook after them would be skipped the moment a wallet disconnects.
   if (!deployment) return <NotDeployed />
   if (!address) {
     return (
@@ -79,10 +107,10 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
   const rows = positions.data ?? []
   const faceHeld = rows.reduce((s, p) => s + p.units, 0n)
   const claimable = rows.reduce((s, p) => s + p.claimable, 0n)
-  const curve = holdingsCurve(rows)
+  const curve = holdingsCurve(rows, Date.now(), 96, RANGES.find((r) => r.label === range)?.ms)
   // Neutral once nothing is still accreting, the way STATUS_TREND treats a single bond: a green
   // rising line over a flat series claims a climb that is not happening.
-  const _trend = rows.some((p) => STATUS_TREND[bondStatus(p.bond)] === "up") ? "up" : "flat"
+  const trend = rows.some((p) => STATUS_TREND[bondStatus(p.bond)] === "up") ? "up" : "flat"
   const mine = (asks.data ?? []).filter((a) => a.maker.toLowerCase() === wallet.toLowerCase())
   const nameOf = (id: Hex) => {
     const b = bonds.data?.find((x) => x.invoiceId === id)
@@ -96,27 +124,50 @@ export function Portfolio({ deployment }: { deployment?: Deployment }) {
           <WalletAvatar className="size-9" />
           <h1 className="font-medium text-xl tracking-tight">Welcome, {shortAddress(wallet)}</h1>
         </div>
-        <ChainChip className="text-sm" />
+        <div className="flex items-center gap-4">
+          <ChainChip className="text-sm" />
+          <span className="tabular hidden text-soft text-sm sm:inline">{readAt}</span>
+        </div>
       </div>
 
       <Card>
-        <div className="text-sm text-soft">Face value held</div>
-        <div className="tabular mt-1 font-medium text-4xl tracking-tight">
-          {positions.isPending ? "…" : dollars(faceHeld)}
-        </div>
-        <div className="tabular mt-3 font-mono text-soft text-xs">
-          {positions.isPending ? "…" : dollars(claimable)} claimable · {rows.length} bond
-          {rows.length === 1 ? "" : "s"} held
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-sm text-soft">Face value held</div>
+            <div className="tabular mt-1 font-medium text-4xl tracking-tight">
+              {positions.isPending ? "…" : dollars(faceHeld)}
+            </div>
+            <div className="tabular mt-3 font-mono text-soft text-xs">
+              {positions.isPending ? "…" : dollars(claimable)} claimable · {rows.length} bond
+              {rows.length === 1 ? "" : "s"} held
+            </div>
+          </div>
+          {curve.length > 1 && (
+            <div className="flex shrink-0 rounded-xl bg-shade p-1">
+              {RANGES.map((r) => (
+                <button
+                  key={r.label}
+                  type="button"
+                  onClick={() => setRange(r.label)}
+                  className={`rounded-lg px-3 py-1.5 font-medium text-xs transition-colors ${
+                    range === r.label ? "bg-white text-ink shadow-sm" : "text-soft hover:text-ink"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {curve.length > 1 && (
           <>
             <div className="mt-5">
-              <PriceChart points={curve} trend="up" />
+              <PriceChart points={curve} trend={trend} />
             </div>
             <p className="mt-2 text-[11px] text-faint">
-              What the units you hold are worth from today to maturity. Each unit is 1 USDC of face
-              bought at a discount, so it accretes to par — this is the bond&apos;s own arithmetic,
-              not a traded price.
+              What these holdings pay out, from today to the last maturity. Each unit is 1 USDC of
+              face bought at a discount and repaid at par, so this is the payoff line of the bonds —
+              arithmetic, not a market price, and not a valuation of what they are worth today.
             </p>
           </>
         )}
