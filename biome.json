@@ -1,6 +1,11 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.12/schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true, "defaultBranch": "main" },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
   "files": {
     "ignoreUnknown": true,
     "includes": [
@@ -29,18 +34,27 @@
   },
   "assist": {
     "enabled": true,
-    "actions": { "source": { "organizeImports": "on" } }
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "linter": {
     "enabled": true,
-    "domains": { "react": "recommended", "next": "recommended", "test": "recommended" },
+    "domains": {
+      "react": "recommended",
+      "next": "recommended",
+      "test": "recommended"
+    },
     "rules": {
       "preset": "recommended",
       "correctness": {
         "noUnusedImports": "error",
         "noUnusedVariables": "error",
         "noUnusedFunctionParameters": "warn",
-        "useExhaustiveDependencies": "warn"
+        "useExhaustiveDependencies": "warn",
+        "useHookAtTopLevel": "error"
       },
       "style": {
         "useConst": "error",
@@ -57,7 +71,12 @@
       "suspicious": {
         "noExplicitAny": "warn",
         "noArrayIndexKey": "warn",
-        "noConsole": { "level": "warn", "options": { "allow": ["warn", "error", "info"] } }
+        "noConsole": {
+          "level": "warn",
+          "options": {
+            "allow": ["warn", "error", "info"]
+          }
+        }
       },
       "complexity": {
         "noForEach": "off",
@@ -84,12 +103,21 @@
     }
   },
   "json": {
-    "parser": { "allowComments": true },
-    "formatter": { "enabled": true, "trailingCommas": "none" }
+    "parser": {
+      "allowComments": true
+    },
+    "formatter": {
+      "enabled": true,
+      "trailingCommas": "none"
+    }
   },
   "css": {
-    "formatter": { "enabled": true },
-    "linter": { "enabled": true }
+    "formatter": {
+      "enabled": true
+    },
+    "linter": {
+      "enabled": true
+    }
   },
   "overrides": [
     {
@@ -100,11 +128,22 @@
         "apps/agent/**",
         "apps/ats/**"
       ],
-      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
     },
     {
       "includes": ["**/tsconfig*.json", "**/.vscode/**"],
-      "json": { "parser": { "allowComments": true, "allowTrailingCommas": true } }
+      "json": {
+        "parser": {
+          "allowComments": true,
+          "allowTrailingCommas": true
+        }
+      }
     }
   ]
 }

@@ -285,6 +285,9 @@ export function holdingsCurve(
   }[],
   now = Date.now(),
   n = 96,
+  // How far forward to draw. Undefined runs to the last maturity; a shorter window zooms in on
+  // the near term without changing a single value on the line.
+  horizon?: number,
 ): { timestamp: number; value: number }[] {
   if (!rows.length) return []
   const payout = (r: (typeof rows)[number], at: number) =>
@@ -293,7 +296,8 @@ export function holdingsCurve(
       : (Number(r.units) / 1e6) * unitValue(r.bond, at, now)
   const total = (at: number) => rows.reduce((sum, r) => sum + payout(r, at), 0)
 
-  const end = rows.reduce((latest, r) => Math.max(latest, r.bond.maturity * 1000), 0)
+  const last = rows.reduce((latest, r) => Math.max(latest, r.bond.maturity * 1000), 0)
+  const end = horizon ? Math.min(last, now + horizon) : last
   // Everything has matured: the line is flat at what it pays, over a window wide enough to draw.
   if (end <= now) {
     const value = total(now)
