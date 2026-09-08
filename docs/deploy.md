@@ -62,17 +62,39 @@ docker run -d --name sowee-web --restart unless-stopped \
   -p 127.0.0.1:3000:3000 ghcr.io/sowee-finance/sowee-web:latest
 ```
 
-The landing is the same, on its own host port. Every image listens on 3000 inside the container,
-so the host port is whatever the `sowee.site` vhost already proxies to — check before you bind it,
-because a mismatch is the 502 you will then spend ten minutes on:
+The landing is the same, on its own port:
 
 ```sh
-grep -r proxy_pass /etc/nginx/sites-enabled/ | grep sowee.site   # the port the vhost expects
 docker pull ghcr.io/sowee-finance/sowee-landing:latest
-docker rm -f sowee-landing 2>/dev/null
-docker run -d --name sowee-landing --restart unless-stopped \
-  -p 127.0.0.1:<that port>:3000 ghcr.io/sowee-finance/sowee-landing:latest
-curl -sI localhost:<that port> | head -1                          # 200 before you reload nginx
+docker rm -f sowee-eth-landing 2>/dev/null
+docker run -d --name sowee-eth-landing --restart unless-stopped -m 512m \
+  -p 127.0.0.1:3021:3000 ghcr.io/sowee-finance/sowee-landing:latest
+curl -sI localhost:3021 | head -1        # 200; nginx needs no reload, the vhost already points here
+```
+
+### What is actually on the host
+
+| Container | Host port | vhost |
+|---|---|---|
+| `sowee-eth-web` | 3030 | `app.sowee.site` |
+| `sowee-eth-api` | 8092 | `api.sowee.site` |
+| `sowee-eth-landing` | 3021 | `sowee.site` |
+
+The vhosts in `/etc/nginx/sites-enabled/` are **symlinks**, so `grep -r` reads none of them and
+answers nothing — which reads like "no vhost" rather than "wrong flag". Use `-R`:
+
+```sh
+grep -RnE 'server_name|proxy_pass' /etc/nginx/sites-enabled/ | grep sowee
+```
+
+### Pulling from GHCR
+
+The packages are private and the organisation forbids making them public, so the host needs a
+**classic** personal access token with `read:packages` — a password is refused, and a fine-grained
+token logs in but is then denied on pull. Pass it on stdin so it stays out of shell history:
+
+```sh
+read -rsp 'PAT: ' PAT; echo; echo "$PAT" | docker login ghcr.io -u <user> --password-stdin; unset PAT
 ```
 
 This is not a preference. The host that serves these is a small shared box running thirty other
