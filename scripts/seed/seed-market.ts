@@ -188,6 +188,38 @@ const market = deployment.invoiceMarket as Address
 const publicClient = createPublicClient({ chain: hederaTestnet, transport: http(RPC) })
 const now = Math.floor(Date.now() / 1000)
 
+/**
+ * `bondOf` reverts with `UnknownInvoice(bytes32)` for a reference that was never listed rather
+ * than returning the zero address, so "does this exist" is a caught revert. Only that selector
+ * means "not listed": anything else is a real failure and is rethrown, because a catch that
+ * swallows everything is how a wrong ABI once turned into a plausible empty page.
+ */
+const UNKNOWN_INVOICE = "0x6f21af8a"
+
+/** viem wraps an RPC revert several causes deep; the raw return data is on the innermost one. */
+function revertData(err: unknown): string {
+  let e = err as { data?: unknown; cause?: unknown } | undefined
+  for (let depth = 0; e && depth < 8; depth++) {
+    if (typeof e.data === "string") return e.data
+    e = e.cause as typeof e
+  }
+  return ""
+}
+
+async function listedBond(id: Hex): Promise<Address | undefined> {
+  try {
+    return (await publicClient.readContract({
+      address: market,
+      abi: marketAbi,
+      functionName: "bondOf",
+      args: [id],
+    })) as Address
+  } catch (err) {
+    if (revertData(err).startsWith(UNKNOWN_INVOICE)) return undefined
+    throw err
+  }
+}
+
 // What the book prices at, worked out here so --dry-run can show it without touching the chain.
 // The policy is the API's; this only restates it.
 const priced = book.map((inv) => {
@@ -220,13 +252,8 @@ console.log(`issuer ${account.address}\n`)
 
 for (const inv of priced) {
   const { id, face, maturity, line } = inv
-  const existing = (await publicClient.readContract({
-    address: market,
-    abi: marketAbi,
-    functionName: "bondOf",
-    args: [id],
-  })) as Address
-  if (existing !== "0x0000000000000000000000000000000000000000") {
+  const existing = await listedBond(id)
+  if (existing) {
     console.log(`${inv.ref}  already listed at ${existing} — skipped`)
     continue
   }

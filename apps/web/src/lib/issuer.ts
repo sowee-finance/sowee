@@ -53,12 +53,22 @@ export async function downscaleLogo(file: Blob): Promise<string> {
 export const nameFor = (company: string, payor: string) =>
   `${company.trim().replaceAll(" · ", " - ")} · ${payor.trim().replaceAll(" · ", " - ")}`
 
-/** `s<REF>`: uppercase alphanumerics of the reference, 8 characters at most. */
-export const symbolFor = (ref: string) =>
-  `s${ref
+/**
+ * `s<PREFIX><NUMBER>`: the letters an invoice reference opens with, then the number it ends with.
+ *
+ * Taking the first seven characters instead reads the year and stops: `INV-2026-001` and
+ * `INV-2026-002` both become `sINV2026`, and so does every other invoice raised that year. The
+ * distinguishing part of a reference is at the end, which is why it is the part that is kept.
+ */
+export const symbolFor = (ref: string) => {
+  const parts = ref
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 7)}`
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean)
+  const letters = parts[0]?.match(/^[A-Z]+/)?.[0] ?? ""
+  const number = parts.at(-1)?.match(/\d+$/)?.[0] ?? ""
+  return `s${(letters + number || parts.join("")).slice(0, 7)}`
+}
 
 /** `<input type="date">` value (UTC midnight) to unix seconds. */
 export const maturityFrom = (date: string) => Math.floor(Date.parse(date) / 1000)

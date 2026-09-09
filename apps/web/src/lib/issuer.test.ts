@@ -9,8 +9,14 @@ describe("issuer", () => {
   })
 
   test("symbol is s + uppercase alphanumerics, 8 chars max", () => {
-    expect(symbolFor("INV-2026-001")).toBe("sINV2026")
+    expect(symbolFor("INV-2026-001")).toBe("sINV001")
     expect(symbolFor("ab 1")).toBe("sAB1")
+    // The whole point: two invoices from the same year must not share a symbol.
+    expect(symbolFor("INV-2026-021")).not.toBe(symbolFor("INV-2026-022"))
+    expect(symbolFor("INV-010")).toBe("sINV010")
+    // A reference with no number, and one with no letters, still produce something usable.
+    expect(symbolFor("INVOICE")).toBe("sINVOICE") // s + 7 is the cap, so 8 characters
+    expect(symbolFor("2026-021")).toBe("s021")
     expect(nameFor(" Acme GmbH ", "Globex Corp")).toBe("Acme GmbH · Globex Corp")
     // The separator is reserved for splitting the name back into issuer and payor.
     expect(nameFor("A · B", "C")).toBe("A - B · C")
