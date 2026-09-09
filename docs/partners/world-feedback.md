@@ -12,6 +12,17 @@ The live check itself is untested, because Selfie Check (Beta) is feature-flagge
 ours has not been enabled. Nothing below is a guess about behaviour we did not see; where we
 could not observe something, it says so.
 
+## What the track asked us to report on, and where it is
+
+| Asked for | Here |
+|---|---|
+| Selfie Check docs and integration flow | §2 RP signature, §3 proof shape, §5 nullifier durability, §6 assurance level |
+| Developer Portal — navigation, product discovery, debugging | §1 flag state is invisible, §4 two gates behind two addresses, §7 |
+| Sandbox App — states, proof flows, test users, errors, edge cases | **§8 — not yet reportable.** Access arrived 9 September; the journeys are written and unrun |
+| What was confusing, missing, broken, hard to test | §1–§6, and §8 says plainly what is still untested |
+
+We would rather leave a row visibly empty than fill it with something we did not observe.
+
 ---
 
 ## 1. The feature flag has no self-serve path, and nothing warns you
@@ -89,6 +100,40 @@ wrong.
 
 ---
 
+## 7. The Portal tells you nothing about a request that failed
+
+What we did in the Developer Portal: created the app, took its `app_id`, created the RP and its
+`rp_id`, generated the RP signing key. That much was quick and the navigation was not the
+problem.
+
+What it does not give you is any view of what happened afterwards. There is no log of verify
+attempts, no record of a rejected proof and why, no indication that an app has never completed a
+single check. Our verify route forwards a result and gets back a code and a detail string; when
+that string is unhelpful, there is nowhere else to look. For an integration whose failure modes
+are a missing flag (§1), a payload shape mismatch (§3) and a device gate (§4) — three different
+things that all surface as "it did not work at the last step" — a per-app request log would be
+the single most useful thing the Portal could add.
+
+**Suggestion.** A recent-requests view per app: timestamp, credential, outcome, and the error as
+the server saw it. Even fifty rows with a day's retention would turn most of this document into
+something a developer could have diagnosed alone.
+
+We are not reporting on the Portal's search: we navigated to what we needed from the docs' links
+and never used it, so we have nothing worth saying about it.
+
+## 8. Sandbox App — access arrived after the integration, so this section is empty
+
+The Sandbox World ID app reached us on 9 September, after the client, the server and the wizard
+were finished. The journeys the docs describe — hot, cold, semi-cold, and cross-device QR — are
+written into our test plan in [`world.md`](world.md) and have not been run at the time of
+writing, so we have nothing to report on sandbox states, proof flows, test users, or the errors
+and edge cases around them.
+
+That order is itself the finding, and it is the same one as §1 and §4: the gates that decide
+whether an integration can be *demonstrated* rather than *described* are the last thing a
+developer discovers and the longest thing to wait for. Everything a team can do alone, we did in
+a day. Everything requiring a grant took longer than the build.
+
 ## What worked without friction
 
 - `@worldcoin/idkit` 4.2 dropped in cleanly. `IDKitInviteCodeRequestWidget` plus
@@ -103,6 +148,6 @@ wrong.
 ## Still to report
 
 The camera flow itself — the hot, cold and semi-cold journeys on a device, cross-device QR, and
-what the Portal's verify endpoint answers for a legacy-shaped proof. The test plan is written in
-[`world.md`](world.md) and will run the day the flag lands; this document will be extended with
-what we find rather than replaced.
+what the Portal's verify endpoint answers for a legacy-shaped proof. The test plan is in
+[`world.md`](world.md). This document will be extended with what we find rather than replaced,
+and §8 is where it will go.
