@@ -49,14 +49,14 @@ func TestVerifyForwardsPayloadAndBlocksReplay(t *testing.T) {
 		_ = json.NewDecoder(r.Body).Decode(&seenBody)
 		_, _ = w.Write([]byte(`{"success":true}`))
 	})
-	n, err := s.Verify(context.Background(), payload("sowee-selfie-check", "0xabc"))
+	n, err := s.Verify(context.Background(), "0xwallet", payload("sowee-selfie-check", "0xabc"))
 	if err != nil || n != "0xabc" {
 		t.Fatalf("verify: %v %q", err, n)
 	}
 	if seenPath != "/rp_1" || seenBody["action"] != "sowee-selfie-check" {
 		t.Fatalf("payload not forwarded as-is: %s %v", seenPath, seenBody)
 	}
-	if _, err := s.Verify(context.Background(), payload("sowee-selfie-check", "0xabc")); !errors.Is(err, ErrReplay) {
+	if _, err := s.Verify(context.Background(), "0xwallet", payload("sowee-selfie-check", "0xabc")); !errors.Is(err, ErrReplay) {
 		t.Fatalf("want replay error, got %v", err)
 	}
 }
@@ -64,7 +64,7 @@ func TestVerifyForwardsPayloadAndBlocksReplay(t *testing.T) {
 func TestVerifyAcceptsWorldId3Result(t *testing.T) {
 	s := newService(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"success":true}`)) })
 	v3 := json.RawMessage(`{"protocol_version":"3.0","nonce":"0x01","action":"sowee-selfie-check","environment":"sandbox","responses":[{"identifier":"selfie_check","proof":"0x00","merkle_root":"0x01","nullifier_hash":"0xv3","verification_level":"selfie"}]}`)
-	n, err := s.Verify(context.Background(), v3)
+	n, err := s.Verify(context.Background(), "0xwallet", v3)
 	if err != nil || n != "0xv3" {
 		t.Fatalf("v3 result: %v %q", err, n)
 	}
@@ -75,14 +75,14 @@ func TestVerifyRejections(t *testing.T) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(`{"code":"invalid_proof","detail":"proof is not valid","attribute":"proof"}`))
 	})
-	if _, err := s.Verify(context.Background(), payload("other-action", "0x1")); !errors.Is(err, ErrWrongAction) {
+	if _, err := s.Verify(context.Background(), "0xwallet", payload("other-action", "0x1")); !errors.Is(err, ErrWrongAction) {
 		t.Fatalf("want wrong action, got %v", err)
 	}
-	_, err := s.Verify(context.Background(), payload("sowee-selfie-check", "0x2"))
+	_, err := s.Verify(context.Background(), "0xwallet", payload("sowee-selfie-check", "0x2"))
 	if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "proof is not valid") {
 		t.Fatalf("want invalid with portal detail, got %v", err)
 	}
-	if _, err := s.Verify(context.Background(), json.RawMessage(`{"action":"sowee-selfie-check"}`)); !errors.Is(err, ErrInvalid) {
+	if _, err := s.Verify(context.Background(), "0xwallet", json.RawMessage(`{"action":"sowee-selfie-check"}`)); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("want invalid for a result without responses, got %v", err)
 	}
 }
@@ -97,5 +97,54 @@ func TestDisabledAndBadKey(t *testing.T) {
 	}
 	if _, err := New(Config{AppID: "a", RPID: "r", SigningKeyHex: "zz"}); err == nil {
 		t.Fatal("bad key must error")
+	}
+}
+
+// The binding is what makes "one person, one wallet" mean anything: a nullifier is spent on a
+// wallet, and both directions can be read back.
+func TestVerifyBindsTheNullifierToTheWallet(t *testing.T) {
+	s := newService(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"success":true}`)) })
+	n, err := s.Verify(context.Background(), "0xAbC", payload("sowee-selfie-check", "0xnull"))
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if got := s.WalletFor(n); got != "0xabc" {
+		t.Fatalf("WalletFor = %q, want the lowercased wallet", got)
+	}
+	if got := s.HumanFor("0xABC"); got != n {
+		t.Fatalf("HumanFor = %q, want %q — the lookup has to be case-insensitive too", got, n)
+	}
+	if got := s.HumanFor("0xsomeoneelse"); got != "" {
+		t.Fatalf("HumanFor of an unverified wallet = %q, want empty", got)
+	}
+}
+
+// A restart must reach the same answer: the topic is replayed oldest-first, and the first
+// binding for a World ID is the one that stands.
+func TestRestoreRebuildsTheBindingAndTheFirstOneWins(t *testing.T) {
+	s := newService(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"success":true}`)) })
+	spent := s.Restore([]Pass{
+		{Nullifier: "0xnull", Wallet: "0xFirst"},
+		{Nullifier: "0xnull", Wallet: "0xSecond"}, // cannot happen live; the topic is the record
+		{Nullifier: "", Wallet: "0xignored"},
+	})
+	if spent != 1 {
+		t.Fatalf("restored %d nullifiers, want 1", spent)
+	}
+	if got := s.WalletFor("0xnull"); got != "0xfirst" {
+		t.Fatalf("WalletFor = %q, want the first binding to stand", got)
+	}
+	// And a restored nullifier is spent: the whole point of replaying it.
+	if _, err := s.Verify(context.Background(), "0xthird", payload("sowee-selfie-check", "0xnull")); !errors.Is(err, ErrReplay) {
+		t.Fatalf("verify after restore = %v, want ErrReplay", err)
+	}
+}
+
+func TestNullifierOfReadsAResultWithoutVerifying(t *testing.T) {
+	if got := NullifierOf(payload("sowee-selfie-check", "0xnull")); got != "0xnull" {
+		t.Fatalf("NullifierOf = %q, want 0xnull", got)
+	}
+	if got := NullifierOf(json.RawMessage(`not json`)); got != "" {
+		t.Fatalf("NullifierOf of junk = %q, want empty", got)
 	}
 }

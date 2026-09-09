@@ -21,6 +21,27 @@ Selfie Check proof first; the API verifies it, records `selfieCheck = true` for 
 uses that to unlock the demo faucet and a looser rate limit. Full eligibility still requires the
 Sumsub review plus the suitability policy. Issues: #21, #22, #23.
 
+## Continuity: one person, one eligible wallet
+
+Selfie Check gives a nullifier — a pseudonym for one person, scoped to our action. Nothing else
+about them is legible from it. Spending it once and only once turns it into a continuity key, and
+`REQUIRE_SELFIE_CHECK=true` makes that key a condition of eligibility: since one person can spend
+one nullifier, one person can hold at most one wallet on the allowlist. The binding is written to
+the audit topic as `selfie.v1` (wallet + nullifier) and replayed at startup, so it survives a
+restart rather than living in a process.
+
+This is the strongest thing a low-assurance credential can honestly do here. It is not identity,
+it is not uniqueness in the Orb sense, and it does not touch what Sumsub is for: the document
+check, the sanctions and PEP screening, the jurisdiction that decides Regulation S, and the
+retained record a regulator would ask for. It is an **abuse-prevention and continuity** control,
+which is the use the credential's own documentation describes.
+
+Its limit, stated because it is the reason the requirement is a mode and not the default: with the
+requirement off, a second wallet that never opens the Selfie Check step presents no nullifier, so
+nothing links it to the first. The signal reaches the faucet and the rate limit and stops there.
+Only requiring the check closes it, and the cost is that someone without a World App cannot invest
+at all — a product decision, not one to take by default.
+
 ## Implemented (API side, waiting for access to test live)
 
 - `GET /v1/world/request` — RP signature via `github.com/worldcoin/idkit/go/idkit` (`NewSigner(key).SignRequest(WithAction("sowee-selfie-check"))`), 5-minute validity, sandbox/production switch.

@@ -44,13 +44,19 @@ func worldVerify(s *world.Service, f *kyc.Flow, anchor *hcs.Anchor) http.Handler
 		if !req.verify(w) {
 			return
 		}
-		nullifier, err := s.Verify(r.Context(), req.Result)
+		nullifier, err := s.Verify(r.Context(), req.Wallet, req.Result)
 		switch {
 		case errors.Is(err, world.ErrDisabled):
 			writeError(w, http.StatusServiceUnavailable, err.Error())
 			return
 		case errors.Is(err, world.ErrReplay):
-			writeError(w, http.StatusConflict, err.Error())
+			// The caller holds this World ID, so telling them which of their wallets already
+			// spent it is not a disclosure — and it is the only useful thing to say.
+			msg := err.Error()
+			if bound := s.WalletFor(world.NullifierOf(req.Result)); bound != "" {
+				msg += ", on " + bound
+			}
+			writeError(w, http.StatusConflict, msg)
 			return
 		case errors.Is(err, world.ErrWrongAction), errors.Is(err, world.ErrInvalid):
 			writeError(w, http.StatusBadRequest, err.Error())
