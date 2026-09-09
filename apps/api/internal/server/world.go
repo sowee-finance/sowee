@@ -68,10 +68,22 @@ func worldVerify(s *world.Service, f *kyc.Flow, anchor *hcs.Anchor) http.Handler
 		f.SetSelfieCheck(req.Wallet, true)
 		// Anchoring makes the signal outlive this process: the topic is replayed on start, which
 		// restores both who is verified and which World IDs have already been used here.
-		if _, err := anchor.Selfie(r.Context(), req.Wallet, nullifier); err != nil && !errors.Is(err, hcs.ErrDisabled) {
-			log.Printf("world: selfie check for %s not anchored: %v", req.Wallet, err)
+		//
+		// It is reported rather than swallowed. The proof is already spent in memory by this
+		// point, so failing the request would leave the caller unable to retry — but a pass that
+		// was not anchored is only good until the next restart, after which the same World ID
+		// could reach a second wallet. `anchored: false` is that fact, said out loud.
+		anchored := true
+		if _, err := anchor.Selfie(r.Context(), req.Wallet, nullifier); err != nil {
+			anchored = false
+			if !errors.Is(err, hcs.ErrDisabled) {
+				log.Printf("world: selfie check for %s NOT anchored, one-person rule is "+
+					"process-lifetime only until this is retried: %v", req.Wallet, err)
+			}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"selfieCheck": true, "nullifier": nullifier})
+		writeJSON(w, http.StatusOK, map[string]any{
+			"selfieCheck": true, "nullifier": nullifier, "anchored": anchored,
+		})
 	}
 }
 

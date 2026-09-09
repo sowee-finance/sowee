@@ -157,3 +157,21 @@ func TestOneWorldIDReachesOneWallet(t *testing.T) {
 		t.Fatal("the second wallet must not carry the signal")
 	}
 }
+
+// A pass that could not be anchored is still a pass — the caller cannot retry, because the proof
+// is already spent — but it says so, because until it is anchored the one-person rule only holds
+// for as long as this process does.
+func TestVerifyReportsWhetherThePassWasAnchored(t *testing.T) {
+	h, _, wallet := worldServer(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"success":true}`)) })
+	at, sig := signed(t, wallet)
+	result := `{"protocol_version":"4.0","action":"sowee-selfie-check","responses":[{"identifier":"selfie_check","proof":["0x0"],"nullifier":"0xnotanchored"}]}`
+
+	rec := do(h, http.MethodPost, "/v1/world/verify", `{"wallet":"`+wallet+`","issuedAt":"`+at+`","signature":"`+sig+`","result":`+result+`}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("verify: %d %s", rec.Code, rec.Body)
+	}
+	// The harness runs with the anchor disabled, which is the same shape as a failed write.
+	if !strings.Contains(rec.Body.String(), `"anchored":false`) {
+		t.Fatalf("an unanchored pass must say so, got %s", rec.Body)
+	}
+}
