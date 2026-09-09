@@ -7,6 +7,7 @@ import { type Address, erc20Abi, formatUnits, parseUnits } from "viem"
 import { useAccount, useReadContract, useSwitchChain } from "wagmi"
 import { bondTokenAbi } from "@/lib/abi/bondToken"
 import { invoiceMarketAbi } from "@/lib/abi/invoiceMarket"
+import { hip719Abi, useUsdcAssociation } from "@/lib/association"
 import { activeChain } from "@/lib/chains"
 import type { Deployment } from "@/lib/deployments"
 import { type Bond, bondStatus, dollars, feeOn, maturityDate, usdc, usdcAmount } from "@/lib/market"
@@ -119,6 +120,11 @@ function Order({
     query: { enabled: !!wallet },
   })
 
+  // Hedera's USDC is an HTS token: an account that never associated with it cannot hold one,
+  // so its balance is a zero that no purchase, faucet or claim can move.
+  const association = useUsdcAssociation(wallet, deployment.usdc)
+  const unassociated = association.data === false
+
   const fee = cost.data !== undefined ? feeOn(cost.data, feeBps.data ?? 0) : 0n
   const total = (cost.data ?? 0n) + fee
   const available = bond.faceValue - bond.supply
@@ -128,6 +134,7 @@ function Order({
     if (!wallet) return undefined
     if (units === undefined) return "Enter the face value to buy, in USDC."
     if (units > available) return `Only ${dollars(available)} of face value is left.`
+    if (unassociated) return undefined // the button below says what to do instead
     if (usdcBalance.data !== undefined && usdcBalance.data < total)
       return `Insufficient USDC: you hold ${usdc(usdcBalance.data)}.`
     return undefined
@@ -184,10 +191,17 @@ function Order({
           ? ` · ${usdc(cost.data)} + ${usdc(fee)} fee (${feeBps.data ?? 0} bps)`
           : ""}
       </div>
-      {usdcBalance.data !== undefined && (
+      {usdcBalance.data !== undefined && !unassociated && (
         <div className="tabular mt-1 text-soft text-xs">
           Wallet USDC: {dollars(usdcBalance.data)}
         </div>
+      )}
+      {unassociated && (
+        <p className="mt-2 text-soft text-xs">
+          This wallet has not associated USDC yet. On Hedera an account cannot hold a token it has
+          not associated with, so its balance stays at zero until it does — one transaction, sent by
+          you, and it only has to happen once.
+        </p>
       )}
 
       {!address ? (
@@ -205,6 +219,23 @@ function Order({
         <Link href="/kyc" className={`${blackButton} mt-4`}>
           Verify Identity to Invest
         </Link>
+      ) : unassociated ? (
+        // Before the balance means anything, the account has to be able to hold the token at all.
+        <button
+          type="button"
+          disabled={tx.busy}
+          onClick={() =>
+            tx.send({
+              address: deployment.usdc,
+              abi: hip719Abi,
+              functionName: "associate",
+              args: [],
+            })
+          }
+          className={`${blackButton} mt-4`}
+        >
+          {tx.busy ? "Working…" : "Associate USDC"}
+        </button>
       ) : (
         <button
           type="button"
