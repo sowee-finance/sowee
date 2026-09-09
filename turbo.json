@@ -9,5 +9,5 @@
     "test": { "dependsOn": ["build"] },
     "dev": { "cache": false, "persistent": true }
   },
-  "globalPassThroughEnv": ["API_URL", "RPC_URL", "ISSUER_PK"]
+  "globalPassThroughEnv": ["API_URL", "RPC_URL", "ISSUER_PK", "HCS_TOPIC_ID"]
 }
