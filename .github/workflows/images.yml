@@ -95,11 +95,14 @@ jobs:
           platforms: linux/amd64
           push: true
           # Next inlines these into the client bundle and derives the CSP from the API origin,
-          # so they are fixed when the image is built, not when it is started.
+          # so they are fixed when the image is built, not when it is started. The World app id is
+          # public and is the switch that makes the wizard offer the Selfie Check step: without it
+          # the step is not rendered, which is why the deployed app never showed one.
           build-args: |
             NEXT_PUBLIC_CHAIN_ID=${{ inputs.chain_id || '296' }}
             NEXT_PUBLIC_API_URL=${{ inputs.api_url || 'https://api.sowee.site' }}
             NEXT_PUBLIC_HCS_TOPIC_ID=0.0.10388277
+            NEXT_PUBLIC_WORLD_APP_ID=app_96e61382eeeabdae6887e00434ab8edf
           tags: |
             ghcr.io/${{ github.repository }}-web:latest
             ghcr.io/${{ github.repository }}-web:${{ github.sha }}
@@ -168,6 +171,7 @@ jobs:
             NEXT_PUBLIC_CHAIN_ID=${{ inputs.chain_id || '296' }}
             NEXT_PUBLIC_API_URL=${{ inputs.api_url || 'https://api.sowee.site' }}
             NEXT_PUBLIC_HCS_TOPIC_ID=0.0.10388277
+            NEXT_PUBLIC_WORLD_APP_ID=app_96e61382eeeabdae6887e00434ab8edf
           tags: sowee-web:bundle
           outputs: type=docker,dest=/tmp/sowee-web.tar
           cache-from: type=gha,scope=web
