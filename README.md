@@ -52,6 +52,16 @@ Every contract we deploy is exact-match verified on Sourcify, on Hedera testnet 
 testnet — including each bond token, which the market deploys rather than the script. The same
 finance core runs on **Arc**, Circle's USDC-native L1, funded in native USDC.
 
+Every claim on this page is checkable, and checking it is one command:
+
+```sh
+bun run scripts/verify-claims.ts
+```
+
+It reads the addresses out of `contracts/deployments/` and the transaction hashes out of
+[`contracts/README.md`](contracts/README.md), then asks Hedera, Arc, the mirror node and the live
+API whether they are true. It exits non-zero if any of them is not.
+
 ## Repository
 
 | Path | Contents |
