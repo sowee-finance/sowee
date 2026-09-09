@@ -18,6 +18,15 @@ export type Row = {
 const APP = "https://app.sowee.site"
 
 /**
+ * A bond's name is chosen by whoever listed it — the quote endpoint is open and `listInvoice`
+ * only asks that you are the issuer you quoted for — so it is untrusted text arriving on our own
+ * front page. React escapes it, so this is not about scripts; it is that an unbounded string
+ * interpolated into a sentence can flood the page. The card's own fields already clip by CSS;
+ * this is for the prose, which cannot.
+ */
+const clamp = (s: string, max = 42) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s)
+
+/**
  * The reference this follows holds one screen at a time: a hero, then a scroll that hands the
  * screen to a single card floating on a light ground, with a spotlight that reveals a second
  * face of it under the cursor. The card here is a bond — a real listing, read from the market —
@@ -268,10 +277,10 @@ export function Landing({ bonds }: { bonds: Row[] }) {
           >
             {front ? (
               <p>
-                {front.issuer} is owed {dollars(BigInt(front.faceValue))} by{" "}
-                {front.payor || "a customer"}, and does not want to wait for it. The invoice is a
-                bond investors can fund today and the issuer is paid now. Every figure on the card
-                is read live from the market contract.
+                {clamp(front.issuer)} is owed {dollars(BigInt(front.faceValue))} by{" "}
+                {clamp(front.payor) || "a customer"}, and does not want to wait for it. The invoice
+                is a bond investors can fund today and the issuer is paid now. Every figure on the
+                card is read live from the market contract.
               </p>
             ) : (
               <p>

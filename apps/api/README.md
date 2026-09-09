@@ -269,7 +269,10 @@ Off by default. On, a wallet cannot reach `granted` without the Selfie Check sig
 nullifier is spent exactly once, that gives a property the signal alone does not: **one person can
 hold at most one eligible wallet**. The binding lives on the audit topic (`selfie.v1` carries both
 the wallet and the nullifier) and is replayed at startup, so it outlives a restart rather than a
-process.
+process — for exactly as long as that anchor succeeds. A pass is marked spent before the write is
+known to have landed, so an anchor that fails leaves the nullifier spent in memory and nowhere
+else, and a restart makes it spendable again. `POST /v1/world/verify` answers `anchored: false`
+when that happens rather than hiding it.
 
 The limit is worth stating plainly, because it is the reason this is a mode and not the default:
 with the requirement **off**, a second wallet that simply never opens the Selfie Check step

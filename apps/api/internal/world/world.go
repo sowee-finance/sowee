@@ -238,8 +238,13 @@ func (s *Service) Verify(ctx context.Context, wallet string, payload json.RawMes
 	}
 	s.used[nullifier] = time.Now()
 	s.bind(nullifier, wallet)
-	// This map is the live copy; the durable one is the audit topic. Each pass is anchored as
-	// selfie.v1 and replayed through Restore at startup, so a restart cannot hand the same World
-	// ID a second wallet — which is the whole of the anti-sybil guarantee.
+	// This map is the live copy; the durable one is the audit topic. A pass anchored as selfie.v1
+	// is replayed through Restore at startup, so a restart cannot hand the same World ID a second
+	// wallet — which is the whole of the anti-sybil guarantee.
+	//
+	// The guarantee is exactly as durable as that anchor. The caller marks the pass spent here
+	// before it knows whether the write landed, so an anchor that fails leaves a nullifier spent
+	// in memory and nowhere else: after a restart it is unspent again. The handler reports that
+	// as `anchored: false` rather than hiding it.
 	return nullifier, nil
 }
