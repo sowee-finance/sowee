@@ -334,7 +334,13 @@ export function KycWizard() {
       )
     }
     if (step === "status" && wallet)
-      return <StatusStep wallet={wallet} onRestart={() => go("welcome")} />
+      return (
+        <StatusStep
+          wallet={wallet}
+          onRestart={() => go("welcome")}
+          onSelfieCheck={selfieCheck ? () => go("selfie") : undefined}
+        />
+      )
     // Every step in between needs the signature; a disconnect sends the user back here.
     if (!wallet || !auth) return <Welcome wallet={wallet} onSigned={setAuth} />
     if (step === "selfie")
@@ -841,7 +847,16 @@ function Identity({
   )
 }
 
-function StatusStep({ wallet, onRestart }: { wallet: Address; onRestart: () => void }) {
+function StatusStep({
+  wallet,
+  onRestart,
+  onSelfieCheck,
+}: {
+  wallet: Address
+  onRestart: () => void
+  /** Undefined when Selfie Check is not configured for this deployment. */
+  onSelfieCheck?: () => void
+}) {
   const status = useKycStatus(wallet, 5000)
   if (!status.data) {
     return (
@@ -853,7 +868,7 @@ function StatusStep({ wallet, onRestart }: { wallet: Address; onRestart: () => v
       </StepCard>
     )
   }
-  const { state, reason, grantTxs } = status.data
+  const { state, reason, grantTxs, selfieCheck: verified } = status.data
   const d = describeState(state)
   return (
     <StepCard title="Identity Verification">
@@ -914,6 +929,25 @@ function StatusStep({ wallet, onRestart }: { wallet: Address; onRestart: () => v
           </>
         )}
       </div>
+      {/* The signal is not part of the identity review, so a wallet that finished the review
+          without one had no way back to it — and the faucet it unlocks is exactly what a verified
+          wallet wants. A blocked wallet is not offered it: nothing it does changes that. */}
+      {onSelfieCheck && !verified && state !== "none" && state !== "blocked" && (
+        <div className="mt-4 rounded-xl border border-line p-4">
+          <p className="font-medium text-[15px]">Add a World Selfie Check</p>
+          <p className="mt-1 text-soft text-sm">
+            A liveness check that takes a few seconds. It unlocks the demo faucet and a larger API
+            allowance. It is not part of the identity review and does not change its outcome.
+          </p>
+          <button
+            type="button"
+            onClick={onSelfieCheck}
+            className="mt-3 rounded-full bg-ink px-4 py-2 font-medium text-sm text-white hover:bg-black"
+          >
+            Start Selfie Check
+          </button>
+        </div>
+      )}
     </StepCard>
   )
 }
