@@ -56,6 +56,29 @@ the on-chain grant transactions beside it.
 Without a webcam, a sandbox review can be driven through Sumsub's `status/testCompleted`
 endpoint. That is how the grant linked from the README was produced.
 
+### One person, one eligible wallet
+
+`REQUIRE_SELFIE_CHECK=true` makes the Selfie Check a condition of eligibility rather than a
+convenience. A nullifier is spent exactly once, so with it on, one person can hold at most one
+wallet on the allowlist.
+
+```sh
+REQUIRE_SELFIE_CHECK=true go run ./cmd/api    # in apps/api
+```
+
+A wallet whose review came back GREEN but which never passed a check now reports `held`, with
+"a World Selfie Check is required before eligibility" as the reason, and no grant is sent. Pass
+the check and the same wallet proceeds. A second wallet cannot spend the same World ID: the
+verify route answers `409` and names the wallet the proof already belongs to.
+
+Two things to know before turning it on:
+
+- **Turn it on before granting anyone, not after.** A wallet already granted will report `held`
+  while its on-chain eligibility stands — `held` does not revoke, only `blocked` does, and
+  flipping a flag is not a reason to take someone's eligibility away.
+- With it on, an investor without a World App cannot be granted at all. That is the point, and it
+  is also why it is off by default.
+
 ## Tests
 
 ```sh
