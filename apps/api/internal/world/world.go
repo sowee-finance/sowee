@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -49,8 +50,10 @@ type Service struct {
 	signer *idkit.Signer
 	HTTP   *http.Client
 
-	mu   sync.Mutex
-	used map[string]time.Time // nullifier -> first seen
+	mu     sync.Mutex
+	used   map[string]time.Time // nullifier -> first seen
+	wallet map[string]string    // nullifier -> the wallet it was spent on
+	human  map[string]string    // wallet -> the nullifier behind it
 }
 
 // New returns nil when the config is incomplete (feature off), an error when it is malformed.
@@ -71,7 +74,8 @@ func New(cfg Config) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("WORLD_RP_SIGNING_KEY: %w", err)
 	}
-	return &Service{cfg: cfg, signer: signer, HTTP: &http.Client{Timeout: 20 * time.Second}, used: map[string]time.Time{}}, nil
+	return &Service{cfg: cfg, signer: signer, HTTP: &http.Client{Timeout: 20 * time.Second},
+		used: map[string]time.Time{}, wallet: map[string]string{}, human: map[string]string{}}, nil
 }
 
 // Enabled is nil-safe.
@@ -99,6 +103,16 @@ type result struct {
 	} `json:"responses"`
 }
 
+// NullifierOf reads the nullifier out of an IDKit result without verifying anything. It exists
+// so a rejected replay can name the wallet the proof already belongs to.
+func NullifierOf(payload json.RawMessage) string {
+	var r result
+	if json.Unmarshal(payload, &r) != nil {
+		return ""
+	}
+	return r.nullifier()
+}
+
 func (r result) nullifier() string {
 	if len(r.Responses) == 0 {
 		return ""
@@ -109,31 +123,73 @@ func (r result) nullifier() string {
 	return r.Responses[0].NullifierHash
 }
 
-// Restore marks nullifiers as already used. The service keeps them in memory, so without this a
-// restart would let the same World ID pass a second time and the one-person rule would only hold
-// for as long as the process did.
-func (s *Service) Restore(nullifiers []string) int {
+// bind records which wallet a nullifier was spent on. Callers hold the mutex. The first binding
+// wins: the topic is replayed oldest-first, so a restart reaches the same answer it had before.
+func (s *Service) bind(nullifier, wallet string) {
+	w := strings.ToLower(strings.TrimSpace(wallet))
+	if nullifier == "" || w == "" {
+		return
+	}
+	if _, ok := s.wallet[nullifier]; !ok {
+		s.wallet[nullifier] = w
+	}
+	if _, ok := s.human[w]; !ok {
+		s.human[w] = nullifier
+	}
+}
+
+// WalletFor returns the wallet a nullifier was spent on, or "" if it is unspent or unknown.
+func (s *Service) WalletFor(nullifier string) string {
+	if s == nil {
+		return ""
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.wallet[nullifier]
+}
+
+// HumanFor returns the nullifier behind a wallet, or "" when that wallet never passed a check.
+// It is a pseudonym for one person, not an identity: two wallets sharing it are the same human,
+// and nothing else can be read from it.
+func (s *Service) HumanFor(wallet string) string {
+	if s == nil {
+		return ""
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.human[strings.ToLower(strings.TrimSpace(wallet))]
+}
+
+// Pass is one replayed Selfie Check: which World ID, and the wallet it was spent on.
+type Pass struct{ Nullifier, Wallet string }
+
+// Restore marks nullifiers as already used and rebuilds their wallet bindings. The service keeps
+// both in memory, so without this a restart would let the same World ID pass a second time and
+// the one-person rule would only hold for as long as the process did. Pass them oldest first,
+// the order the topic returns: the first binding for a World ID is the one that stands.
+func (s *Service) Restore(passes []Pass) int {
 	if s == nil {
 		return 0
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	n := 0
-	for _, nullifier := range nullifiers {
-		if nullifier == "" {
+	for _, p := range passes {
+		if p.Nullifier == "" {
 			continue
 		}
-		if _, seen := s.used[nullifier]; !seen {
-			s.used[nullifier] = time.Time{}
+		if _, seen := s.used[p.Nullifier]; !seen {
+			s.used[p.Nullifier] = time.Time{}
 			n++
 		}
+		s.bind(p.Nullifier, p.Wallet)
 	}
 	return n
 }
 
-// Verify forwards the IDKit result to the Developer Portal and enforces one-proof-per-person.
-// It returns the nullifier on success.
-func (s *Service) Verify(ctx context.Context, payload json.RawMessage) (string, error) {
+// Verify forwards the IDKit result to the Developer Portal and enforces one-proof-per-person,
+// binding the nullifier to the wallet it was spent on. It returns the nullifier on success.
+func (s *Service) Verify(ctx context.Context, wallet string, payload json.RawMessage) (string, error) {
 	if s == nil {
 		return "", ErrDisabled
 	}
@@ -181,6 +237,7 @@ func (s *Service) Verify(ctx context.Context, payload json.RawMessage) (string, 
 		return "", ErrReplay
 	}
 	s.used[nullifier] = time.Now()
+	s.bind(nullifier, wallet)
 	// This map is the live copy; the durable one is the audit topic. Each pass is anchored as
 	// selfie.v1 and replayed through Restore at startup, so a restart cannot hand the same World
 	// ID a second wallet — which is the whole of the anti-sybil guarantee.

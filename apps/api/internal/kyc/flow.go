@@ -48,6 +48,17 @@ type Flow struct {
 	grant  Grantor
 	now    func() time.Time
 
+	// RequireSelfieCheck makes the anti-sybil signal a condition of eligibility rather than a
+	// convenience. It is off by default: with it on, a wallet whose holder has no World App
+	// cannot be granted at all, which is a product decision and not ours to take by default.
+	//
+	// What it buys, when on: a Selfie Check nullifier is spent once and only once, so requiring
+	// one before a grant means one person can hold at most one eligible wallet — and the binding
+	// is replayed from the audit topic, so that survives a restart. Without it the signal reaches
+	// the faucet and the rate limit and stops there, and a second wallet that simply skips the
+	// check is unconstrained.
+	RequireSelfieCheck bool
+
 	mu        sync.Mutex
 	granted   map[string][]string  // wallet -> grant txs (this process)
 	checkedAt map[string]time.Time // wallet -> last time bonds were re-checked
@@ -149,6 +160,13 @@ func (f *Flow) Status(ctx context.Context, wallet string) (Status, error) {
 		st.State = StateBlocked
 		f.ensureRevoked(w)
 	case Eligible:
+		// Fail closed, like the rest of the policy: held, not blocked, because the wallet is
+		// one Selfie Check away from eligible and nothing about it is disqualifying.
+		if f.RequireSelfieCheck && !st.SelfieCheck {
+			st.State = StateHeld
+			st.Reason = "a World Selfie Check is required before eligibility"
+			break
+		}
 		st.State, st.GrantTxs = f.ensureGranted(w)
 	}
 	return st, nil

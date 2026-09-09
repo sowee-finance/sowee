@@ -5,6 +5,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/sowee-finance/sowee/apps/api/internal/config"
 	"github.com/sowee-finance/sowee/apps/api/internal/hcs"
@@ -108,5 +113,47 @@ func TestUnverifiedTrafficIsRateLimited(t *testing.T) {
 	}
 	if codes[2] != http.StatusTooManyRequests {
 		t.Fatalf("third unverified request should be 429, got %v", codes)
+	}
+}
+
+// signedBy produces a wallet and its challenge signature from an arbitrary key, so a test can
+// have a second person at the door.
+func signedBy(t *testing.T, pk string) (wallet, issuedAt, sig string) {
+	t.Helper()
+	key, err := crypto.HexToECDSA(pk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wallet = crypto.PubkeyToAddress(key.PublicKey).Hex()
+	at := time.Now().UTC().Truncate(time.Second)
+	raw, _ := crypto.Sign(accounts.TextHash([]byte(kyc.ChallengeMessage(wallet, at))), key)
+	raw[64] += 27
+	return wallet, at.Format(time.RFC3339), hexutil.Encode(raw)
+}
+
+// The property the whole feature rests on: one World ID reaches one wallet. The second wallet
+// holds a valid signature and a valid proof — it is refused because the proof is already spent,
+// and the refusal names the wallet it was spent on, which is the only useful thing to say to
+// someone who is holding that World ID.
+func TestOneWorldIDReachesOneWallet(t *testing.T) {
+	h, flow, first := worldServer(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"success":true}`)) })
+	proof := `{"protocol_version":"4.0","action":"sowee-selfie-check","responses":[{"identifier":"selfie_check","proof":["0x0"],"nullifier":"0xsamehuman"}]}`
+
+	at, sig := signed(t, first)
+	rec := do(h, http.MethodPost, "/v1/world/verify", `{"wallet":"`+first+`","issuedAt":"`+at+`","signature":"`+sig+`","result":`+proof+`}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("first wallet: %d %s", rec.Code, rec.Body)
+	}
+
+	second, at2, sig2 := signedBy(t, strings.Repeat("33", 32))
+	rec = do(h, http.MethodPost, "/v1/world/verify", `{"wallet":"`+second+`","issuedAt":"`+at2+`","signature":"`+sig2+`","result":`+proof+`}`)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("second wallet with the same World ID: want 409, got %d %s", rec.Code, rec.Body)
+	}
+	if !strings.Contains(strings.ToLower(rec.Body.String()), strings.ToLower(first)) {
+		t.Fatalf("the refusal should name the wallet the proof is bound to, got %s", rec.Body)
+	}
+	if flow.SelfieCheck(second) {
+		t.Fatal("the second wallet must not carry the signal")
 	}
 }

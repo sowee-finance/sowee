@@ -78,13 +78,13 @@ func restoreSelfieChecks(anchor *hcs.Anchor, w *world.Service, f *kyc.Flow) {
 	if len(records) == 0 {
 		return
 	}
-	nullifiers := make([]string, 0, len(records))
+	passes := make([]world.Pass, 0, len(records))
 	for _, r := range records {
 		f.SetSelfieCheck(r.Wallet, true)
-		nullifiers = append(nullifiers, r.Nullifier)
+		passes = append(passes, world.Pass{Nullifier: r.Nullifier, Wallet: r.Wallet})
 	}
 	log.Printf("world: restored %d selfie check(s), %d nullifier(s) already spent",
-		len(records), w.Restore(nullifiers))
+		len(records), w.Restore(passes))
 }
 
 // newFlow wires Sumsub and the on-chain granter. Without Sumsub credentials KYC endpoints
@@ -106,7 +106,11 @@ func newFlow(cfg config.Config) *kyc.Flow {
 		grantor = granter
 		log.Printf("kyc: granter %s on market %s", granter.Operator().Hex(), cfg.InvoiceMarket)
 	}
-	return kyc.NewFlow(sumsub, grantor)
+	f := kyc.NewFlow(sumsub, grantor)
+	// Off unless asked for: it makes one person one eligible wallet, at the cost of
+	// requiring a World App to invest at all.
+	f.RequireSelfieCheck = cfg.RequireSelfie
+	return f
 }
 
 // newAnchor wires HCS when operator credentials are present; otherwise anchoring is disabled

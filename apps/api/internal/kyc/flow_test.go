@@ -263,3 +263,54 @@ func TestWalletNormalisation(t *testing.T) {
 		t.Fatalf("normalisation differs: %s %s %s", a, b, c)
 	}
 }
+
+// eligible drives a wallet to a GREEN review, the state just before a grant.
+func eligible(t *testing.T, f *Flow, s *fakeSumsub, w string) {
+	t.Helper()
+	ctx := context.Background()
+	if err := f.SubmitProfile(ctx, w, FixedInfo{}, good()); err != nil {
+		t.Fatalf("profile: %v", err)
+	}
+	s.apps[norm(w)].Review = Review{Status: "completed", Answer: "GREEN"}
+}
+
+// The default has to be unchanged: a wallet with no Selfie Check is still granted, because
+// requiring a World App to invest is a product decision, not a default.
+func TestSelfieCheckIsNotRequiredByDefault(t *testing.T) {
+	s, g := newFakeSumsub(), &fakeGrantor{}
+	f := NewFlow(s, g)
+	eligible(t, f, s, wallet)
+	st, _ := f.Status(context.Background(), wallet)
+	f.Wait()
+	if st.State != StateGranting && st.State != StateGranted {
+		t.Fatalf("default: want the wallet on its way to granted, got %s (%s)", st.State, st.Reason)
+	}
+}
+
+// With the requirement on, a GREEN review is not enough on its own.
+func TestRequireSelfieCheckHoldsAnUnverifiedWallet(t *testing.T) {
+	s, g := newFakeSumsub(), &fakeGrantor{}
+	f := NewFlow(s, g)
+	f.RequireSelfieCheck = true
+	eligible(t, f, s, wallet)
+
+	st, _ := f.Status(context.Background(), wallet)
+	if st.State != StateHeld {
+		t.Fatalf("no selfie check: want held, got %s (%s)", st.State, st.Reason)
+	}
+	if len(g.calls) != 0 {
+		t.Fatalf("held wallet was granted anyway: %v", g.calls)
+	}
+	// Held, not blocked: the wallet is one check away, and nothing about it is disqualifying.
+	if st.Reason == "" {
+		t.Fatal("a held wallet must say why")
+	}
+
+	// And the same wallet proceeds once the signal is there.
+	f.SetSelfieCheck(wallet, true)
+	st, _ = f.Status(context.Background(), wallet)
+	f.Wait()
+	if st.State != StateGranting && st.State != StateGranted {
+		t.Fatalf("after the check: want granting or granted, got %s (%s)", st.State, st.Reason)
+	}
+}

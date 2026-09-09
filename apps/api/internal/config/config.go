@@ -50,6 +50,7 @@ type Config struct {
 	TrustedProxy   bool          // TRUSTED_PROXY=true when a proxy in front sets X-Forwarded-For
 	RateBase       int           // RATE_BASE_PER_MIN, default 30 (per client IP)
 	RateVerified   int           // RATE_VERIFIED_PER_MIN, default 300 (per Selfie-verified wallet)
+	RequireSelfie  bool          // REQUIRE_SELFIE_CHECK=true makes Selfie Check a condition of eligibility
 }
 
 // FromEnv builds a Config from the process environment.
@@ -93,6 +94,7 @@ func FromEnv() Config {
 		FaucetCooldown: envDuration("FAUCET_COOLDOWN", 24*time.Hour),
 		WebOrigins:     splitList(env("WEB_ORIGIN", "http://localhost:3000")),
 		TrustedProxy:   os.Getenv("TRUSTED_PROXY") == "true",
+		RequireSelfie:  os.Getenv("REQUIRE_SELFIE_CHECK") == "true",
 		RateBase:       int(envInt("RATE_BASE_PER_MIN", 30)),
 		RateVerified:   int(envInt("RATE_VERIFIED_PER_MIN", 300)),
 	}

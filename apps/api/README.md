@@ -253,7 +253,7 @@ policy pass above.
 | Route | Auth | Does |
 |---|---|---|
 | `GET /v1/world/request` | — | `{app_id, rp_id, action, environment, rp_context:{sig,nonce,created_at,expires_at}}` — the RP signature IDKit needs (World ID 4.0, signed server-side with the Developer Portal key, 5-minute validity) |
-| `POST /v1/world/verify` | signed | `{…, result: <IDKit success payload>}` → forwarded as-is to `POST https://developer.world.org/api/v4/verify/{rp_id}`; on success the nullifier is stored (one proof per person) and `selfieCheck=true` for the wallet; `409` on a reused proof, `400` when the portal rejects it |
+| `POST /v1/world/verify` | signed | `{…, result: <IDKit success payload>}` → forwarded as-is to `POST https://developer.world.org/api/v4/verify/{rp_id}`; on success the nullifier is bound to the wallet (one proof per person) and `selfieCheck=true`; `409` on a reused proof, naming the wallet it is already bound to, `400` when the portal rejects it |
 | `POST /v1/faucet` | signed | drips `FAUCET_USDC_AMOUNT` from the treasury to the wallet; `403` without the Selfie Check signal, `429` inside the cooldown, `502` if the wallet is not associated with USDC |
 
 Rate limits on `/v1/invoices/*/quote`, `/v1/invoices/*/attest`, `/v1/kyc/*`, `/v1/world/*` and `/v1/faucet`: `RATE_BASE_PER_MIN` per client IP, or
@@ -263,6 +263,24 @@ alone: `X-Wallet`, `X-Wallet-Issued-At`, `X-Wallet-Signature` over `GET /v1/kyc/
 Naming a wallet is not enough — grants are public on chain, so an unauthenticated header would
 hand the larger allowance to anyone who can read HashScan, and let them spend an allowance its
 owner earned.
+### One person, one eligible wallet — `REQUIRE_SELFIE_CHECK`
+
+Off by default. On, a wallet cannot reach `granted` without the Selfie Check signal, and since a
+nullifier is spent exactly once, that gives a property the signal alone does not: **one person can
+hold at most one eligible wallet**. The binding lives on the audit topic (`selfie.v1` carries both
+the wallet and the nullifier) and is replayed at startup, so it outlives a restart rather than a
+process.
+
+The limit is worth stating plainly, because it is the reason this is a mode and not the default:
+with the requirement **off**, a second wallet that simply never opens the Selfie Check step
+presents no nullifier, so nothing links it to the first and nothing constrains it. The signal
+reaches the faucet and the rate limit and stops there. Only requiring the check closes that, and
+the cost is that someone without a World App cannot invest at all — a product decision, so it is
+a flag rather than a default.
+
+A wallet held this way is **held, not blocked**: it is one check away from eligible and nothing
+about it is disqualifying, which is the same fail-closed posture the rest of the policy takes.
+
 The Selfie Check step in the web wizard is skipped until `WORLD_*` is configured; the routes
 answer `503` meanwhile. `X-Forwarded-For` is ignored unless `TRUSTED_PROXY=true`; the granter
 and the faucet serialise transactions per key so they never race on the account nonce.
