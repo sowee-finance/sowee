@@ -37,6 +37,33 @@ the integration rather than the start.
 Even a red "Selfie Check: not enabled for this app — request access" line would move the
 discovery from the end of a day's work to the beginning.
 
+**What this actually looks like, 10 September 2026, 11:11 UTC.** The integration is finished and
+the sandbox World App is installed, so we ran it. Our API served the request and logged it:
+
+```
+11:11:11  GET /v1/kyc/challenge   200
+11:11:13  GET /v1/world/request   200   415B
+```
+
+with a well-formed context — 65-byte signature, `v = 28`, 32-byte nonce, 300 seconds of validity,
+`environment: sandbox`, `action: sowee-selfie-check`. IDKit then answered:
+
+```
+World ID: generic_error
+```
+
+That is the whole of it. `generic_error` is indistinguishable between *the credential is not
+enabled for this app*, *the action is not registered*, *the RP key does not match the one in the
+Portal*, and *the environment does not line up* — four different problems, three of which the
+developer can fix alone, all wearing the same face. There is no request log to consult (§7), no
+flag state on the app page (§1), and no signing test vector to rule our own side out (§2). We
+verified what we could from our end and the payload is correct; beyond that there is nothing to
+read.
+
+**Suggestion, sharpened.** Give `generic_error` a reason string. A single field — `"credential
+not enabled for this app"` — would have saved this entire paragraph, and it costs nothing that a
+support thread does not cost you more.
+
 ## 2. The RP signature has no worked example outside JavaScript
 
 World ID 4.0 requires a server-signed RP context. The layout is documented — secp256k1 over
