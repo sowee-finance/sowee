@@ -16,10 +16,10 @@ could not observe something, it says so.
 
 | Asked for | Here |
 |---|---|
-| Selfie Check docs and integration flow | §2 RP signature, §3 proof shape, §5 nullifier durability, §6 assurance level |
-| Developer Portal — navigation, product discovery, debugging | §1 flag state is invisible, §4 two gates behind two addresses, §7 |
-| Sandbox App — states, proof flows, test users, errors, edge cases | **§8 — not yet reportable.** Access arrived 9 September; the journeys are written and unrun |
-| What was confusing, missing, broken, hard to test | §1–§6, and §8 says plainly what is still untested |
+| Selfie Check docs and integration flow | §3 RP signature, §4 proof shape, §6 nullifier durability, §7 assurance level |
+| Developer Portal — navigation, product discovery, debugging | **§2 an action cannot be created there at all**, §1 flag state is invisible, §5 two gates behind two addresses, §8 no request log |
+| Sandbox App — states, proof flows, test users, errors, edge cases | **§9 — not yet reportable.** Access arrived 9 September; the journeys are written and unrun |
+| What was confusing, missing, broken, hard to test | §1–§8, and §9 says plainly what is still untested |
 
 We would rather leave a row visibly empty than fill it with something we did not observe.
 
@@ -37,8 +37,8 @@ the integration rather than the start.
 Even a red "Selfie Check: not enabled for this app — request access" line would move the
 discovery from the end of a day's work to the beginning.
 
-**What this actually looks like, 10 September 2026, 11:11 UTC.** The integration is finished and
-the sandbox World App is installed, so we ran it. Our API served the request and logged it:
+**What this actually looks like, 10 September 2026.** The integration was finished and the
+sandbox World App installed, so we ran it. Our API served the request and logged it:
 
 ```
 11:11:11  GET /v1/kyc/challenge   200
@@ -46,47 +46,55 @@ the sandbox World App is installed, so we ran it. Our API served the request and
 ```
 
 with a well-formed context — 65-byte signature, `v = 28`, 32-byte nonce, 300 seconds of validity,
-`environment: sandbox`, `action: sowee-selfie-check`. IDKit then answered:
+`environment: sandbox`, `action: sowee-selfie-check`. IDKit answered:
 
 ```
 World ID: generic_error
 ```
 
-That is the whole of it. `generic_error` is indistinguishable between *the credential is not
-enabled for this app*, *the action is not registered*, *the RP key does not match the one in the
-Portal*, and *the environment does not line up* — four different problems, three of which the
-developer can fix alone, all wearing the same face.
-
-We eliminated them one at a time, which took the afternoon:
+That is the whole of it. We spent the afternoon eliminating causes:
 
 | Cause | How we ruled it out |
 |---|---|
 | RP key mismatch | derived the address from the server's key: `0xBbF111cE…682AD`, byte for byte what World ID Configuration displays |
-| App or RP id wrong | both read straight off that page and compared |
-| Malformed request | 65-byte signature, `v = 28`, 32-byte nonce, 300s validity, and the `sig` → `signature` rename IDKit expects |
-| Action not registered | there is nowhere to register one — in World ID 4.0 the action travels inside the RP context, which we send |
+| App or RP id wrong | read off that page and compared |
+| Malformed request | 65-byte signature, 32-byte nonce, 300s validity, and the `sig` → `signature` rename IDKit expects |
+| RP not registered | `get_world_id_registration_status`: registered and on-chain initialised, both production and staging |
+| Environment invalid | `sandbox` is in IDKit's own union, alongside `production` and `staging` |
 
-Which leaves the flag, and here is the finding at its sharpest: **we walked the entire Developer
-Portal navigation** — Projects, Dashboard, World ID Configuration, Verification, Develop,
-Transactions, Notifications, General, Members, API Keys — and there is no page that shows whether
-Selfie Check is enabled for an app, and no control that requests it. The one page called
-*Verification* is the Mini App store submission wizard, which is a different thing entirely and
-was sitting in "In review. Editing is locked until review completes."
+**The cause was that the action did not exist.** `get_app_config` for our app returns no `action`
+key at all — not an empty list, no mention of the word anywhere in the document. IDKit was asking
+for `sowee-selfie-check` and the app had never heard of it.
 
-So the developer's only remaining move is to email someone and wait, having spent a day proving
-a negative. There is no request log to consult (§7), no flag state anywhere (§1), and no signing
-test vector to rule one's own side out (§2). Three gaps that are individually small compose into
-an afternoon.
+## 2. A World ID 4.0 action cannot be created in the Developer Portal
 
-**Suggestion, sharpened.** Two fields would have replaced this entire finding: a reason string on
-`generic_error` — `"credential not enabled for this app"` — and a line on the app's page saying
-which credentials it may request. Neither costs more than the support thread that replaces them.
+This is the finding, and it took a day.
 
-**Also worth checking on your side:** the app was in Mini App store review while this was
-attempted. If credential access is gated on that review completing, saying so would itself be the
-fix.
+We walked the entire Portal navigation looking for where to declare an action — Projects,
+Dashboard, World ID Configuration, Verification, Develop, Transactions, Notifications, General,
+Members, API Keys. World ID Configuration shows the app id, RP id, signer address, a rotate
+button and a danger zone; there is no actions list and no way to add one. The page called
+*Verification* is the Mini App store submission wizard, which is a different thing entirely.
 
-## 2. The RP signature has no worked example outside JavaScript
+The only way to create one is `create_world_id_action` on the developer-portal MCP, or the API
+behind it. We found it by attaching the MCP and reading its tool list. Two calls later — one for
+`staging`, one for `production` — the action existed and was `registered`.
+
+We had reasoned, wrongly, that 4.0 needed no action registration because the action travels inside
+the RP context. Nothing contradicted that until the tool list did. A developer working from the
+docs and the Portal alone has no way to discover otherwise, because the missing piece is invisible
+in both places and the error names nothing.
+
+**Suggestions, in the order they would have helped.**
+
+1. Put an actions list on the app's World ID Configuration page, with an add button. Everything
+   else about the RP is on that page already; its absence reads as "4.0 does not need one".
+2. Give `generic_error` a reason string. `"action not registered for this app"` would have ended
+   this at 11:11.
+3. Say in the Selfie Check and IDKit docs that an action must exist before a request naming it
+   will be accepted, and where to create it.
+
+## 3. The RP signature has no worked example outside JavaScript
 
 World ID 4.0 requires a server-signed RP context. The layout is documented — secp256k1 over
 `version ‖ nonce(32) ‖ created_at(8) ‖ expires_at(8) ‖ [action hash]`, EIP-191 prefixed — but
@@ -99,7 +107,7 @@ any example — **a known-good test vector**: fixed nonce, timestamps, action, k
 expected signature. A vector turns "I think this is right" into a unit test. We would have
 pinned ours to it the way we pin our EIP-712 digest to a Solidity vector.
 
-## 3. A 4.0 request flow receives a 3.0-shaped proof
+## 4. A 4.0 request flow receives a 3.0-shaped proof
 
 Selfie Check today returns a result in the World ID 3.0 shape, while the request flow around it
 is 4.0. We only found this by reading both payload definitions and deciding to accept either.
@@ -110,7 +118,7 @@ the flow, where the failure is most expensive to debug.
 **Suggestion.** Say it in the Selfie Check page itself: *this credential currently returns a
 3.0-shaped result; handle both.* One sentence would have saved the discovery.
 
-## 4. Sandbox access is a second gate, behind a different address
+## 5. Sandbox access is a second gate, behind a different address
 
 There are two things to obtain and they are not the same request: the Selfie Check flag on the
 app (developers@toolsforhumanity.com) and the Sandbox World ID app on a phone
@@ -121,7 +129,7 @@ newcomer reasonably assumes that being granted one implies the other.
 check on a device", with who grants each. For a hackathon in particular, the lead time on these
 is the difference between a demonstrated integration and a described one.
 
-## 5. The docs never say the nullifier must outlive the process
+## 6. The docs never say the nullifier must outlive the process
 
 The anti-sybil property is entirely carried by storing the nullifier: one World ID, one
 account. Nothing in the documentation says where that belongs, and the obvious first
@@ -134,7 +142,7 @@ Service topic and replay it at startup, so the used nullifiers come back with th
 if you lose it you lose the uniqueness guarantee.* This is the one item on this list that is a
 security property rather than an ergonomic one.
 
-## 6. Medium assurance invites a stronger reading than it deserves
+## 7. Medium assurance invites a stronger reading than it deserves
 
 The docs are clear that Selfie Check is liveness plus facial similarity and **not** a
 one-person-one-account guarantee. But it sits in an anti-sybil-shaped hole in most products,
@@ -149,7 +157,7 @@ wrong.
 
 ---
 
-## 7. The Portal tells you nothing about a request that failed
+## 8. The Portal tells you nothing about a request that failed
 
 What we did in the Developer Portal: created the app, took its `app_id`, created the RP and its
 `rp_id`, generated the RP signing key. That much was quick and the navigation was not the
@@ -170,7 +178,7 @@ something a developer could have diagnosed alone.
 We are not reporting on the Portal's search: we navigated to what we needed from the docs' links
 and never used it, so we have nothing worth saying about it.
 
-## 8. Sandbox App — access arrived after the integration, so this section is empty
+## 9. Sandbox App — access arrived after the integration, so this section is empty
 
 The Sandbox World ID app reached us on 9 September, after the client, the server and the wizard
 were finished. The journeys the docs describe — hot, cold, semi-cold, and cross-device QR — are
@@ -199,4 +207,4 @@ a day. Everything requiring a grant took longer than the build.
 The camera flow itself — the hot, cold and semi-cold journeys on a device, cross-device QR, and
 what the Portal's verify endpoint answers for a legacy-shaped proof. The test plan is in
 [`world.md`](world.md). This document will be extended with what we find rather than replaced,
-and §8 is where it will go.
+and §9 is where it will go.
