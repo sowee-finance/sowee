@@ -52,6 +52,11 @@ at all — a product decision, not one to take by default.
   API, `handleVerify` posting the result to `/v1/world/verify` — and switches on when
   `NEXT_PUBLIC_WORLD_APP_ID` is set. The API accepts both World ID 3.0 (what Selfie Check
   returns today) and 4.0 result shapes.
+- The page serving that widget must allow WebAssembly: `@worldcoin/idkit-core` builds every
+  request inside a wasm module, so `script-src` carries `'wasm-unsafe-eval'`
+  (`apps/web/next.config.ts`). Without it IDKit answers `generic_error` and says nothing else —
+  see [`world-feedback.md`](world-feedback.md) §9. `scripts/verify-claims.ts` checks the deployed
+  header so it cannot come back.
 
 ## Configuration (sandbox)
 

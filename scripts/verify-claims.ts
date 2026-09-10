@@ -146,5 +146,21 @@ for (const url of [
   check(r?.status === 200, url, `HTTP ${r?.status ?? "no response"}`)
 }
 
+// IDKit is a WebAssembly module, and a policy that forbids compiling one turns every Selfie
+// Check into `generic_error` with the real message dropped (#166). It reads as a World outage
+// rather than a header, so the header is checked here.
+{
+  const policy =
+    (await fetch("https://app.sowee.site/kyc")
+      .then((r) => r.headers.get("content-security-policy"))
+      .catch(() => null)) ?? ""
+  const scriptSrc = policy.split(";").find((d) => d.trim().startsWith("script-src")) ?? ""
+  check(
+    scriptSrc.includes("'wasm-unsafe-eval'") || scriptSrc.includes("'unsafe-eval'"),
+    "the dapp's CSP lets IDKit compile its wasm",
+    scriptSrc.trim() || "no script-src served",
+  )
+}
+
 console.log(failures === 0 ? "\nevery claim holds\n" : `\n${failures} claim(s) do not hold\n`)
 process.exit(failures === 0 ? 0 : 1)

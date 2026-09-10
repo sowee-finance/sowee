@@ -13,9 +13,15 @@ const api = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").
 // Next's own inline bootstrap scripts need 'unsafe-inline' without a nonce setup, and the dev
 // overlay needs 'unsafe-eval'. The Sumsub WebSDK is a CDN script that mounts an iframe on
 // *.sumsub.com (KYC wizard, /kyc).
+//
+// 'wasm-unsafe-eval' is what lets World's Selfie Check run: @worldcoin/idkit-core is a
+// WebAssembly module, and compiling one is script generation as far as the CSP is concerned.
+// Remove it and every Selfie Check ends as `generic_error` — IDKit maps anything it does not
+// recognise to that code and drops the real message, so the browser console is the only place
+// the CompileError appears. Development never showed it, because 'unsafe-eval' permits wasm too.
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' https://static.sumsub.com${dev ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.sumsub.com${dev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.sumsub.com https://*.worldcoin.org https://*.world.org",
   "font-src 'self'",
