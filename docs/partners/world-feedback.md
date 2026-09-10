@@ -7,7 +7,8 @@ verify forwarding in a Go API. Configuration notes and the code paths are in
 
 **What we could test, and what we could not.** Everything up to the camera is running: the RP
 context is signed server-side and its signature recovers to the registered signer, the wizard
-renders the Selfie Check step, and the verify route forwards a result to the Developer Portal.
+renders the Selfie Check step, the widget issues an invite code, and the verify route forwards a
+result to the Developer Portal.
 The live check itself is untested, because Selfie Check (Beta) is feature-flagged per app and
 ours has not been enabled. Nothing below is a guess about behaviour we did not see; where we
 could not observe something, it says so.
@@ -17,9 +18,9 @@ could not observe something, it says so.
 | Asked for | Here |
 |---|---|
 | Selfie Check docs and integration flow | §3 RP signature, §4 proof shape, §6 nullifier durability, §7 assurance level |
-| Developer Portal — navigation, product discovery, debugging | **§2 an action cannot be created there at all**, §1 flag state is invisible, §5 two gates behind two addresses, §8 no request log |
-| Sandbox App — states, proof flows, test users, errors, edge cases | **§9 — not yet reportable.** Access arrived 9 September; the journeys are written and unrun |
-| What was confusing, missing, broken, hard to test | §1–§8, and §9 says plainly what is still untested |
+| Developer Portal — navigation, product discovery, debugging | **§2 an action cannot be created there at all**, §1 flag state is invisible, §5 two gates behind two addresses, §8 no request log, §9 an error code that hides the error |
+| Sandbox App — states, proof flows, test users, errors, edge cases | **§10 — not yet reportable.** Access arrived 9 September; the journeys are written and unrun |
+| What was confusing, missing, broken, hard to test | §1–§9, and §10 says plainly what is still untested |
 
 We would rather leave a row visibly empty than fill it with something we did not observe.
 
@@ -178,7 +179,53 @@ something a developer could have diagnosed alone.
 We are not reporting on the Portal's search: we navigated to what we needed from the docs' links
 and never used it, so we have nothing worth saying about it.
 
-## 9. Sandbox App — access arrived after the integration, so this section is empty
+## 9. IDKit is a WebAssembly module, and its error taxonomy hides what that costs
+
+`@worldcoin/idkit-core` 4.2.4 ships `idkit_wasm_bg.wasm` and builds every request inside it.
+Compiling WebAssembly is script generation as far as a Content Security Policy is concerned, so a
+site with a policy at all needs `'wasm-unsafe-eval'` in `script-src`. Nothing says so: not the
+integration guide, not the package README, not the widget's props.
+
+A site that does not know loses the credential entirely, and loses it in the worst possible shape.
+Our policy is the ordinary one — `script-src 'self' 'unsafe-inline'` plus the KYC vendor's CDN —
+and the whole integration passed in development, because Next's dev overlay asks for
+`'unsafe-eval'`, which permits wasm as a side effect. The deployed site answered:
+
+```
+World ID: generic_error
+```
+
+That is the entire message a user and a developer both get. `toErrorCode` compares the thrown
+error against the `IDKitErrorCodes` list, finds no match, and returns `GenericError` — the real
+one is gone by the time `onError` fires:
+
+```
+Failed to initialize IDKit WASM: CompileError: WebAssembly.instantiateStreaming(): Compiling or
+instantiating WebAssembly module violates the following Content Security policy directive because
+'unsafe-eval' is not an allowed source of script…
+```
+
+A client-side environment failure is indistinguishable from a rejected proof, an unregistered
+action, a bad RP signature or a World outage — so we spent a day proving the server side correct,
+which it always was. Adding one token to `script-src` produced an invite code on the first try.
+
+**Suggestions,** in the order we would want them:
+
+1. Say it in the integration guide. One line — "IDKit uses WebAssembly; your CSP needs
+   `'wasm-unsafe-eval'` in `script-src`" — is the whole fix, and it belongs next to the install
+   command rather than in a troubleshooting page nobody reaches while things still work.
+2. Give the failure its own code. `WasmInitFailed` (or `EnvironmentUnsupported`) separates "this
+   browser or this page cannot run IDKit" from "World said no", which are different problems with
+   different owners.
+3. Let the message survive. `IDKitDebugReport` exists and the hooks expose `getDebugReport()`, but
+   the widget components do not, and `setDebug(true)` has to be decided before the failure you did
+   not expect. Passing the original error to `onError` alongside the code would cost nothing.
+
+The wasm choice itself we have no complaint about — it is fast, it keeps the proof logic in one
+implementation across SDKs, and 870 KB is reasonable for what it does. It is the silence around it
+that turned a one-token header change into the longest debugging session of the integration.
+
+## 10. Sandbox App — access arrived after the integration, so this section is empty
 
 The Sandbox World ID app reached us on 9 September, after the client, the server and the wizard
 were finished. The journeys the docs describe — hot, cold, semi-cold, and cross-device QR — are
@@ -193,9 +240,10 @@ a day. Everything requiring a grant took longer than the build.
 
 ## What worked without friction
 
-- `@worldcoin/idkit` 4.2 dropped in cleanly. `IDKitInviteCodeRequestWidget` plus
+- `@worldcoin/idkit` 4.2 dropped in cleanly *as code*. `IDKitInviteCodeRequestWidget` plus
   `selfieCheckLegacy({ signal })` is a small amount of code for what it does, and the invite-code
-  path meant we could build the whole wizard step before having a device.
+  path meant we could build the whole wizard step before having a device. The one thing it needed
+  from the page around it went unmentioned, which is §9.
 - The RP context model is the right shape: the signing key stays on the server, the browser
   never holds it, and the context is short-lived. It made the security review of our own flow
   short.
@@ -207,4 +255,4 @@ a day. Everything requiring a grant took longer than the build.
 The camera flow itself — the hot, cold and semi-cold journeys on a device, cross-device QR, and
 what the Portal's verify endpoint answers for a legacy-shaped proof. The test plan is in
 [`world.md`](world.md). This document will be extended with what we find rather than replaced,
-and §9 is where it will go.
+and §10 is where it will go.
