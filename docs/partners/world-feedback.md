@@ -55,14 +55,36 @@ World ID: generic_error
 That is the whole of it. `generic_error` is indistinguishable between *the credential is not
 enabled for this app*, *the action is not registered*, *the RP key does not match the one in the
 Portal*, and *the environment does not line up* — four different problems, three of which the
-developer can fix alone, all wearing the same face. There is no request log to consult (§7), no
-flag state on the app page (§1), and no signing test vector to rule our own side out (§2). We
-verified what we could from our end and the payload is correct; beyond that there is nothing to
-read.
+developer can fix alone, all wearing the same face.
 
-**Suggestion, sharpened.** Give `generic_error` a reason string. A single field — `"credential
-not enabled for this app"` — would have saved this entire paragraph, and it costs nothing that a
-support thread does not cost you more.
+We eliminated them one at a time, which took the afternoon:
+
+| Cause | How we ruled it out |
+|---|---|
+| RP key mismatch | derived the address from the server's key: `0xBbF111cE…682AD`, byte for byte what World ID Configuration displays |
+| App or RP id wrong | both read straight off that page and compared |
+| Malformed request | 65-byte signature, `v = 28`, 32-byte nonce, 300s validity, and the `sig` → `signature` rename IDKit expects |
+| Action not registered | there is nowhere to register one — in World ID 4.0 the action travels inside the RP context, which we send |
+
+Which leaves the flag, and here is the finding at its sharpest: **we walked the entire Developer
+Portal navigation** — Projects, Dashboard, World ID Configuration, Verification, Develop,
+Transactions, Notifications, General, Members, API Keys — and there is no page that shows whether
+Selfie Check is enabled for an app, and no control that requests it. The one page called
+*Verification* is the Mini App store submission wizard, which is a different thing entirely and
+was sitting in "In review. Editing is locked until review completes."
+
+So the developer's only remaining move is to email someone and wait, having spent a day proving
+a negative. There is no request log to consult (§7), no flag state anywhere (§1), and no signing
+test vector to rule one's own side out (§2). Three gaps that are individually small compose into
+an afternoon.
+
+**Suggestion, sharpened.** Two fields would have replaced this entire finding: a reason string on
+`generic_error` — `"credential not enabled for this app"` — and a line on the app's page saying
+which credentials it may request. Neither costs more than the support thread that replaces them.
+
+**Also worth checking on your side:** the app was in Mini App store review while this was
+attempted. If credential access is gated on that review completing, saying so would itself be the
+fix.
 
 ## 2. The RP signature has no worked example outside JavaScript
 
