@@ -19,7 +19,7 @@ could not observe something, it says so.
 |---|---|
 | Selfie Check docs and integration flow | §3 RP signature, §4 proof shape, §6 nullifier durability, §7 assurance level |
 | Developer Portal — navigation, product discovery, debugging | **§2 an action cannot be created there at all**, §1 flag state is invisible, §5 two gates behind two addresses, §8 no request log, §9 an error code that hides the error |
-| Sandbox App — states, proof flows, test users, errors, edge cases | **§10 — not yet reportable.** Access arrived 9 September; the journeys are written and unrun |
+| Sandbox App — states, proof flows, test users, errors, edge cases | **§10 — the `sandbox` environment is not one the API accepts.** The journeys themselves are written and unrun |
 | What was confusing, missing, broken, hard to test | §1–§9, and §10 says plainly what is still untested |
 
 We would rather leave a row visibly empty than fill it with something we did not observe.
@@ -225,16 +225,51 @@ The wasm choice itself we have no complaint about — it is fast, it keeps the p
 implementation across SDKs, and 870 KB is reasonable for what it does. It is the silence around it
 that turned a one-token header change into the longest debugging session of the integration.
 
-## 10. Sandbox App — access arrived after the integration, so this section is empty
+## 10. Sandbox App — the environment it is named after is not one the API accepts
 
 The Sandbox World ID app reached us on 9 September, after the client, the server and the wizard
-were finished. The journeys the docs describe — hot, cold, semi-cold, and cross-device QR — are
-written into our test plan in [`world.md`](world.md) and have not been run at the time of
-writing, so we have nothing to report on sandbox states, proof flows, test users, or the errors
-and edge cases around them.
+were finished. The journeys the docs describe — hot, cold, semi-cold, and cross-device QR — are in
+our test plan in [`world.md`](world.md) and are still unrun, so we have nothing yet to report on
+sandbox states, proof flows or test users. What we can report is what happened when we tried to
+point the integration at it.
 
-That order is itself the finding, and it is the same one as §1 and §4: the gates that decide
-whether an integration can be *demonstrated* rather than *described* are the last thing a
+The product is called the Sandbox App, so `sandbox` is the setting a developer reaches for, and
+IDKit takes it — `environment` is a union of `production | staging | sandbox` in its exported
+types. Our API had it as the default. The client accepts it, builds the request, returns an invite
+code and renders a QR for `https://sandbox.world.org/verify`. Nothing anywhere says no.
+
+World's own API says no:
+
+```
+POST /api/v4/proof-context/rp_4e66ef1ffe9c2f54
+{"code":"validation_error","detail":"environment must be one of the following values: production,
+ staging","attribute":"environment"}
+```
+
+`GET /api/v4/rp-status/{rp_id}` agrees — it reports `production_status` and `staging_status` and
+knows no third — and the Portal's action API takes the same two. So the environment named after
+the product that exists is the one environment the platform does not have, and the mismatch
+surfaces as a QR that scans and then does nothing: no error in the browser, no error in our logs,
+nothing in the Portal (§8).
+
+This is §9's shape again from the other side. There, an environment failure was flattened into
+`generic_error`; here, an invalid environment is not rejected at all until a phone tries to use
+it. Both leave the developer holding something that looks correct.
+
+**Suggestions.**
+
+1. Drop `sandbox` from IDKit's type union, or have the builder reject it the way the API does. A
+   value the server will refuse should not type-check.
+2. Say in the Sandbox App docs which `environment` it runs against. One word.
+3. Validate `environment` when the request is created rather than when the context is resolved —
+   the RP is the party that can still do something about it.
+
+We settled on `staging`: it is registered for our RP, the action exists in it, and the proof
+context is accepted. Whether the Sandbox World App opens `staging.world.org` we cannot confirm
+without the device, and this section will say what it does rather than what we inferred.
+
+The ordering itself is the older finding, and it is the same one as §1 and §4: the gates that
+decide whether an integration can be *demonstrated* rather than *described* are the last thing a
 developer discovers and the longest thing to wait for. Everything a team can do alone, we did in
 a day. Everything requiring a grant took longer than the build.
 

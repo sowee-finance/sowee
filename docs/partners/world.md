@@ -58,7 +58,7 @@ at all — a product decision, not one to take by default.
   see [`world-feedback.md`](world-feedback.md) §9. `scripts/verify-claims.ts` checks the deployed
   header so it cannot come back.
 
-## Configuration (sandbox)
+## Configuration (staging)
 
 | | |
 |---|---|
@@ -66,7 +66,7 @@ at all — a product decision, not one to take by default.
 | RP ID | `rp_4e66ef1ffe9c2f54` |
 | RP signer | `0xBbF111cE5E37134Fe7E907c2b8B1874B8Bb682AD` — the signing key stays on the API, never in the browser |
 | Action | `sowee-selfie-check` |
-| Environment | `sandbox` |
+| Environment | `staging` — see below |
 | Verify endpoint | `https://developer.world.org/api/v4/verify/rp_4e66ef1ffe9c2f54` |
 
 Running it:
@@ -76,11 +76,21 @@ Running it:
 WORLD_APP_ID=app_96e61382eeeabdae6887e00434ab8edf \
 WORLD_RP_ID=rp_4e66ef1ffe9c2f54 \
 WORLD_RP_SIGNING_KEY=0x… \
-WORLD_ENVIRONMENT=sandbox go run ./cmd/api
+WORLD_ENVIRONMENT=staging go run ./cmd/api
 
 # web — the app id is public and is what makes the wizard show the step
 NEXT_PUBLIC_WORLD_APP_ID=app_96e61382eeeabdae6887e00434ab8edf bun run build
 ```
+
+**Why `staging` and not `sandbox`.** World ID 4.0 has two environments: the RP is registered in
+both (`production_status` and `staging_status`), the Portal's action API takes both, and
+`POST /api/v4/proof-context/rp_4e66ef1ffe9c2f54` answers `environment must be one of the following
+values: production, staging` for anything else. IDKit's type union nonetheless accepts `sandbox`
+and will hand back an invite code pointing at `sandbox.world.org` — a QR that looks right and
+resolves to nothing (#168, [`world-feedback.md`](world-feedback.md) §10). Staging is therefore the
+environment the Sandbox World App has to be run against. We have not been able to confirm on a
+device that it opens `staging.world.org`; it is the only environment left that World accepts, and
+this line will be replaced with what the phone actually does.
 
 `GET /v1/world/request` answers with the app id, the action and a fresh RP context whose
 signature recovers to the signer above; the wizard then shows **Selfie Check** between Welcome and
@@ -90,7 +100,7 @@ feature flag on the app — until World enables it, World App will refuse the cr
 ## Test plan once access lands
 
 1. Developer Portal: app id, RP id, RP signing key, action `sowee-selfie-check`, Selfie Check flag on.
-2. API: `WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `WORLD_ENVIRONMENT=sandbox`; web: `NEXT_PUBLIC_WORLD_APP_ID`.
+2. API: `WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `WORLD_ENVIRONMENT=staging`; web: `NEXT_PUBLIC_WORLD_APP_ID`.
 3. Sandbox World App (TestFlight): run the hot, cold and semi-cold journeys from the wizard; confirm `GET /v1/kyc/status` shows `selfieCheck: true`, the faucet drips, and a second proof from the same World ID answers `409`.
 4. Record what the Developer Portal verify endpoint answers for a legacy (3.0) Selfie Check proof; if it rejects legacy proofs, switch the API to the v3 verify endpoint and note it here.
 

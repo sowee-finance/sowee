@@ -24,7 +24,7 @@ type Config struct {
 	RPID          string // rp_… from the Developer Portal; also the verify path segment
 	SigningKeyHex string // RP signing key (32-byte hex) from the Developer Portal
 	Action        string // scopes the nullifier; default "sowee-selfie-check"
-	Environment   string // "sandbox" or "production"
+	Environment   string // "staging" or "production" — the only two World ID 4.0 accepts
 	VerifyBase    string // default https://developer.world.org/api/v4/verify
 }
 
@@ -64,8 +64,17 @@ func New(cfg Config) (*Service, error) {
 	if cfg.Action == "" {
 		cfg.Action = "sowee-selfie-check"
 	}
-	if cfg.Environment == "" {
-		cfg.Environment = "sandbox"
+	// World ID 4.0 has two environments. IDKit's type union also offers "sandbox", and a client
+	// given it will happily produce an invite code pointing at sandbox.world.org — but the
+	// Developer Portal answers `environment must be one of the following values: production,
+	// staging` for the matching context, so the QR resolves to nothing. Refusing here turns that
+	// into a startup error instead of a code nobody can scan.
+	switch cfg.Environment {
+	case "":
+		cfg.Environment = "staging"
+	case "production", "staging":
+	default:
+		return nil, fmt.Errorf("WORLD_ENVIRONMENT: %q is not a World ID environment; use production or staging", cfg.Environment)
 	}
 	if cfg.VerifyBase == "" {
 		cfg.VerifyBase = "https://developer.world.org/api/v4/verify"

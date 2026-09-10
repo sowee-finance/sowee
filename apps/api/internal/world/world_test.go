@@ -24,7 +24,7 @@ func newService(t *testing.T, verify http.HandlerFunc) *Service {
 }
 
 func payload(action, nullifier string) json.RawMessage {
-	return json.RawMessage(`{"protocol_version":"4.0","nonce":"0x01","action":"` + action + `","environment":"sandbox","responses":[{"identifier":"selfie_check","proof":["0x00"],"nullifier":"` + nullifier + `"}]}`)
+	return json.RawMessage(`{"protocol_version":"4.0","nonce":"0x01","action":"` + action + `","environment":"staging","responses":[{"identifier":"selfie_check","proof":["0x00"],"nullifier":"` + nullifier + `"}]}`)
 }
 
 func TestNewRequestCarriesASignedContext(t *testing.T) {
@@ -33,7 +33,7 @@ func TestNewRequestCarriesASignedContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.AppID != "app_1" || r.RPID != "rp_1" || r.Action != "sowee-selfie-check" || r.Environment != "sandbox" {
+	if r.AppID != "app_1" || r.RPID != "rp_1" || r.Action != "sowee-selfie-check" || r.Environment != "staging" {
 		t.Fatalf("unexpected request %+v", r)
 	}
 	if !strings.HasPrefix(r.RPContext.Sig, "0x") || len(r.RPContext.Sig) != 132 || r.RPContext.ExpiresAt <= r.RPContext.CreatedAt {
@@ -97,6 +97,23 @@ func TestDisabledAndBadKey(t *testing.T) {
 	}
 	if _, err := New(Config{AppID: "a", RPID: "r", SigningKeyHex: "zz"}); err == nil {
 		t.Fatal("bad key must error")
+	}
+}
+
+// "sandbox" is in IDKit's type union but not in World's API, which answers
+// `environment must be one of the following values: production, staging`. A service that accepts
+// it hands out invite codes no phone can resolve, so it has to fail here instead.
+func TestEnvironmentMustBeOneWorldAccepts(t *testing.T) {
+	for _, env := range []string{"sandbox", "test", "prod"} {
+		if _, err := New(Config{AppID: "a", RPID: "r", SigningKeyHex: key, Environment: env}); err == nil {
+			t.Fatalf("%q must be refused", env)
+		}
+	}
+	for _, env := range []string{"production", "staging"} {
+		s, err := New(Config{AppID: "a", RPID: "r", SigningKeyHex: key, Environment: env})
+		if err != nil || s.cfg.Environment != env {
+			t.Fatalf("%q must be kept: %v", env, err)
+		}
 	}
 }
 
