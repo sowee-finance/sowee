@@ -44,11 +44,14 @@ to par over the tenor (`pricePath` in `src/lib/market.ts`); there is no on-chain
 
 ## Screenshots
 
-Hedera testnet, 1280×900 (`docs/screenshots/` also holds the 390×844 mobile shots).
+Hedera testnet, from the live app with a verified wallet connected (`docs/screenshots/` also
+holds the 390×844 mobile shots).
 
-![Marketplace: hero, top lists and the bond grid](../../docs/screenshots/marketplace.png)
+![Marketplace: the portfolio strip, the hero, and top yields, maturing soon and newly issued](../../docs/screenshots/marketplace.png)
 
-![Bond page: implied APY, accretion chart, buy panel, secondary asks and the HCS audit trail](../../docs/screenshots/bond.png)
+![Bond page: implied APY, the accretion to par, funding progress and the buy panel](../../docs/screenshots/bond.png)
+
+![Portfolio: face value held, the payoff line to the last maturity, and holdings](../../docs/screenshots/portfolio.png)
 
 ## How contracts flow in
 
