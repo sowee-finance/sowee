@@ -18,7 +18,7 @@ A small business finishes a job, sends the invoice, then waits 30 to 90 days for
 Sowee turns that invoice into a bond an investor can fund now: the business gets most of the
 cash today, the investor collects the full amount when the customer pays.
 
-![Verified before you can hold](docs/showcase/2-kyc.png)
+![Verified before you can hold](docs/showcase/2-compliance.png)
 
 The rules are enforced by the token, not by us. Every transfer checks an allowlist inside the
 bond, so a wallet that has not passed identity, liveness and a suitability questionnaire cannot
@@ -28,7 +28,7 @@ decision goes on chain: no names, no documents, not even a hash of one.
 
 World's Selfie Check sits in front of that heavier check as an anti-sybil signal.
 
-![Live on Hedera testnet](docs/showcase/3-bond.png)
+![Live on Hedera testnet](docs/showcase/3-portfolio.png)
 
 Everything above runs on Hedera testnet with real transactions. There is no database and no file
 store anywhere in it: issuance, the sha256 of the invoice document and x402 payment receipts are
