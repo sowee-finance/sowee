@@ -31,7 +31,7 @@ World's Selfie Check sits in front of the heavier identity check as an anti-sybi
 
 The same finance core also runs on Arc, Circle's USDC-native L1 where USDC is the gas token: an invoice listed, the same KYC decision granted on chain, a bond funded in native USDC, and an open ask on the secondary market.
 
-One thing we will not overstate. The Selfie Check flow is built on both sides, but the credential is feature-flagged per app and ours was never enabled, so we have never run the camera check on a device. Everything else described here has run on a live network.
+One thing we will not overstate. Selfie Check has run on a device and passed — twice, both anchored on the audit topic — but in World's sandbox environment with the Sandbox World App, not on the production World App. Everything else described here has run on a live network.
 
 ## How it's made
 
@@ -69,6 +69,18 @@ One thing we will not overstate. The Selfie Check flow is built on both sides, b
   issuer that must already be registered with `addIssuer` on the same token; and go-ethereum
   copies a single return value into a struct's *first field*, which silently broke the paid
   endpoint until a tuple was unpacked through a wrapper.
+
+## How AI tools were used
+
+The team wrote the plan by hand — product scope, system design, the compliance policy, and a task
+list with acceptance criteria — and then built it with Claude Code, task by task. Each task
+became an issue and a pull request; the team reviewed every change before merging it.
+Architecture, product decisions, the choice of partners and the compliance rules are the team's.
+
+`AI-USAGE.md` in the repository lists, file by file, what was AI-assisted, what the assistant
+produced and how it was checked. It also records what the assistant ran against live systems on
+the team's instruction, and one merged change that later evidence proved wrong. The prompts are in
+`docs/ai/prompts.md`, the plan in `docs/plan.md`.
 
 ## Tech stack
 
