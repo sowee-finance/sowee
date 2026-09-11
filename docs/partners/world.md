@@ -1,7 +1,8 @@
 # World — Selfie Check integration notes and feedback
 
-Track: **Selfie Check**. Status: **waiting for access** — Selfie Check (Beta) is feature-flagged
-per app and the sandbox World ID app is distributed through TestFlight / a private Play link.
+Track: **Selfie Check**. Status: **live** — passed on a device on 10 September in World's
+`sandbox` environment with the Sandbox World App, and anchored on the audit topic (messages #46
+and #47). It has not run on the production World App.
 
 ## Verified facts we build on (docs.world.org)
 
@@ -42,7 +43,7 @@ nothing links it to the first. The signal reaches the faucet and the rate limit 
 Only requiring the check closes it, and the cost is that someone without a World App cannot invest
 at all — a product decision, not one to take by default.
 
-## Implemented (API side, waiting for access to test live)
+## Implemented, and run on a device
 
 - `GET /v1/world/request` — RP signature via `github.com/worldcoin/idkit/go/idkit` (`NewSigner(key).SignRequest(WithAction("sowee-selfie-check"))`), 5-minute validity, sandbox/production switch.
 - `POST /v1/world/verify` — forwards the IDKit result unchanged to `POST /api/v4/verify/{rp_id}`, enforces one nullifier per person, records `selfieCheck=true` for the wallet (visible in `GET /v1/kyc/status`).
@@ -58,7 +59,7 @@ at all — a product decision, not one to take by default.
   see [`world-feedback.md`](world-feedback.md) §9. `scripts/verify-claims.ts` checks the deployed
   header so it cannot come back.
 
-## Configuration (staging)
+## Configuration
 
 | | |
 |---|---|
@@ -66,7 +67,7 @@ at all — a product decision, not one to take by default.
 | RP ID | `rp_4e66ef1ffe9c2f54` |
 | RP signer | `0xBbF111cE5E37134Fe7E907c2b8B1874B8Bb682AD` — the signing key stays on the API, never in the browser |
 | Action | `sowee-selfie-check` |
-| Environment | `staging` — see below |
+| Environment | `sandbox` — see below |
 | Verify endpoint | `https://developer.world.org/api/v4/verify/rp_4e66ef1ffe9c2f54` |
 
 Running it:
@@ -76,39 +77,48 @@ Running it:
 WORLD_APP_ID=app_96e61382eeeabdae6887e00434ab8edf \
 WORLD_RP_ID=rp_4e66ef1ffe9c2f54 \
 WORLD_RP_SIGNING_KEY=0x… \
-WORLD_ENVIRONMENT=staging go run ./cmd/api
+WORLD_ENVIRONMENT=sandbox go run ./cmd/api
 
 # web — the app id is public and is what makes the wizard show the step
 NEXT_PUBLIC_WORLD_APP_ID=app_96e61382eeeabdae6887e00434ab8edf bun run build
 ```
 
-**Why `staging` and not `sandbox`.** World ID 4.0 has two environments: the RP is registered in
-both (`production_status` and `staging_status`), the Portal's action API takes both, and
-`POST /api/v4/proof-context/rp_4e66ef1ffe9c2f54` answers `environment must be one of the following
-values: production, staging` for anything else. IDKit's type union nonetheless accepts `sandbox`
-and will hand back an invite code pointing at `sandbox.world.org` — a QR that looks right and
-resolves to nothing (#168, [`world-feedback.md`](world-feedback.md) §10). Staging is therefore the
-environment the Sandbox World App has to be run against. We have not been able to confirm on a
-device that it opens `staging.world.org`; it is the only environment left that World accepts, and
-this line will be replaced with what the phone actually does.
+**Why `sandbox`.** The environment decides which app a scanned code opens. IDKit's connector
+URL is the bare `https://<host>/verify?…`, and `sandbox.world.org` is the only host whose
+apple-app-site-association claims that path — for the Sandbox World App. `world.org` and
+`staging.world.org` claim only `/verify/*`, so under `staging` the phone opened a download page
+instead of the app. World's `POST /api/v4/proof-context/{rp_id}` does reject `sandbox`
+(`environment must be one of the following values: production, staging`); we believed it, moved
+to `staging`, and broke the flow. That endpoint is not the path the Sandbox App takes — the pass on
+the topic was made under `sandbox`. Details in [`world-feedback.md`](world-feedback.md) §10.
 
 `GET /v1/world/request` answers with the app id, the action and a fresh RP context whose
 signature recovers to the signer above; the wizard then shows **Selfie Check** between Welcome and
-Investor Profile. Both are confirmed working. What is still pending is the Selfie Check (Beta)
-feature flag on the app — until World enables it, World App will refuse the credential itself.
+Investor Profile. Scanning the code with the Sandbox World App completes the check, the API
+verifies the proof with the Developer Portal, and `GET /v1/kyc/status` reports `selfieCheck: true`.
 
-## Test plan once access lands
+## Test plan, and what has run
 
-1. Developer Portal: app id, RP id, RP signing key, action `sowee-selfie-check`, Selfie Check flag on.
-2. API: `WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `WORLD_ENVIRONMENT=staging`; web: `NEXT_PUBLIC_WORLD_APP_ID`.
-3. Sandbox World App (TestFlight): run the hot, cold and semi-cold journeys from the wizard; confirm `GET /v1/kyc/status` shows `selfieCheck: true`, the faucet drips, and a second proof from the same World ID answers `409`.
-4. Record what the Developer Portal verify endpoint answers for a legacy (3.0) Selfie Check proof; if it rejects legacy proofs, switch the API to the v3 verify endpoint and note it here.
+1. Developer Portal: app id, RP id, RP signing key, action `sowee-selfie-check` in both
+   environments. **Done** — the action had to be created through the developer-portal MCP; the
+   Portal has no page for it (feedback §2).
+2. API `WORLD_ENVIRONMENT=sandbox`, web `NEXT_PUBLIC_WORLD_APP_ID`, and a page CSP that allows
+   `'wasm-unsafe-eval'`. **Done.**
+3. Sandbox World App: cross-device QR from a laptop. **Passed** — topic message #47, and
+   `selfieCheck: true` on the wallet. The hot, cold and semi-cold journeys have not been run one by
+   one.
+4. A second proof from the same World ID answers `409`. **Not observed**: our two passes produced
+   different nullifiers, so a real repeat never happened (feedback §10).
+5. What the verify endpoint answers for the proof Selfie Check returns. **It accepted it.**
 
 ## Feedback document (required by the track)
 
-[`world-feedback.md`](world-feedback.md) — six findings from the integration: the feature flag
-having no self-serve path, the RP signature having no worked example outside JavaScript, a 4.0
-request flow receiving a 3.0-shaped proof, sandbox access being a separate gate, the nullifier's
-durability going unmentioned even though the anti-sybil property depends on it, and how easily
-a medium-assurance credential is read as identity. It states plainly what we could and could
-not test.
+[`world-feedback.md`](world-feedback.md) — ten findings from the integration. The three that cost
+the most: an action cannot be created in the Developer Portal at all (§2); IDKit is a WebAssembly
+module that needs `'wasm-unsafe-eval'`, and reports a blocked page as the same `generic_error` as
+everything else (§9); and the environment decides which app a scanned code opens, while the only
+endpoint that validates it rejects the one that works (§10). The rest: the feature flag has no
+self-serve path, the RP signature has no worked example outside JavaScript, a 4.0 flow receives a
+3.0-shaped proof, sandbox access is a separate gate, the nullifier's durability goes unmentioned,
+a medium-assurance credential is easily read as identity, and the Portal keeps no request log. It
+says plainly what we could and could not test.
