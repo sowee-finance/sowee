@@ -9,6 +9,8 @@ The three 1620×1620 cards the root README opens with, and the gallery images fo
 | `3-portfolio.png` | root README — holdings, with the network and timestamp in the header |
 | `cover.png`, `cover-640x360.png` | the submission's cover image |
 | `meta.png` | the wordmark at the top of the root README |
+| `og-1200x630.png` | the share card: copied to `apps/web` and `apps/landing` as `opengraph-image.png` |
+| `og-square-1024.png` | the same card in a square, for the **logo** field on ETHGlobal — see below |
 | `16x9/` | the 1920×1080 submission screenshots |
 
 ## Rebuilding a card
@@ -31,3 +33,18 @@ space is split above and below, so a shot of any shape still lands balanced. Gro
 heading white, subhead `#8fd0aa`, 88px margins, 22px corner radius.
 
 Screenshots go in `../screenshots/` at their natural size; these cards are built from them.
+
+## The share card, and why there is a square one
+
+`make-og.py` draws both. The bond card on it shows the face value, the discount and the maturity
+date — figures fixed at listing — rather than an APY that would be wrong the next day.
+
+ETHGlobal's showcase page uses the project's **logo** as its `og:image`, with a
+`summary_large_image` card. A logo is square; X shows a 1.91:1 band cut from the middle of it. So
+`og-square-1024.png` puts the whole share card inside that band — rows 244 to 780 — and leaves only
+ground above and below. Unfurled on X it is the card; in ETHGlobal's own lists, where the logo is
+drawn small, it reads as a green tile. Uploading the plain mark instead gives a better small logo
+and a cropped, zoomed share image. It is one field, and it cannot be both.
+
+After changing it, share the link with a query string (`…/showcase/sowee-wux84?v=2`): X caches a
+card per URL.
