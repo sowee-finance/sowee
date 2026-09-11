@@ -43,6 +43,77 @@ There is no database anywhere in the system. Issuance, document hashes, payment 
 Selfie Check results are all written to one public Hedera topic, and the API rebuilds its state by
 replaying it.
 
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph clients[" "]
+    web["apps/web<br/>Next.js dapp"]
+    agent["apps/agent<br/>x402 agent"]
+    landing["apps/landing<br/>sowee.site"]
+  end
+  api["apps/api<br/>Go service"]
+  subgraph hedera["Hedera testnet"]
+    core["BondToken · DiscountOracle<br/>InvoiceMarket · MaturitySettlement"]
+    topic[("HCS audit topic")]
+    ats["ATS security<br/>ERC-1400, Reg S"]
+    usdc["USDC (HTS)"]
+  end
+  subgraph arc["Arc testnet"]
+    arccore["the same contracts<br/>native USDC"]
+  end
+  sumsub["Sumsub<br/>KYC"]
+  world["World ID<br/>Selfie Check"]
+  blocky["Blocky402<br/>facilitator"]
+
+  web -- "quote · KYC · attest" --> api
+  web -- "list · fund · trade · claim" --> core
+  agent -- "paid request" --> api
+  agent -- "fund" --> core
+  landing -- "read listings" --> core
+  api -- "grant eligibility" --> core
+  api -- "anchor" --> topic
+  api -- "review" --> sumsub
+  api -- "verify proof" --> world
+  api -- "verify · settle" --> blocky
+  core --- usdc
+  api -. "same code, CHAIN_ID=5042002" .-> arccore
+```
+
+- **`apps/web`** is where people act: issue, fund, trade, claim, and the KYC wizard. Every write is
+  a transaction from the user's own wallet.
+- **`apps/api`** holds the keys a browser must not: it signs discount quotes, writes the audit topic,
+  runs KYC and the eligibility grant, verifies Selfie Check proofs, and gates the paid market data.
+  It keeps no database — it rebuilds its state by replaying the topic at startup.
+- **The contracts** enforce the rules. The allowlist lives in the bond token, so no front end and no
+  API can move a unit to a wallet that has not passed KYC.
+- **`apps/ats`** issues an invoice as a regulated security through Hedera's Asset Tokenization
+  Studio, and **`apps/agent`** is a buyer that pays for data before it acts.
+
+## The x402 payment flow
+
+```mermaid
+sequenceDiagram
+  participant A as apps/agent
+  participant S as api.sowee.site
+  participant F as Blocky402
+  participant H as Hedera testnet
+  A->>S: GET /v1/market/insights
+  S-->>A: 402 · PAYMENT-REQUIRED (0.01 USDC, hedera:testnet)
+  A->>A: sign a USDC transfer from its own account
+  A->>S: retry with PAYMENT-SIGNATURE
+  S->>F: POST /verify, then POST /settle
+  F->>H: submit the transfer
+  S->>H: anchor an x402.receipt.v1 on the audit topic
+  S-->>A: 200 · ranked bonds · PAYMENT-RESPONSE
+  A->>H: approve + buyPrimary — only if its wallet is KYC-granted
+```
+
+The price and the rail are discovered from the `402` itself, not configured in the agent. The
+endpoint describes itself at [`/openapi.json`](https://api.sowee.site/openapi.json). Run the agent
+with `bun run src/index.ts --dry` to stop before paying, or `--execute 1` to fund one unit of the
+bond it picks — see [`apps/agent`](apps/agent/).
+
 ![Verified before you can hold](docs/showcase/2-compliance.png)
 
 ## Partner integrations
@@ -50,7 +121,7 @@ replaying it.
 | Partner | What we used, and where | Tracks | Feedback |
 |---|---|---|---|
 | **Hedera** | HTS for USDC and token association · HCS as the audit trail · EVM contracts · mirror node · **Asset Tokenization Studio** to issue an invoice as an ERC-1400 security with an ISIN and Reg S (`apps/ats`) · an **x402** paid API settled through Blocky402, and an agent that pays for it (`apps/api`, `apps/agent`) | Tokenization of Anything · AI & Agentic Payments | [hedera.md](docs/partners/hedera.md#feedback-honest-specific) |
-| **Arc** | the same contracts deployed on Arc, where USDC is the gas token: an invoice listed, a KYC decision granted, a bond funded in native USDC | Best DeFi / Onchain Finance · Launch on Arc Testnet | [arc.md](docs/partners/arc.md#feedback) |
+| **Arc** | the same contracts on Arc, where USDC is both the gas and the settlement asset (native USDC, the Circle faucet): an invoice listed with an API-signed quote, the same KYC decision granted, a bond funded in native USDC, an ask on the secondary market | Best DeFi / Onchain Finance Application | [arc.md](docs/partners/arc.md#feedback) |
 | **World** | **Selfie Check** through IDKit 4.2 as an anti-sybil step before KYC (`apps/web`); the RP signature is made server-side and the proof verified there (`apps/api`) | Selfie Check | [world-feedback.md](docs/partners/world-feedback.md) |
 
 Integration notes for each partner are in [`docs/partners/`](docs/partners/).
@@ -70,8 +141,8 @@ Integration notes for each partner are in [`docs/partners/`](docs/partners/).
 | InvoiceMarket (Arc) | [`0x830bAB…1937`](https://testnet.arcscan.app/address/0x830bAB679B1AD09c5eD0Eb3a53614cbC1DC51937) |
 | A full bond lifecycle, list to claim | [ten transactions](contracts/README.md#live-lifecycle-testnet-transactions) |
 
-Our contracts, including every bond token the market deploys, are verified on Sourcify. The ATS
-security is Hedera's own contract. Every claim above can be checked with one command, which exits
+Our contracts, including every bond token the market deploys, are verified through Sourcify, so
+HashScan and Arcscan show their source. The ATS security is Hedera's own contract. Every claim above can be checked with one command, which exits
 non-zero if any of it stops being true:
 
 ```sh

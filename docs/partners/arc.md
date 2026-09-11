@@ -1,6 +1,6 @@
 # Arc (Circle) — integration notes and feedback
 
-Tracks: **Best DeFi / Onchain Finance** and **Launch on Arc Testnet & Push to Mainnet**.
+Track: **Best DeFi / Onchain Finance Application** — the only one of Arc's ETHOnline 2026 tracks this project enters. The prize page lists no separate testnet-launch track. It does say of this one: *"$2,500 awarded if deployed to Arc Mainnet by Sept 30"* — which is why the mainnet step is described below.
 
 ## Verified facts we build on
 

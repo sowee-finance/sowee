@@ -95,9 +95,8 @@ Three partners, several tracks inside them (multiple tracks from one partner cou
 1. **Hedera** — *Tokenization of Anything* (the invoice issued as an ATS security, compliance
    configured, units issued) and *AI & Agentic Payments* (x402 service via Blocky402 plus an agent
    that completes real paid requests and acts on them). See `docs/partners/hedera.md`.
-2. **Arc** — *Best DeFi / Onchain Finance* and *Launch on Arc Testnet & Push to Mainnet*: the same
-   finance core live on Arc, funded in native USDC, with the mainnet step a configuration change.
-   See `docs/partners/arc.md`.
+2. **Arc** — *Best DeFi / Onchain Finance Application*: the same finance core live on Arc, funded in
+   native USDC, with the mainnet step a configuration change. See `docs/partners/arc.md`.
 3. **World** — *Selfie Check*, as an anti-sybil signal in front of KYC: a wallet that passes it
    unlocks the demo faucet and a larger API allowance, while real eligibility still needs the
    document check and the suitability policy. RP signature server-side, IDKit in the wizard,
