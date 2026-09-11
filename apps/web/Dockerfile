@@ -25,10 +25,14 @@ ARG NEXT_PUBLIC_CHAIN_ID=296
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080
 ARG NEXT_PUBLIC_WORLD_APP_ID=
 ARG NEXT_PUBLIC_HCS_TOPIC_ID=
+# The public origin. metadataBase is built from it, so without it every share image points at
+# localhost:3000 and no shared link unfurls with a picture.
+ARG NEXT_PUBLIC_SITE_URL=https://app.sowee.site
 ENV NEXT_PUBLIC_CHAIN_ID=$NEXT_PUBLIC_CHAIN_ID \
     NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_WORLD_APP_ID=$NEXT_PUBLIC_WORLD_APP_ID \
     NEXT_PUBLIC_HCS_TOPIC_ID=$NEXT_PUBLIC_HCS_TOPIC_ID \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NEXT_TELEMETRY_DISABLED=1
 COPY . .
 RUN cd apps/web && npx --no-install next build

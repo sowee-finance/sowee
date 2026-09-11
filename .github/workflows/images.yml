@@ -103,6 +103,7 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ inputs.api_url || 'https://api.sowee.site' }}
             NEXT_PUBLIC_HCS_TOPIC_ID=0.0.10388277
             NEXT_PUBLIC_WORLD_APP_ID=app_96e61382eeeabdae6887e00434ab8edf
+            NEXT_PUBLIC_SITE_URL=https://app.sowee.site
           tags: |
             ghcr.io/${{ github.repository }}-web:latest
             ghcr.io/${{ github.repository }}-web:${{ github.sha }}
@@ -172,6 +173,7 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ inputs.api_url || 'https://api.sowee.site' }}
             NEXT_PUBLIC_HCS_TOPIC_ID=0.0.10388277
             NEXT_PUBLIC_WORLD_APP_ID=app_96e61382eeeabdae6887e00434ab8edf
+            NEXT_PUBLIC_SITE_URL=https://app.sowee.site
           tags: sowee-web:bundle
           outputs: type=docker,dest=/tmp/sowee-web.tar
           cache-from: type=gha,scope=web
