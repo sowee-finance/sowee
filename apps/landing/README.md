@@ -46,7 +46,7 @@ fixed point until the visitor moves, so nothing is flat on arrival, and `prefers
 turns the motion off.
 
 The layout, the hero stills (`public/hero-1.webp`, `public/hero-2.webp`) and the transition clip
-(`public/transition.mp4`) come from the reference the team picked. They are not the team's own
+(`public/transition.mp4`) come from *Infinite — Premium Credit Card*, a third-party template the team picked. They are not the team's own
 work and are used at the team's decision. The one thing that is ours is the object in the second
 screen: a bond, drawn from a live listing, rather than the reference's product shot.
 

@@ -1,72 +1,82 @@
 # Demo video — runbook and narration
 
-Rules: 2–4 minutes, ≥720p screen capture, your own voice, no music, no speed-up, no phone.
-Intro under 20 seconds. Everything shown must be live. Target 3:30.
+ETHGlobal's rules for the video: **2 to 4 minutes, at least 720p, screen capture, your own voice.**
+No speed-up, no phone recording, no text in place of narration, and **no AI voiceover or
+text-to-speech**. A text-to-speech track can be used to rehearse the timing; it must not be in the
+submitted video.
 
-Record against the **deployed** sites, not a local run: `sowee.site`, `app.sowee.site`,
-`api.sowee.site` are what a judge can open, and a localhost URL in the corner of the frame invites
-the question of whether any of it is real.
+Record against the **deployed** sites — `sowee.site`, `app.sowee.site`, `api.sowee.site` — not a
+local run. A localhost URL in the corner invites the question of whether any of it is real.
 
-Prepare (off camera): MetaMask holding the three wallets below; a terminal in `apps/agent` and one
-in `apps/ats` with `.env` filled; HashScan tabs for the market contract and the HCS topic;
-`sowee.site` open in its own tab for the opening shot.
+## Wallets
 
-### Which wallet does what, and the one that is single-use
-
-| Wallet | Role | State today |
+| Wallet | Role | State |
 |---|---|---|
-| `0xf4e4…410f` | the newcomer who goes through KYC on camera | **`none` — the only wallet left that can show the wizard from the front** |
-| `0x05F2…A6Af` | the investor who funds, sells and pays over x402 | granted, holds 13 units of `sINV010`, USDC associated |
-| `0xbD6b…e910` | the issuer, and the compliance operator | never ran KYC; 1000+ HBAR |
+| a **new** MetaMask account | the investor who goes through KYC on camera | must never have touched the app — see below |
+| `0x05F2…a6af` (`0.0.10215221`) | the agent's wallet in the x402 beat | granted, holds USDC, USDC associated |
+| `0xbD6b…e910` | the issuer, and the compliance operator | never ran KYC |
+| `0xf4e4…410f` | **spent** — granted on 10 September | cannot show the KYC wizard from the front any more |
 
-The wizard sends any wallet with an open file straight to its status page, so **a wallet can only
-record the KYC beat once**. `0x05F2…A6Af` and `0x3B4f…85F5` are both spent. If `0xf4e4…410f` is
-used for a rehearsal, the next take needs a wallet that has never touched the app.
+**A wallet can record the KYC beat only once.** The wizard sends any wallet with an open file
+straight to its status page. Use a new account, and give it **10 HBAR** from portal.hedera.com
+before recording: Hedera reserves `gasLimit × gasPrice` up front, about 2.24 HBAR per signature, so
+a wallet holding "enough for the fee" is rejected mid-take. It also needs USDC for the funding beat,
+sent with `scripts/send-usdc.ts` after the wallet associates. The treasury holds **2.74 USDC** —
+enough for two units, not ten — so top it up first, or fund two units and say "two" on camera.
 
-The same is true of the World ID: a nullifier binds to one wallet permanently, so run the Selfie
-Check on the wallet you intend to record.
+**Selfie Check** runs in the Sandbox World App with the API on `WORLD_ENVIRONMENT=sandbox`. Scan the
+code with the iPhone camera; under `sandbox` it opens the app directly. Under `staging` or
+`production` it opens a download page instead — see `docs/partners/world-feedback.md` §10.
 
-Hedera reserves `gasLimit × gasPrice` up front, not the gas actually used, so a wallet holding
-"enough for the fee" is still rejected. Measured on testnet: gas price 0.00000112 HBAR/gas, so a
-2,000,000-gas limit reserves **2.24 HBAR** for one transaction. Two or three HBAR therefore covers
-about one signature, which is how a take dies in the middle.
+## Script
 
-**Top each signing wallet to 10 HBAR before recording** (portal.hedera.com — the in-app faucet
-drips 1 USDC, not HBAR). The investor signs approve, `buyPrimary`, `makeAsk` and a fill, so it
-needs the most.
-
-### The claim beat cannot be performed live as it stands
-
-`sINV011` is the only matured bond and **no wallet holds units in it**, so there is nothing to
-click in the portfolio. Funding closes at maturity, so it cannot be bought into now either. Two
-ways out, in order of preference:
-
-1. **Show it on HashScan** from the lifecycle already on chain — the ten transactions in
-   [`contracts/README.md`](../contracts/README.md) include the settle and the claim. Live evidence,
-   just not performed on camera, and it costs fifteen seconds instead of a day.
-2. **Stage one.** List a bond maturing in about an hour, fund it from the investor wallet, let it
-   mature, `settle`, then claim on camera. Real, and a whole afternoon of waiting.
+Target **3:52**. About 500 words at 129 words a minute, which leaves room to breathe. A copy laid
+out for reading aloud is `sowee-script.txt`, kept next to the recording.
 
 | Time | Screen | Say |
 |---|---|---|
-| 0:00 | `sowee.site`: hero, then one scroll to the card | "Sowee turns an unpaid invoice into a compliant, tradable bond on Hedera. That card is a real listing — the page read it out of the market contract a moment ago. Everything you'll see is live on testnet and was built from scratch this week." |
-| 0:18 | Marketplace: seven listings, Top Yields and Maturing Soon | "Seven invoices are listed right now. The short one pays thirty per cent annualised, the ninety-day one ten — because the fee is per invoice, not per year. That is the shape a receivables book actually has." |
-| 0:32 | `/issuer/new`: issuer company (pick a logo next to it), payor, reference, face value, due date, drop a PDF | "The issuer submits an invoice, with their own logo. The document is hashed in the browser — only the sha256 leaves the device, and the logo rides along to the audit trail so the bond carries its issuer's mark without a file store anywhere." |
-| 0:52 | Click *Get a Quote* → discount and implied APY shown in the checklist | "The API prices it and signs an EIP-712 quote; the oracle verifies signer, expiry and burns the nonce on-chain — no price feed needed." |
-| 1:05 | *List on-chain* → wallet confirms → *Anchor the document hash* runs → HCS link; the bond appears in Newly Issued | "One transaction deploys the bond and opens funding. The issuance and the document hash are anchored to a Hedera Consensus Service topic — a public audit trail without a database." |
-| 1:25 | Switch to `0xf4e4…410f`; open the bond → *Fund Invoice* blocked with the allowlist notice linking to `/kyc` | "Investors can't buy until they're eligible. Compliance lives in the token itself." |
-| 1:35 | `/kyc` wizard (sidebar stepper): Welcome → Connect Wallet + sign → **Selfie Check** → Investor Profile → Declarations (toggle *US person* to show *blocked*, then set it back) → Identity Verification opens Sumsub | "A World Selfie Check first — a few seconds of liveness that proves one real person, spent once and bound to this wallet on the audit topic. It is not identity, and it does not decide eligibility; it gates the faucet and a larger API allowance. Then the real thing: a wallet-signed session, a suitability questionnaire, and Sumsub document plus liveness. A US person is blocked under Regulation S; a PEP is held. Only the decision goes on-chain — never a name or a document." |
-| 2:10 | Status page flips `granting → granted`; HashScan `setEligible` tx | "On a green review the API grants the wallet on every live bond." |
-| 2:18 | Open a bond → the button reads *Associate USDC* → one transaction | "One Hedera detail worth showing: an account cannot hold a token it has not associated with, so a new wallet's balance is a zero nothing can move. One transaction, once, and the app says so instead of reporting an empty balance." |
-| 2:25 | Back to the bond → *Fund Invoice*, 10 units → approve + confirm → Funding Progress moves, position shows | "Funding in USDC at the discounted price. USDC goes straight to the issuer; units are minted to the investor." |
-| 2:42 | Secondary Market → sell 4 units at 98% → ask listed; second wallet fills it → ask gone | "A compliant secondary market: units stay with the maker until a fill, and a fill to a non-granted wallet reverts at the token layer." |
-| 2:56 | Terminal: `bun run src/index.ts issue …` in `apps/ats`, then the HashScan page for the security | "The same invoice can also be issued as a regulated security through Hedera's Asset Tokenization Studio: an ERC-1400 with an ISIN and Reg S on chain. Issuing units to a wallet that never passed KYC reverts." |
-| 3:06 | Portfolio: the investor's 13 units of `sINV010`, then HashScan for the settle and claim already on chain | "At maturity the payor repays into settlement and holders surrender units for their pro-rata share — claims burn, so double claims are impossible." |
-| 3:16 | Terminal: `bun run src/index.ts --execute 1` in `apps/agent` — 402 → paid → settled → decision → approve → funded | "Agents pay for market data over x402: the API answers 402 with the price in USDC, the agent signs a Hedera transfer, the Blocky402 facilitator settles it, and the receipt lands on the same HCS topic. Then the agent acts on what it bought and funds the bond — and it only can because that wallet passed the same KYC a human does." |
-| 3:36 | Bond page *Audit trail* panel, then the HashScan topic with attestation + receipt messages | "Invoice, compliance decision, payment — one auditable trail on Hedera. Thanks." |
+| 0:00 | a bond page, or `sowee.site` | "Sowee turns an unpaid invoice into a compliant bond on Hedera. Everything you'll see is live on testnet — built from scratch this week." |
+| 0:10 | issuer console → *Tokenize an Invoice*: company, payor, reference, face value, due date, the PDF | "First, the issuer: a business that's owed money, and doesn't want to wait ninety days for it. They enter the invoice — company, payor, face value, due date — and attach the document. It's hashed in the browser. Only the sha256 ever leaves the device." |
+| 0:30 | *Get a Quote* → *List on-chain* → *Anchor the document hash* | "The API prices it and signs an EIP-712 quote. The oracle checks the signature and burns the nonce on chain, so a quote works exactly once. One transaction deploys the bond and opens funding, and the issuance is anchored to a Hedera Consensus Service topic." |
+| 0:50 | the new bond's page → *HCS Audit Trail* | "There it is, with its audit trail. A public record — with no database anywhere behind it." |
+| 1:00 | new wallet → `/kyc` → *Connect Wallet* → sign | "Now the investor. Nobody can hold this bond until they're eligible, and that starts with a signature from their own wallet." |
+| 1:10 | phone: Selfie Check in the Sandbox World App | "First, a World Selfie Check — a few seconds of liveness that proves one real person. It's an anti-sybil signal, not identity, and it doesn't decide eligibility. The nullifier is anchored on the same topic, so one World ID can't verify a second wallet." |
+| 1:30 | Declarations → Sumsub → *Approved* | "Then the real check: a suitability questionnaire, and Sumsub documents plus liveness. A US person is blocked under Regulation S. A politically exposed person is held for review. And only the decision goes on chain — never a name, never a document." |
+| 1:50 | HashScan: the grant transaction | "Approved, the API grants the wallet on every live bond. That's the grant transaction." |
+| 1:58 | marketplace | "Back to the market. The short invoice pays thirty per cent annualised, the ninety-day one ten — because the fee is per invoice, not per year." |
+| 2:10 | a bond → *Associate USDC* → one transaction | "One Hedera detail: an account can't hold a token it hasn't associated with. So the app says exactly that — instead of showing an empty balance." |
+| 2:20 | *Fund Invoice*, 10 units → approve → confirm → the progress bar | "Now funding: ten units, in USDC, at the discounted price. The USDC goes straight to the issuer, units are minted to the investor, and the funding bar moves." |
+| 2:35 | portfolio | "And the position — held by a wallet that passed the same checks a regulated investor would." |
+| 2:45 | terminal in `apps/agent`: `bun run src/index.ts --execute 1` | "Investors don't have to be people. This agent asks for market data, and gets back a 402 — with the price, in USDC, on Hedera. It signs a transfer from its own account, Blocky402 settles it, and the data comes back. Then it acts on what it bought: it picks a bond, and funds it — which it can only do because its wallet passed the same KYC." |
+| 3:10 | [HashScan, topic `0.0.10388277`](https://hashscan.io/testnet/topic/0.0.10388277), refreshed | "And here's that payment — on the same topic as the invoice and the Selfie Check. Issuance. Compliance. Payment. One trail — and anyone can read it." |
+| 3:22 | [HashScan, the ATS security](https://hashscan.io/testnet/contract/0xb438390fE710b12d1951E3b250889A673356e078) | "When an invoice needs the regulated wrapper, it's issued through Hedera's Asset Tokenization Studio instead — an ERC-1400 security, with an ISIN, and Reg S on chain." |
+| 3:32 | [arcscan, `sARC001`](https://testnet.arcscan.app/address/0x86478cB59EDab4E899BeC5D0637fe0771D68574E) | "And the same finance core runs on Arc, where USDC is the gas token — an invoice listed, the same KYC decision, a bond funded in native USDC." |
+| 3:44 | `sowee.site` | "Invoices, funded before they're paid — and compliant by construction. That's Sowee. Thanks." |
 
-Cuts are fine; waiting for a transaction can be cut. Keep the wallet confirmations visible once.
+Waiting for a transaction can be cut. Keep one wallet confirmation visible.
 
-Running total is about 3:50 against a 4:00 ceiling, so it is tight. If it overruns, the secondary
-market at 2:42 is the beat to drop: it is the one whose point — the allowlist holds on a transfer —
-is already made when funding is blocked at 1:25.
+## Beats that need care
+
+**The agent (2:45).** Needs `apps/agent/.env` with `SOWEE_API_URL=https://api.sowee.site`,
+`HEDERA_ACCOUNT_ID=0.0.10215221` and that wallet's key; the market and USDC addresses come from
+`contracts/deployments/296.json`. Rehearse with `--dry`, which stops before paying. Run it
+**before** the topic beat and refresh HashScan afterwards, so the receipt that was just written is
+at the top.
+
+**The ATS security (3:22).** Show the security that already exists — ISIN `XSHUZWMQSU19`. Running
+`issue` again on camera creates a second issuance.
+
+**Settlement and claim.** Not in the script: `sINV011` is the only matured bond and nobody holds
+it, so there is nothing to claim live. If there is time left, show the settle and claim that are
+already on chain — the lifecycle in [`contracts/README.md`](../contracts/README.md) — for ten
+seconds before the close.
+
+**The secondary market.** Dropped. Its point — the allowlist holds on a transfer — is already made
+when funding is blocked for a wallet that has not passed KYC.
+
+## Fitting under four minutes
+
+The first recording (3:46) had no agent, topic, ATS or Arc beat. To make room for them, cut from it:
+the "1. Issuer" title card, the loading screen after listing, most of the Selfie Check on the phone
+(keep the QR, the liveness and "Congratulations"), and the censored identity step down to a few
+seconds.
