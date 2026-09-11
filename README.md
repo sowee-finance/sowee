@@ -89,7 +89,7 @@ request — [see the pull requests](https://github.com/sowee-finance/sowee/pulls
 | Reused | From | Where it appears |
 |---|---|---|
 | Visual design — logo, colours and page layout | Sowee's existing brand, which predates the hackathon. The look was re-implemented in new code; no code was copied | `apps/web` |
-| Landing layout, two hero images and one transition clip | a third-party web template the team chose; not the team's own work | `apps/landing/public/` |
+| Landing layout, two hero images and one transition clip | *Infinite — Premium Credit Card*, a third-party web template the team chose; not the team's own work | `apps/landing/public/` |
 | Open-source libraries | OpenZeppelin, Next.js, viem, wagmi, the Hiero SDK, chi, and others — see each `package.json` and `go.mod` | throughout |
 | Partner tools and infrastructure | Hedera ATS contracts, testnet USDC, the Blocky402 facilitator, World IDKit, the Sumsub WebSDK | as integrated above |
 
