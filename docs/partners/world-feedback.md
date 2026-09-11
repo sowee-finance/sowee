@@ -5,13 +5,12 @@ onboarding during ETHOnline 2026: `@worldcoin/idkit` 4.2 in the browser, the RP 
 verify forwarding in a Go API. Configuration notes and the code paths are in
 [`world.md`](world.md).
 
-**What we could test, and what we could not.** Everything up to the camera is running: the RP
-context is signed server-side and its signature recovers to the registered signer, the wizard
-renders the Selfie Check step, the widget issues an invite code, and the verify route forwards a
-result to the Developer Portal.
-The live check itself is untested, because Selfie Check (Beta) is feature-flagged per app and
-ours has not been enabled. Nothing below is a guess about behaviour we did not see; where we
-could not observe something, it says so.
+**What we could test, and what we could not.** Selfie Check has run on a device and passed. A
+code shown on a laptop was scanned with an iPhone, the check completed in the Sandbox World App, the
+Developer Portal's verify endpoint accepted the proof, and the pass is anchored on our audit topic
+(`0.0.10388277`, messages #46 and #47, 10 September). It ran in World's `sandbox` environment; it
+has not run on the production World App. Nothing below is a guess about behaviour we did not see;
+where we could not observe something, it says so.
 
 ## What the track asked us to report on, and where it is
 
@@ -19,8 +18,8 @@ could not observe something, it says so.
 |---|---|
 | Selfie Check docs and integration flow | §3 RP signature, §4 proof shape, §6 nullifier durability, §7 assurance level |
 | Developer Portal — navigation, product discovery, debugging | **§2 an action cannot be created there at all**, §1 flag state is invisible, §5 two gates behind two addresses, §8 no request log, §9 an error code that hides the error |
-| Sandbox App — states, proof flows, test users, errors, edge cases | **§10 — the `sandbox` environment is not one the API accepts.** The journeys themselves are written and unrun |
-| What was confusing, missing, broken, hard to test | §1–§9, and §10 says plainly what is still untested |
+| Sandbox App — states, proof flows, test users, errors, edge cases | **§10 — the environment decides which app a code opens, and the only check for it gives the wrong answer.** One journey run: cross-device QR |
+| What was confusing, missing, broken, hard to test | §1–§10; *Still to report* lists what we have not run |
 
 We would rather leave a row visibly empty than fill it with something we did not observe.
 
@@ -63,13 +62,16 @@ That is the whole of it. We spent the afternoon eliminating causes:
 | RP not registered | `get_world_id_registration_status`: registered and on-chain initialised, both production and staging |
 | Environment invalid | `sandbox` is in IDKit's own union, alongside `production` and `staging` |
 
-**The cause was that the action did not exist.** `get_app_config` for our app returns no `action`
-key at all — not an empty list, no mention of the word anywhere in the document. IDKit was asking
-for `sowee-selfie-check` and the app had never heard of it.
+**The action did not exist.** `get_app_config` for our app returns no `action` key at all — not
+an empty list, no mention of the word anywhere in the document. IDKit was asking for
+`sowee-selfie-check` and the app had never heard of it. That was real, and it had to be fixed (§2).
+
+It was not what produced `generic_error`. After the action was created, the error was identical.
+The browser had never reached World at all: our page's Content-Security-Policy stopped IDKit's
+WebAssembly from compiling, and IDKit reported that as `generic_error` too. That is §9. We had
+found a genuine problem, and it was not the one we were looking at.
 
 ## 2. A World ID 4.0 action cannot be created in the Developer Portal
-
-This is the finding, and it took a day.
 
 We walked the entire Portal navigation looking for where to declare an action — Projects,
 Dashboard, World ID Configuration, Verification, Develop, Transactions, Notifications, General,
@@ -90,8 +92,9 @@ in both places and the error names nothing.
 
 1. Put an actions list on the app's World ID Configuration page, with an add button. Everything
    else about the RP is on that page already; its absence reads as "4.0 does not need one".
-2. Give `generic_error` a reason string. `"action not registered for this app"` would have ended
-   this at 11:11.
+2. Reject a request that names an unregistered action with an error that says so. We never saw
+   what IDKit shows for it — our browser failed first, for a reason of its own (§9) — which is
+   itself the point: nothing in the flow would have told us.
 3. Say in the Selfie Check and IDKit docs that an action must exist before a request naming it
    will be accepted, and where to create it.
 
@@ -225,20 +228,30 @@ The wasm choice itself we have no complaint about — it is fast, it keeps the p
 implementation across SDKs, and 870 KB is reasonable for what it does. It is the silence around it
 that turned a one-token header change into the longest debugging session of the integration.
 
-## 10. Sandbox App — the environment it is named after is not one the API accepts
+## 10. Sandbox App — the environment decides which app opens, and the only check for it is wrong
 
 The Sandbox World ID app reached us on 9 September, after the client, the server and the wizard
-were finished. The journeys the docs describe — hot, cold, semi-cold, and cross-device QR — are in
-our test plan in [`world.md`](world.md) and are still unrun, so we have nothing yet to report on
-sandbox states, proof flows or test users. What we can report is what happened when we tried to
-point the integration at it.
+were finished. On 10 September it ran: a code shown on a laptop, scanned with an iPhone, the
+Selfie Check completed in the Sandbox App, the proof accepted by the verify endpoint, and the pass
+anchored on our topic (message #47, 14:36:45 UTC). The check itself took about half a minute.
+Getting to it took three settings, and why is the finding.
 
-The product is called the Sandbox App, so `sandbox` is the setting a developer reaches for, and
-IDKit takes it — `environment` is a union of `production | staging | sandbox` in its exported
-types. Our API had it as the default. The client accepts it, builds the request, returns an invite
-code and renders a QR for `https://sandbox.world.org/verify`. Nothing anywhere says no.
+**The environment decides which app a scanned code opens.** IDKit's connector URL is
+`https://<host>/verify?…`. Each host's apple-app-site-association says:
 
-World's own API says no:
+| Host | App it names | Claims the bare `/verify` |
+|---|---|---|
+| `world.org` | `org.worldcoin.insight`, `org.world.id` | no — only `/verify/*` |
+| `staging.world.org` | `org.worldcoin.insight.staging`, `org.world.staging.id` | no — only `/verify/*` |
+| `sandbox.world.org` | `org.world.sandbox.id` | **yes** |
+
+`/verify/*` does not match `/verify`. Under `staging`, the iPhone camera found no app for the URL
+and opened Safari, which redirected to `world.org/partner-download` — a page asking the user to
+download World ID, with a *Get* button, on a phone that had the Sandbox App installed. The
+association files say `production` resolves the same way. Under `sandbox`, the Sandbox App opened.
+
+**The one endpoint that validates the environment gave us the wrong answer.** When the app did
+not open, we checked our context against World:
 
 ```
 POST /api/v4/proof-context/rp_4e66ef1ffe9c2f54
@@ -246,32 +259,32 @@ POST /api/v4/proof-context/rp_4e66ef1ffe9c2f54
  staging","attribute":"environment"}
 ```
 
-`GET /api/v4/rp-status/{rp_id}` agrees — it reports `production_status` and `staging_status` and
-knows no third — and the Portal's action API takes the same two. So the environment named after
-the product that exists is the one environment the platform does not have, and the mismatch
-surfaces as a QR that scans and then does nothing: no error in the browser, no error in our logs,
-nothing in the Portal (§8).
+`rp-status` and the Portal's action API agree: two environments, no third. So we concluded
+`sandbox` was invalid, moved our API to `staging`, and added a startup check that refused
+`sandbox` — the one setting under which the Sandbox App opens. Moving back to `sandbox` is what
+made the check pass, and our startup check has been reverted. We do not know what the Sandbox App
+calls in place of `proof-context`, and we are not guessing. We know the endpoint a developer can
+call to check a context rejected the only context that works.
 
-This is §9's shape again from the other side. There, an environment failure was flattened into
-`generic_error`; here, an invalid environment is not rejected at all until a phone tries to use
-it. Both leave the developer holding something that looks correct.
+**What we could not tell.** The two passes on our topic, #46 and #47, carry different nullifiers
+for the same person and the same wallet. Whether the Sandbox App issues a fresh test identity for
+each check, or #46 ran under a different environment, we could not establish — so the one-person
+rule, a second proof from the same World ID answering 409, is still untested against a real repeat.
 
 **Suggestions.**
 
-1. Drop `sandbox` from IDKit's type union, or have the builder reject it the way the API does. A
-   value the server will refuse should not type-check.
-2. Say in the Sandbox App docs which `environment` it runs against. One word.
-3. Validate `environment` when the request is created rather than when the context is resolved —
-   the RP is the party that can still do something about it.
+1. Say in the Sandbox App docs that it runs against `environment: "sandbox"`, and that `staging`
+   will not open it.
+2. Make `proof-context` accept `sandbox`, or document that it is not the path the Sandbox App
+   takes. It is the only thing a developer can call to check a context, and it says no to the
+   right one.
+3. Claim the bare `/verify` in the `world.org` and `staging.world.org` associations, as
+   `sandbox.world.org` does — or have IDKit emit `/verify/`. A code scanned with the phone's own
+   camera should open World App, not a download page.
 
-We settled on `staging`: it is registered for our RP, the action exists in it, and the proof
-context is accepted. Whether the Sandbox World App opens `staging.world.org` we cannot confirm
-without the device, and this section will say what it does rather than what we inferred.
-
-The ordering itself is the older finding, and it is the same one as §1 and §4: the gates that
-decide whether an integration can be *demonstrated* rather than *described* are the last thing a
-developer discovers and the longest thing to wait for. Everything a team can do alone, we did in
-a day. Everything requiring a grant took longer than the build.
+The ordering is the older finding, the same one as §1 and §4: the gates that decide whether an
+integration can be *demonstrated* rather than *described* are the last thing a developer
+discovers and the longest to wait for.
 
 ## What worked without friction
 
@@ -287,7 +300,7 @@ a day. Everything requiring a grant took longer than the build.
 
 ## Still to report
 
-The camera flow itself — the hot, cold and semi-cold journeys on a device, cross-device QR, and
-what the Portal's verify endpoint answers for a legacy-shaped proof. The test plan is in
-[`world.md`](world.md). This document will be extended with what we find rather than replaced,
-and §10 is where it will go.
+What has not run: the hot, cold and semi-cold journeys one by one (we ran one — a cross-device QR
+from a laptop), the production World App, and a real repeat of the same World ID to see the `409`.
+The test plan is in [`world.md`](world.md). This document is extended with what we find rather
+than rewritten, except where a run proved it wrong — as §1, §2 and §10 were on 10 September.
