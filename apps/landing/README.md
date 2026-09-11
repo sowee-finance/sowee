@@ -50,6 +50,6 @@ The layout, the hero stills (`public/hero-1.webp`, `public/hero-2.webp`) and the
 work and are used at the team's decision. The one thing that is ours is the object in the second
 screen: a bond, drawn from a live listing, rather than the reference's product shot.
 
-The clip is 29 MB and the page waits on it, so the handover completes on its own after 8 seconds
+The clip is 1.5 MB (re-encoded from a 29 MB original) and the page waits on it, so the handover completes on its own after 8 seconds
 and on any playback error — a visitor on a slow connection is never left watching nothing. It is
 skipped entirely under `prefers-reduced-motion`.
