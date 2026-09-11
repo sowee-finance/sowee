@@ -24,7 +24,7 @@ type Config struct {
 	RPID          string // rp_… from the Developer Portal; also the verify path segment
 	SigningKeyHex string // RP signing key (32-byte hex) from the Developer Portal
 	Action        string // scopes the nullifier; default "sowee-selfie-check"
-	Environment   string // "staging" or "production" — the only two World ID 4.0 accepts
+	Environment   string // "sandbox", "staging" or "production" — IDKit's three
 	VerifyBase    string // default https://developer.world.org/api/v4/verify
 }
 
@@ -64,17 +64,20 @@ func New(cfg Config) (*Service, error) {
 	if cfg.Action == "" {
 		cfg.Action = "sowee-selfie-check"
 	}
-	// World ID 4.0 has two environments. IDKit's type union also offers "sandbox", and a client
-	// given it will happily produce an invite code pointing at sandbox.world.org — but the
-	// Developer Portal answers `environment must be one of the following values: production,
-	// staging` for the matching context, so the QR resolves to nothing. Refusing here turns that
-	// into a startup error instead of a code nobody can scan.
+	// The environment decides which app a scanned code opens, not only which registry answers:
+	// sandbox.world.org is the only host whose app-site association claims the bare `/verify`
+	// path IDKit's connector URL uses, and it names the Sandbox World App. Under "staging" or
+	// "production" the same phone lands on a download page. "sandbox" is also the value World's
+	// proof-context endpoint rejects — and a Selfie Check has passed under it here all the same
+	// (audit topic, message #47), so that endpoint is not the path the Sandbox App takes.
+	// A value outside IDKit's three is refused at startup: a typo would otherwise ship a QR that
+	// resolves to nothing.
 	switch cfg.Environment {
 	case "":
-		cfg.Environment = "staging"
-	case "production", "staging":
+		cfg.Environment = "sandbox"
+	case "sandbox", "staging", "production":
 	default:
-		return nil, fmt.Errorf("WORLD_ENVIRONMENT: %q is not a World ID environment; use production or staging", cfg.Environment)
+		return nil, fmt.Errorf("WORLD_ENVIRONMENT: %q is not an IDKit environment; use sandbox, staging or production", cfg.Environment)
 	}
 	if cfg.VerifyBase == "" {
 		cfg.VerifyBase = "https://developer.world.org/api/v4/verify"

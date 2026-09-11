@@ -33,7 +33,7 @@ func TestNewRequestCarriesASignedContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.AppID != "app_1" || r.RPID != "rp_1" || r.Action != "sowee-selfie-check" || r.Environment != "staging" {
+	if r.AppID != "app_1" || r.RPID != "rp_1" || r.Action != "sowee-selfie-check" || r.Environment != "sandbox" {
 		t.Fatalf("unexpected request %+v", r)
 	}
 	if !strings.HasPrefix(r.RPContext.Sig, "0x") || len(r.RPContext.Sig) != 132 || r.RPContext.ExpiresAt <= r.RPContext.CreatedAt {
@@ -100,16 +100,16 @@ func TestDisabledAndBadKey(t *testing.T) {
 	}
 }
 
-// "sandbox" is in IDKit's type union but not in World's API, which answers
-// `environment must be one of the following values: production, staging`. A service that accepts
-// it hands out invite codes no phone can resolve, so it has to fail here instead.
-func TestEnvironmentMustBeOneWorldAccepts(t *testing.T) {
-	for _, env := range []string{"sandbox", "test", "prod"} {
+// IDKit knows three environments, and "sandbox" is the one the Sandbox World App answers to —
+// a Selfie Check passed under it on the live deployment. Anything else is a typo that would ship
+// a QR no phone can resolve, so it has to fail at startup instead.
+func TestEnvironmentMustBeOneIDKitKnows(t *testing.T) {
+	for _, env := range []string{"test", "prod", "Sandbox"} {
 		if _, err := New(Config{AppID: "a", RPID: "r", SigningKeyHex: key, Environment: env}); err == nil {
 			t.Fatalf("%q must be refused", env)
 		}
 	}
-	for _, env := range []string{"production", "staging"} {
+	for _, env := range []string{"sandbox", "staging", "production"} {
 		s, err := New(Config{AppID: "a", RPID: "r", SigningKeyHex: key, Environment: env})
 		if err != nil || s.cfg.Environment != env {
 			t.Fatalf("%q must be kept: %v", env, err)
