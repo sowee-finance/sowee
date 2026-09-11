@@ -1,6 +1,9 @@
 
 import subprocess, sys, json
-FONT="/Users/koalaterbang/hackathon/sowee/node_modules/.bun/next@16.3.4+cc1ec0e6eac13575/node_modules/next/dist/next-devtools/server/font/geist-latin.woff2"
+import os
+HERE=os.path.dirname(os.path.abspath(__file__))
+BOLD=os.path.join(HERE,"fonts","Geist-700.ttf")   # static TrueType: ffmpeg's freetype cannot read
+REG=os.path.join(HERE,"fonts","Geist-400.ttf")    # .woff2 and falls back to DejaVu without a word
 BG="#0c2d1d"; W=H=1620; PAD=88; CARD_W=W-2*PAD; R=22
 HEAD_SIZE=76; SUB_SIZE=31; GAP=130
 
@@ -18,11 +21,11 @@ def build(src, heading, sub_lines, out):
              "a='if(gt(abs(X-(W/2)),(W/2-%d))*gt(abs(Y-(H/2)),(H/2-%d)),"
              "if(lte(hypot(abs(X-(W/2))-(W/2-%d),abs(Y-(H/2))-(H/2-%d)),%d),255,0),255)'[card]") % (CARD_W,ch,R,R,R,R,R)
     chain=[rounded, "[0:v][card]overlay=%d:%d[base]" % (PAD, card_y)]
-    t=["drawtext=fontfile='%s':text='%s':fontcolor=white:fontsize=%d:borderw=3:bordercolor=white:x=%d:y=%d"
-       % (FONT, esc(heading), HEAD_SIZE, PAD, head_y)]
+    t=["drawtext=fontfile='%s':text='%s':fontcolor=white:fontsize=%d:x=%d:y=%d"
+       % (BOLD, esc(heading), HEAD_SIZE, PAD, head_y)]
     y=head_y+HEAD_SIZE+36
     for ln in sub_lines:
-        t.append("drawtext=fontfile='%s':text='%s':fontcolor=#8fd0aa:fontsize=%d:x=%d:y=%d" % (FONT, esc(ln), SUB_SIZE, PAD, y))
+        t.append("drawtext=fontfile='%s':text='%s':fontcolor=#8fd0aa:fontsize=%d:x=%d:y=%d" % (REG, esc(ln), SUB_SIZE, PAD, y))
         y+=44
     chain.append("[base]" + ",".join(t) + "[out]")
     subprocess.run(["ffmpeg","-hide_banner","-v","error","-y","-f","lavfi","-i","color=%s:%dx%d"%(BG,W,H),
