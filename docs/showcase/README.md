@@ -14,8 +14,13 @@ The three 1620×1620 cards the root README opens with, and the gallery images fo
 ## Rebuilding a card
 
 `make-card.py` composes one: the dark ground, the heading and subhead in Geist, and the
-screenshot rounded and dropped in. It reads the type from the app's own font, so the cards and
-the product cannot drift apart.
+screenshot rounded and dropped in. The type comes from `fonts/` — Geist 400 and 700 as static
+TrueType, under the SIL Open Font License (`fonts/OFL.txt`).
+
+Why TrueType and not the `.woff2` the app ships: ffmpeg's freetype cannot read `.woff2`, and
+`drawtext` does not fail when it cannot — it draws in DejaVu Sans and says nothing. The first
+version of these cards did exactly that while this file claimed Geist. A render is only Geist if it
+differs from the fallback: compare it against the same text with a font file that does not exist.
 
 ```sh
 python3 docs/showcase/make-card.py '["shot.png","Heading",["First line.","Second line."],"out.png"]'
